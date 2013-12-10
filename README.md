@@ -1,20 +1,19 @@
 Superluminal-DB
 ===============
 
-
 Summary
 -------
 Superluminal-DB is a high-performance, memory-mapped database for Common Lisp.
 
-It adds persistence and transactions to Lisp objects with an easy-to-use
-API.
-
 It is designed and optimized for the following scenarios:
-- adding persistence to Lisp objects, without an external relational database.
+- adding persistence and transactions to Lisp objects through an easy-to-use API, without an external relational database.
 - suitable for very large datasets that can exceed available RAM.
-- also suitable for fast storage, as for example RAID or Solid State Disks (SSD).
-- designed to allow high concurrency, i.e. many threads that
+- perfectly suited for fast storage as RAID or Solid State Disks (SSD).
+- designed to allow high concurrency, i.e. hundreds of threads that
   simultaneously access the same dataset.
+- optimized for 64bit systems. Dataset is limited only by mmap()
+  maximum size (on Linux 3.12, the limit is approx. 128 terabytes) 
+- usable on 32bit systems, with restrictions on the dataset size (approx. 256 megabytes)
 
 Contacts, help, discussion
 --------------------------
