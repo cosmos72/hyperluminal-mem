@@ -1,9 +1,9 @@
-Superluminal-DB
+Hyperluminal-DB
 ===============
 
 Summary
 -------
-Superluminal-DB is a high-performance, memory-mapped database for Common Lisp.
+Hyperluminal-DB is a high-performance, memory-mapped database for Common Lisp.
 
 It is designed and optimized for the following scenarios:
 - adding persistence and transactions to Lisp objects through an easy-to-use
@@ -20,7 +20,7 @@ It is designed and optimized for the following scenarios:
 - usable on 32 bit systems, with restrictions on the dataset size
   (approx. 256 megabytes). 
 
-Superluminal-DB is loosely inspired by some techniques used by
+Hyperluminal-DB is loosely inspired by some techniques used by
 [manardb](http://cl-www.msi.co.jp/projects/manardb/index.html)
 but it is a completely separate and independent project.
 
@@ -39,12 +39,12 @@ The author will also try to answer support requests, but gives no guarantees.
 Status
 ------
 
-As of December 2013, Superluminal-DB is being written by Massimiliano Ghilardi
+As of December 2013, Hyperluminal-DB is being written by Massimiliano Ghilardi
 and is in the early-implementation stage, not yet ready for general use.
 
 Legal
 -----
 
-Superluminal-DB is released under the terms of the [GNU General Public
+Hyperluminal-DB is released under the terms of the [GNU General Public
 License v3.0](http://www.gnu.org/licenses/gpl-3.0.html), known
 as the GPLv3.
