@@ -30,7 +30,7 @@ hybrid transactional memory library from the same author.
 
 Contacts, help, discussion
 --------------------------
-As long as the traffic is low enough, [GitHub Issues](https://github.com/cosmos72/superluminal-db/issues)
+As long as the traffic is low enough, [GitHub Issues](https://github.com/cosmos72/hyperluminal-db/issues)
 can be used to report test suite failures, bugs, suggestions, general discussion etc.
 
 If the traffic becomes high, more appropriate discussion channels will be set-up.
