@@ -13,8 +13,8 @@ It is designed and optimized for the following scenarios:
 - designed to allow high concurrency, i.e. hundreds or thousands of threads
   that simultaneously access the same dataset.
 - designed and optimized for extremely fast transactions - as of 2013,
-  theorical peak is approx. 400 *millions* transactions per second on a fast
-  desktop computer.
+  theorical peak is approx. **400 millions** transactions per second
+  on a fast desktop computer.
 - optimized for 64 bit systems, where dataset is limited only by `mmap()`
   maximum size (on Linux 3.x, the limit is approx. 128 terabytes). 
 - usable on 32 bit systems, with restrictions on the dataset size
