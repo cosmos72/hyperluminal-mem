@@ -43,14 +43,13 @@
                  box-next    (setf box-next)))
 
 
-#|
 ;; wrapper for values that cannot be stored as unboxed
 (deftype box () 'cons)
 
-(defun make-box (value index n-words)
+(defun make-box (index n-words &optional value)
   "Create a new box to wrap VALUE. Assumes VALUE will be stored at INDEX in memory store."
   (declare (type mem-size index n-words))
-  `(,value ,index . ,n-words)))
+  `(,value ,index . ,n-words))
 
 (defun box-value (box)
   (declare (type box box))
@@ -77,9 +76,9 @@
   (declare (type box box)
            (type mem-size n-words))
   (setf (rest (rest box)) n-words))
-|#
 
 
+#|
 (declaim (inline %make-box))
 (defstruct (box (:constructor %make-box))
   (index   0 :type mem-size)
@@ -91,6 +90,7 @@
   "Create a new box to wrap VALUE. Assumes VALUE will be stored at INDEX in memory store."
   (declare (type mem-size index n-words))
   (%make-box :index index :n-words n-words :value value))
+|#
 
 (defun box-next (box)
   (declare (type box box))
@@ -142,7 +142,7 @@
 
 (declaim (inline mwrite-box-next mwrite-box-n-words mwrite-box-n-words))
 
-(defun mwrite-box-next/free (ptr box)
+(defun mwrite-box-next (ptr box)
   "Write the NEXT slot of a free box into mmap memory starting
 at (+ PTR (box-index BOX))"
 
@@ -179,8 +179,8 @@ at (+ PTR (box-index BOX))"
   (declare (type maddress ptr)
            (type box box))
 
-  (mwrite-box-next/free ptr box)
-  (mwrite-box-n-words   ptr box))
+  (mwrite-box-next    ptr box)
+  (mwrite-box-n-words ptr box))
 
 
 

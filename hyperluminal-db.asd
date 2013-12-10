@@ -37,7 +37,7 @@
 
   :components ((:static-file "hyperluminal-db.asd")
 
-               (:module :persist
+               (:module :src
                 :components ((:file "package")
                              (:file "mem"         :depends-on ("package"))
                              (:file "constants"   :depends-on ("mem"))
