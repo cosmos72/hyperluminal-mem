@@ -1,4 +1,4 @@
-STMX-PERSIST is a high-performance Common Lisp persistence library.
+Hyperluminal-db is a high-performance Common Lisp persistence library.
 
 It is based on transactional memory (provided by STMX library)
 and it implements persistence through a memory-mapped Lisp object store.
