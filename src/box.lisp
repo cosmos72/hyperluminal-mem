@@ -419,7 +419,7 @@ FIXME: it currently loads the whole free-list in RAM (bad!)"
              n-words
              (mem-size- +mem-box/max-words+ n-words))))
 
-    (the (values mem-size &optional)
+    (the (values list &optional)
       (box-alloc ptr (mem-size+ n-words (ash delta 2))))))
 
 
