@@ -101,24 +101,7 @@
   (setf (box-value box) value))
 
            
-
-;; TODO: remove unnecessary owner from BOXes
-;; reduces overhead to 1 word: fulltag = type, value = (/ allocated-words +mem-box/min-words+)
-;; TODO: turn BOXes into CONS cells
-
-(defmacro mwrite-box-0 (ptr index boxed-type owner)
-  "Write to memory the 0-th word of a boxed value"
-  `(mset-fulltag-and-value ,ptr ,index ,boxed-type ,owner))
-
-(defmacro mwrite-box-1 (ptr index payload-specific-tag allocated-words/4)
-  "Write to memory the 1-st word of a boxed value"
-  `(mset-fulltag-and-value ,ptr ,index ,payload-specific-tag ,allocated-words/4))
-
-(defmacro mread-box-0 (ptr index)
-  `(mget-fulltag-and-value ,ptr ,index))
-
-(defmacro mread-box-1 (ptr index)
-  `(mget-fulltag-and-value ,ptr ,index))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (declaim (inline box-pointer->size size->box-pointer))
@@ -140,9 +123,9 @@
        (null  (box-value   box))))
 
 
-(declaim (inline mwrite-box-next mwrite-box-n-words mwrite-box-n-words))
+(declaim (inline mwrite-fbox-next mwrite-fbox-n-words))
 
-(defun mwrite-box-next (ptr box)
+(defun mwrite-fbox-next (ptr box)
   "Write the NEXT slot of a free box into mmap memory starting
 at (+ PTR (box-index BOX))"
 
@@ -153,24 +136,15 @@ at (+ PTR (box-index BOX))"
          (next  (box-next box))
          (next-index (if next (box-index next) 0)))
 
-    (mwrite-box-0 ptr index +mem-unallocated+ (size->box-pointer next-index))))
+    (mset-fulltag-and-value ptr (mem-size-1 index) +mem-unallocated+ (size->box-pointer next-index))))
 
 
-(defun %mwrite-box-n-words (ptr index n-words)
-  "Write the N-WORDS slot of a box or box into mmap memory starting
-at (+ PTR INDEX)"
-
-  (declare (type maddress ptr)
-           (type mem-size index n-words))
-
-  (mwrite-box-1 ptr (mem-size+1 index) +mem-unallocated+ (size->box-pointer n-words)))
-
-
-(defun mwrite-box-n-words (ptr box &optional (n-words (box-n-words box)))
-  "Write the N-WORDS slot of a box into mmap memory starting
+(defun mwrite-fbox-n-words (ptr box &optional (n-words (box-n-words box)))
+  "Write the N-WORDS slot of a free box into mmap memory starting
 at (+ PTR (box-index BOX))"
 
-  (%mwrite-box-n-words ptr (box-index box) n-words))
+  (let ((index (box-index box)))
+    (mset-fulltag-and-value ptr index +mem-unallocated+ (size->box-pointer n-words))))
 
 
 
@@ -179,8 +153,8 @@ at (+ PTR (box-index BOX))"
   (declare (type maddress ptr)
            (type box box))
 
-  (mwrite-box-next    ptr box)
-  (mwrite-box-n-words ptr box))
+  (mwrite-fbox-next    ptr box)
+  (mwrite-fbox-n-words ptr box))
 
 
 
@@ -188,15 +162,23 @@ at (+ PTR (box-index BOX))"
 
 
 
-(declaim (inline mread-box-n-words))
+(declaim (inline mread-fbox-next mread-fbox-n-words))
 
-(defun mread-box-n-words (ptr index)
-  "Read N-WORDS from box in mmap memory starting at (PTR+INDEX) and return it."
-
+(defun mread-fbox-next (ptr index)
+  "Read the NEXT slot of a free box from mmap memory starting at PTR+INDEX"
   (declare (type maddress ptr)
            (type mem-size index))
 
-  (box-pointer->size (mget-value ptr (mem-size+1 index))))
+  (mem-size+ +mem-box/payload-words+
+             (box-pointer->size (mget-value ptr (mem-size-1 index)))))
+
+
+(defun mread-fbox-n-words (ptr index)
+  "Read N-WORDS from box in mmap memory starting at (PTR+INDEX) and return it."
+  (declare (type maddress ptr)
+           (type mem-size index))
+
+  (box-pointer->size (mget-value ptr index)))
 
 
 (defun mread-box/free (ptr index)
@@ -207,12 +189,49 @@ Note: NEXT slot of returned object always contains NIL,
   (declare (type maddress ptr)
            (type mem-size index))
 
-  (let* ((next-index (mem-size+ +mem-box/payload-words+
-                                (box-pointer->size (mget-value ptr index))))
-         (n-words    (mread-box-n-words ptr index)))
+  (let* ((next-index (mread-fbox-next    ptr index))
+         (n-words    (mread-fbox-n-words ptr index)))
     (values
      (make-box index n-words)
      (the mem-size next-index))))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(declaim (inline mwrite-box/header mread-box/header))
+
+(defun mwrite-box/header (ptr box boxed-type)
+  "Write to mmap area the header common to all boxed values.
+Return INDEX pointing to box payload"
+  (declare (type maddress ptr)
+           (type box box)
+           (type mem-fulltag boxed-type))
+
+  (let ((index (box-index box)))
+    (mset-fulltag-and-value ptr index boxed-type (size->box-pointer (box-n-words box)))
+    (incf (the mem-size index))))
+
+
+(defun mread-box/header (ptr index)
+  "Read from mmap area the header common to all boxed values. Return BOX
+and BOXED-TYPE as multiple values"
+  (declare (type maddress ptr)
+           (type mem-size index))
+
+  (multiple-value-bind (boxed-type allocated-words/4) (mget-fulltag-and-value ptr index)
+
+    (values
+     (make-box index (box-pointer->size allocated-words/4))
+     boxed-type)))
+
+
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 
@@ -231,9 +250,19 @@ Note: NEXT slot of returned object always contains NIL,
           (make-box +mem-box/payload-words+ 0
                     (make-box hi (mem-size- hi lo))))))
 
+(defun mwrite-free-list (ptr free-list)
+  "Write a list of free boxes into memory starting at PTR and return it.
+FIXME: it currently loads the whole free-list in RAM (bad!)"
+  (declare (type maddress ptr))
+
+  (loop for box = free-list then (box-next box)
+     while box
+     do
+       (mwrite-box/free ptr box)))
+
 
 (defun mread-free-list (ptr)
-  "Read a list of BOX from memory starting at (PTR + +MEM-BOX/PAYLOAD-WORDS+) and return it.
+  "Read a list of free boxes from memory starting at (PTR + +MEM-BOX/PAYLOAD-WORDS+) and return it.
 FIXME: it currently loads the whole free-list in RAM (bad!)"
   (declare (type maddress ptr))
 
@@ -270,7 +299,7 @@ FIXME: it currently loads the whole free-list in RAM (bad!)"
           (box-next    prev) box)
 
     (mwrite-box/free ptr box)
-    (mwrite-box-next ptr prev)
+    (mwrite-fbox-next ptr prev)
     prev))
 
 
@@ -293,12 +322,12 @@ FIXME: it currently loads the whole free-list in RAM (bad!)"
          ((= lo curr-hi)
           (setf lo curr-lo)
           (setf (box-next prev) (box-next curr))
-          (mwrite-box-next ptr prev)
+          (mwrite-fbox-next ptr prev)
           (setf curr prev))
          ((= hi curr-lo)
           (setf hi curr-hi)
           (setf (box-next prev) (box-next curr))
-          (mwrite-box-next ptr prev)
+          (mwrite-fbox-next ptr prev)
           (setf curr prev))
          ((< hi curr-lo)
           (loop-finish)))
@@ -362,7 +391,7 @@ FIXME: it currently loads the whole free-list in RAM (bad!)"
                (let ((next (box-next this)))
                  (setf (box-next prev) next)
                  ;; write back the new link PREV->NEXT that bypasses THIS
-                 (mwrite-box-next ptr prev)
+                 (mwrite-fbox-next ptr prev)
                  (setf box this
                        (box-index box) result))
 
@@ -371,7 +400,7 @@ FIXME: it currently loads the whole free-list in RAM (bad!)"
                  (setf (box-n-words this) this-len
                        ;; create and return a new box
                        box (make-box result n-words))
-                 (mwrite-box-n-words ptr this)))
+                 (mwrite-fbox-n-words ptr this)))
 
            (return-from box-alloc box))))
 

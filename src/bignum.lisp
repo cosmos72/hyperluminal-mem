@@ -21,40 +21,6 @@
 
 
 
-
-
-(declaim (inline mwrite-box/header))
-
-(defun mwrite-box/header (ptr owner box boxed-type value-specific-fulltag)
-  "Write to mmap area the header common to all boxed values.
-Return INDEX pointing to box payload"
-  (declare (type maddress ptr)
-           (type box box)
-           (type mem-fulltag boxed-type value-specific-fulltag))
-
-  (let ((index (box-index box)))
-    (mwrite-box-0 ptr index boxed-type owner)
-    (incf (the mem-size index))
-    (mwrite-box-1 ptr index value-specific-fulltag (size->box-pointer (box-n-words box)))
-    (incf (the mem-size index))))
-
-
-(defun mread-box/header (ptr index)
-  "Read from mmap area the header common to all boxed values. Return BOX
-and value-specific-tag as multiple values"
-  (declare (type maddress ptr)
-           (type mem-size index))
-
-  ;; read value-specific-tag at INDEX+1
-  (multiple-value-bind (fulltag allocated-words/4) (mread-box-1 ptr (mem-size+1 index))
-
-    (values
-     (make-box index (box-pointer->size allocated-words/4))
-     fulltag)))
-
-
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;    boxed    BIGNUMs                                                     ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -70,7 +36,7 @@ and value-specific-tag as multiple values"
     (unless (<= words +mem-bignum/max-words+)
       (error "HYPERLUMINAL-DB: bignum too large for object store,
     it requires ~S words, maximum supported is ~S words"
-             words +most-positive-size+))
+             words +mem-bignum/max-words+))
 
     (the (integer 0 #.+mem-bignum/max-words+) words)))
 
@@ -115,13 +81,13 @@ and value-specific-tag as multiple values"
                                 n-words-high (ash n (- high-shift))))))
 
 
-(defun mwrite-box/bignum (ptr owner box)
+(defun mwrite-box/bignum (ptr box)
   "Reuse the memory block starting at (PTR+INDEX) and write bignum N into it.
 
-ABI: bignum is stored as box prefix (with N's sign as value-specific-tag),
-followed by mem-int (bignum-words N), followed by an array of words."
+ABI: bignum is stored as box prefix, followed by mem-int (bignum-words N)
+--- if bignum is negative, (lognot (bignum-words N)) is stored instead ---
+followed by an array of words."
   (declare (type maddress ptr)
-           (type mem-pointer owner)
            (type box box))
 
   (let* ((index (box-index box))
@@ -129,11 +95,11 @@ followed by mem-int (bignum-words N), followed by an array of words."
          (n-words (bignum-words n)))
 
     (setf index
-          (mwrite-box/header ptr owner box +mem-box-bignum+ (if (< n 0) 1 0)))
+          (mwrite-box/header ptr box +mem-box-bignum+))
 
-    (mset-int ptr index n-words)
+    (mset-int ptr index (if (< n 0) (lognot n-words) n-words))
     (%mwrite-bignum-recurse ptr index n-words n)))
-      
+
 
 (defun %mread-pos-bignum-loop (ptr index n-words)
   "Read an unsigned bignum"
@@ -173,7 +139,7 @@ followed by mem-int (bignum-words N), followed by an array of words."
 (defun %mread-bignum-recurse (ptr index n-words sign)
   (declare (type maddress ptr)
            (type mem-size index n-words)
-           (type mem-fulltag sign))
+           (type bit sign))
 
   (if (<= n-words 16)
       (if (zerop sign)
@@ -200,95 +166,28 @@ Return a new BOX wrapping the bignum"
   (declare (type maddress ptr)
            (type mem-size index))
   
-  ;; read sign at INDEX+1 and bignum-words at INDEX+2
-  (multiple-value-bind (box sign) (mread-box/header ptr index)
+  ;; read sign and bignum-words at INDEX
+  (let ((box (mread-box/header ptr index)))
 
     (incf-mem-size index +mem-box/header-words+)
 
-    (let* ((n-words (mget-int              ptr index))
-           (n       (%mread-bignum-recurse ptr index n-words sign)))
+    (let* ((sign-n-words (mget-int ptr index))
+           (sign         (if (< sign-n-words 0) 1 0))
+           (n-words      (logand sign-n-words +most-positive-int+))
+           (n            (%mread-bignum-recurse ptr index n-words sign)))
 
       (setf (box-value box) n)
       box)))
 
 
   
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;    boxed    STRINGs                                                     ;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defun mwrite-string (ptr index string &optional (start 0) (end (length string)))
-  "Write (END-START) characters from STRING to the memory starting at (PTR+INDEX).
-Characters will be stored using the general-purpose representation."
-  (declare (type maddress ptr)
-           (type mem-size index)
-           (type simple-array string)
-           (type ufixnum start end))
-
-  (loop for i from start below end do
-       (mset-character ptr (the mem-size (+ index i))
-                       (svref string i))))
-
-
-(defun mread-string (ptr index result-string &optional (start 0) (end (length result-string)))
-  "Read (END-START) characters from the memory starting at (PTR+INDEX)
-and write them into RESULT-STRING. Return RESULT-STRING.
-Characters will be read using the general-purpose representation."
-  (declare (type maddress ptr)
-           (type mem-size index)
-           (type simple-array result-string)
-           (type ufixnum start end))
-
-  (loop for i from start below end do
-       (setf (svref result-string i)
-             (mget-character ptr (the mem-size (+ index i)))))
-  result-string)
-
-
-(defun mwrite-base-string (ptr index string &optional (start 0) (end (length string)))
-  "Write (END-START) single-byte characters from STRING into the memory starting at (PTR+INDEX).
-Characters are written using the compact, single-byte representation.
-For this reason the codes of all characters to be stored must be in the range
-0 ... +most-positive-byte+ (typically 0 ... 255)"
-  (declare (type maddress ptr)
-           (type mem-size index)
-           (type simple-array string)
-           (type ufixnum start end))
-
-  (loop for i from start below end do
-       (%mset-t (the (unsigned-byte #.+mem-byte/bits+)
-                  (char-code
-                   (svref string i))) :byte
-                ptr (the mem-size (+ index i)))))
-
-
-
-(defun mread-base-string (ptr index result-string &optional (start 0) (end (length result-string)))
-  "Read (END-START) single-byte characters from the memory starting at (PTR+INDEX)
-and write them into RESULT-STRING.  Return RESULT-STRING.
-Characters are read from memory using the compact, single-byte representation.
-For this reason only codes in the range 0 ... +most-positive-byte+ can be read
-\(typically 0 ... 255)"
-  (declare (type maddress ptr)
-           (type mem-size index)
-           (type simple-array result-string)
-           (type ufixnum start end))
-
-  (loop for i from start below end do
-       (setf (svref result-string i)
-             (code-char
-              (the (unsigned-byte #.+mem-byte/bits+)
-                (%mget-t :byte ptr (the mem-size (+ index i)))))))
-  result-string)
-
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;    generic    BOXes                                                     ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun mwrite-box (ptr owner index value)
-
+(defun mwrite-box (ptr index value)
+  (declare (ignore ptr index value))
   #+never
   (when (typep value 'integer)
     (when (> n-words +mem-bignum/max-words+)

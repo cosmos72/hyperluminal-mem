@@ -43,8 +43,9 @@
                              (:file "constants"   :depends-on ("mem"))
                              (:file "unboxed"     :depends-on ("constants"))
                              (:file "box"         :depends-on ("unboxed"))
-                             (:file "boxed"       :depends-on ("box"))
-                             (:file "store"       :depends-on ("boxed"))))))
+                             (:file "bignum"      :depends-on ("box"))
+                             (:file "string"      :depends-on ("box"))
+                             (:file "store"       :depends-on ("bignum" "string"))))))
 
 
 (asdf:defsystem :hyperluminal-db.test

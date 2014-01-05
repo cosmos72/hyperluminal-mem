@@ -181,9 +181,10 @@ and write them back to file"
            (type mem-size total-n-words))
   
   (mwrite-magic ptr)
-  (prog1
-      (init-free-list ptr total-n-words)
-    (msync ptr total-n-words)))
+  (let ((free-list (init-free-list ptr total-n-words)))
+    (mwrite-free-list ptr free-list)
+    (msync ptr total-n-words)
+    free-list))
 
 
 

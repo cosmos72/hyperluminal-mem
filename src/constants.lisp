@@ -104,7 +104,7 @@
 (defconstant +mem-box/min-words+    4 "boxed values are allocated in multiples of 4 CPU-words.
     This value must be a power of two.")
 (defconstant +mem-box/max-words+    (* +most-positive-pointer+ +mem-box/min-words+))
-(defconstant +mem-box/header-words+ 2 "boxed values have a 2 CPU-word header")
+(defconstant +mem-box/header-words+ 1 "boxed values have a 1 CPU-word header")
 (defconstant +mem-box/payload-words+ (- +mem-box/min-words+ +mem-box/header-words+))
 
 
