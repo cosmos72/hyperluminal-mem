@@ -200,21 +200,44 @@ Note: NEXT slot of returned object always contains NIL,
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(declaim (inline mwrite-box/header mread-box/header))
+(declaim (inline mwrite-box/header mwrite-box/box-header
+                 mread-box/header  mread-box/box-header))
 
-(defun mwrite-box/header (ptr box boxed-type)
+(defun mwrite-box/header (ptr index n-words boxed-type)
+  "Write to mmap area the header common to all boxed values.
+Return INDEX pointing to box payload"
+  (declare (type maddress ptr)
+           (type mem-size index n-words)
+           (type mem-fulltag boxed-type))
+
+  (mset-fulltag-and-value ptr index boxed-type (size->box-pointer n-words))
+  (incf (the mem-size index)))
+
+
+(defun mwrite-box/box-header (ptr box boxed-type)
   "Write to mmap area the header common to all boxed values.
 Return INDEX pointing to box payload"
   (declare (type maddress ptr)
            (type box box)
            (type mem-fulltag boxed-type))
 
-  (let ((index (box-index box)))
-    (mset-fulltag-and-value ptr index boxed-type (size->box-pointer (box-n-words box)))
-    (incf (the mem-size index))))
+  (mwrite-box/header ptr (box-index box) (box-n-words box) boxed-type))
 
 
 (defun mread-box/header (ptr index)
+  "Read from mmap area the header common to all boxed values.
+Return N-WORDS and BOXED-TYPE as multiple values"
+  (declare (type maddress ptr)
+           (type mem-size index))
+
+  (multiple-value-bind (boxed-type allocated-words/4) (mget-fulltag-and-value ptr index)
+
+    (values
+     (box-pointer->size allocated-words/4)
+     boxed-type)))
+
+
+(defun mread-box/box-header (ptr index)
   "Read from mmap area the header common to all boxed values. Return BOX
 and BOXED-TYPE as multiple values"
   (declare (type maddress ptr)

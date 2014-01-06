@@ -51,72 +51,58 @@
   
 
 
-(defun mwrite-box/sfloat (ptr box)
-  "Reuse the memory block starting at (+ PTR (box-index BOX))
-and write single-float (box-value BOX) into it.
+(defun mwrite-box/sfloat (ptr index n-words n)
+  "Reuse the memory block starting at (+ PTR INDEX)
+and write single-float N into it.
 
 ABI: single-float is stored as box prefix, followed by raw single-float value"
   (declare (type maddress ptr)
-           (type box box))
+           (type mem-size index n-words)
+           (type single-float n))
 
-  (let* ((index (box-index box))
-         (n (the single-float (box-value box))))
+  (setf index
+        (mwrite-box/header ptr index n-words +mem-box-sfloat+))
 
-    (setf index
-          (mwrite-box/header ptr box +mem-box-sfloat+))
-
-    (mset-t n :sfloat ptr index)
-    t))
+  (mset-t n :sfloat ptr index)
+  t)
 
 
-(defun mwrite-box/dfloat (ptr box)
-  "Reuse the memory block starting at (+ PTR (box-index BOX))
-and write double-float (box-value BOX) into it.
+(defun mwrite-box/dfloat (ptr index n-words n)
+  "Reuse the memory block starting at (+ PTR INDEX)
+and write double-float N into it.
 
-ABI: double-float is stored as box prefix, followed by raw single-float value"
+ABI: double-float is stored as box prefix, followed by raw double-float value"
   (declare (type maddress ptr)
-           (type box box))
+           (type mem-size index n-words)
+           (type double-float n))
 
-  (let* ((index (box-index box))
-         (n (the double-float (box-value box))))
+  (setf index
+        (mwrite-box/header ptr index n-words +mem-box-dfloat+))
 
-    (setf index
-          (mwrite-box/header ptr box +mem-box-dfloat+))
-
-    (mset-t n :dfloat ptr index)
-    t))
+  (mset-t n :dfloat ptr index)
+  t)
 
 
 (defun mread-box/sfloat (ptr index)
   "Read a boxed single-float from the memory starting at (PTR+INDEX).
-Return a new BOX wrapping the single-float"
+Return the single-float"
   (declare (type maddress ptr)
            (type mem-size index))
   
-  (let ((box (mread-box/header ptr index)))
+  ;; skip the box header
+  (incf-mem-size index +mem-box/header-words+)
 
-    (incf-mem-size index +mem-box/header-words+)
-
-    (setf (box-value box) 
-          (mget-t :sfloat ptr index))
-
-    box))
+  (mget-t :sfloat ptr index))
 
 
 (defun mread-box/dfloat (ptr index)
   "Read a boxed double-float from the memory starting at (PTR+INDEX).
-Return a new BOX wrapping the double-float"
+Return the double-float"
   (declare (type maddress ptr)
            (type mem-size index))
   
-  (let ((box (mread-box/header ptr index)))
+  ;; skip the box header
+  (incf-mem-size index +mem-box/header-words+)
 
-    (incf-mem-size index +mem-box/header-words+)
-
-    (setf (box-value box) 
-          (mget-t :dfloat ptr index))
-
-    box))
-
-
+  (mget-t :dfloat ptr index))
   

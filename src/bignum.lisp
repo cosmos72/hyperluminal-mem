@@ -81,24 +81,21 @@
                                 n-words-high (ash n (- high-shift))))))
 
 
-(defun mwrite-box/bignum (ptr box)
+(defun mwrite-box/bignum (ptr index n-words n)
   "Reuse the memory block starting at (PTR+INDEX) and write bignum N into it.
 
-ABI: bignum is stored as box prefix, followed by mem-int (bignum-words N)
---- if bignum is negative, (lognot (bignum-words N)) is stored instead ---
-followed by an array of words."
+ABI: bignum is stored as box prefix, followed by mem-int N-WORDS
+\(if bignum is negative, (lognot N-WORDS) is stored instead)
+followed by an array of words containing N in two's complement."
   (declare (type maddress ptr)
-           (type box box))
+           (type mem-size index n-words)
+           (type integer n))
 
-  (let* ((index (box-index box))
-         (n (the integer (box-value box)))
-         (n-words (bignum-words n)))
+  (setf index
+        (mwrite-box/header ptr index n-words +mem-box-bignum+))
 
-    (setf index
-          (mwrite-box/header ptr box +mem-box-bignum+))
-
-    (mset-int ptr index (if (< n 0) (lognot n-words) n-words))
-    (%mwrite-bignum-recurse ptr index n-words n)))
+  (mset-int ptr index (if (< n 0) (lognot n-words) n-words))
+  (%mwrite-bignum-recurse ptr index n-words n))
 
 
 
@@ -167,27 +164,22 @@ followed by an array of words."
 
 (defun mread-box/bignum (ptr index)
   "Read a bignum from the boxed memory starting at (PTR+INDEX).
-Return a new BOX wrapping the bignum"
+Return the bignum"
   (declare (type maddress ptr)
            (type mem-size index))
   
-  ;; read sign and bignum-words at INDEX
-  (let ((box (mread-box/header ptr index)))
+  ;; skip BOX header
+  (incf-mem-size index +mem-box/header-words+)
 
-    (incf-mem-size index +mem-box/header-words+)
+  (let* ((sign-n-words (mget-int ptr index))
+         (sign         0)
+         (n-words      sign-n-words))
+    
+    (when (< sign-n-words 0)
+      (setf sign    1
+            n-words (lognot n-words)))
 
-    (let* ((sign-n-words (mget-int ptr index))
-           (sign         0)
-           (n-words      sign-n-words))
-
-      (when (< sign-n-words 0)
-        (setf sign    1
-              n-words (lognot n-words)))
-
-      (setf (box-value box) 
-            (%mread-bignum-recurse ptr index n-words sign))
-
-      box)))
+    (%mread-bignum-recurse ptr index n-words sign)))
 
 
   
