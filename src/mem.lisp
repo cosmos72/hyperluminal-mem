@@ -112,6 +112,14 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defmacro mget-t (type ptr word-index)
+  `(%mget-t ,type ,ptr (logand +mem-word/mask+ (* ,word-index +msizeof-word+))))
+
+(defmacro mset-t (value type ptr word-index)
+  `(%mset-t ,value ,type ,ptr (logand +mem-word/mask+ (* ,word-index +msizeof-word+))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (define-condition unsupported-arch (simple-error)
@@ -247,10 +255,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmacro mget-word (ptr word-index)
-  `(%mget-t :word ,ptr (logand +mem-word/mask+ (* ,word-index +msizeof-word+))))
+  `(mget-t :word ,ptr ,word-index))
 
 (defmacro mset-word (ptr word-index value)
-  `(%mset-t ,value :word ,ptr (logand +mem-word/mask+ (* ,word-index +msizeof-word+))))
+  `(mset-t ,value :word ,ptr ,word-index))
 
 (defsetf mget-word mset-word)
 
