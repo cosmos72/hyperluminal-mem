@@ -25,9 +25,35 @@
 ;;;;    dispatcher for all boxed types                                       ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun mwrite-box (ptr index n-words value)
+  "Write a boxed value into the memory starting at (PTR+INDEX)."
+  (declare (type maddress ptr)
+           (type mem-size index n-words)
+           (type t value))
+
+  (etypecase value
+    (integer      (mwrite-box/bignum     ptr index n-words value))
+    (ratio        (mwrite-box/ratio      ptr index n-words value))
+    (single-float (mwrite-box/sfloat     ptr index n-words value))
+    (double-float (mwrite-box/dfloat     ptr index n-words value))
+    (complex      (mwrite-box/complex    ptr index n-words value))
+    (list         (mwrite-box/list       ptr index n-words value))
+    (array        (mwrite-box/array      ptr index n-words value))
+    (hash-table   (mwrite-box/hash-table ptr index n-words value))
+    (pathname     (mwrite-box/pathname   ptr index n-words value))))
+
+             
+
+(defun mwrite-box/box (ptr box)
+  "Write a boxed value into the memory starting at (PTR+(box-index BOX))."
+  (declare (type maddress ptr)
+           (type box box))
+
+  (mwrite-box ptr (box-index box) (box-n-words box) (box-value box)))
+
 
 (defun mread-box (ptr index)
-  "Read a boxed value from the boxed memory starting at (PTR+INDEX).
+  "Read a boxed value from the memory starting at (PTR+INDEX).
 Return the value and number of words allocated for it as multiple values."
   (declare (type maddress ptr)
            (type mem-size index))
@@ -36,15 +62,15 @@ Return the value and number of words allocated for it as multiple values."
   (multiple-value-bind (n-words boxed-type) (mread-box/header ptr index)
     (values
      (case boxed-type
-       (#.+mem-box-unallocated+ (error "attempt to read an unallocated mmap address ~S + ~S"
+       (#.+mem-box-unallocated+ (error "attempt to read an unallocated area at mmap address ~S + ~S"
                                        ptr index))
        (#.+mem-box-bignum+           (mread-box/bignum           ptr index))
        (#.+mem-box-ratio+            (mread-box/ratio            ptr index))
        (#.+mem-box-sfloat+           (mread-box/sfloat           ptr index))
        (#.+mem-box-dfloat+           (mread-box/dfloat           ptr index))
-       (#.+mem-box-complex-sfloat+   (mread-box/complex-sfloat   ptr index))
-       (#.+mem-box-complex-dfloat+   (mread-box/complex-dfloat   ptr index))
-       (#.+mem-box-complex-rational+ (mread-box/complex-rational ptr index))
+       (#.+mem-box-complex-sfloat+   (mread-box/complex/sfloat   ptr index))
+       (#.+mem-box-complex-dfloat+   (mread-box/complex/dfloat   ptr index))
+       (#.+mem-box-complex-rational+ (mread-box/complex/rational ptr index))
        (#.+mem-box-pathname+         (mread-box/pathname         ptr index))
        (#.+mem-box-list+             (mread-box/list             ptr index))
        (#.+mem-box-hash-table+       (mread-box/hash-table       ptr index))
@@ -59,10 +85,13 @@ Return the value and number of words allocated for it as multiple values."
 
 
 (defun mread-box/box (ptr index)
-  "Read a boxed value from the boxed memory starting at (PTR+INDEX).
+  "Read a boxed value from the memory starting at (PTR+INDEX).
 Return the boxed value."
   (declare (type maddress ptr)
            (type mem-size index))
   
   (multiple-value-bind (value n-words) (mread-box ptr index)
     (make-box index n-words value)))
+
+
+
