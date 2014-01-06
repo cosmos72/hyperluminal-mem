@@ -45,7 +45,8 @@
                              (:file "box"         :depends-on ("unboxed"))
                              (:file "bignum"      :depends-on ("box"))
                              (:file "string"      :depends-on ("box"))
-                             (:file "store"       :depends-on ("bignum" "string"))))))
+                             (:file "boxed"       :depends-on ("bignum" "string"))
+                             (:file "store"       :depends-on ("boxed"))))))
 
 
 (asdf:defsystem :hyperluminal-db.test
