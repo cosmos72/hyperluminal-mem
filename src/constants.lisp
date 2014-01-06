@@ -34,11 +34,6 @@
 ;; integers (actually, mem-int) are one bit less than CPU words
 (defconstant +mem-int/bits+      (1-  +mem-word/bits+))
 
-;; assume characters are straghtforward Unicode without any encoding, i.e. 21 bits
-(defconstant +character/bits+ 21) 
-(defconstant +character/mask+ (1- (ash 1 +character/bits+)))
-(defconstant +most-positive-character+ #x100FFF)
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; NO USER-SERVICEABLE PARTS BELOW THIS LINE.                                 ;;
@@ -179,12 +174,15 @@
 (defconstant +mem-box-ratio+            2 "box is a ratio")
 (defconstant +mem-box-sfloat+           3 "box is a single-float")
 (defconstant +mem-box-dfloat+           4 "box is a double-float")
-(defconstant +mem-box-complex+          5 "box is a complex")
-(defconstant +mem-box-list+             6 "box is a cons or list")
-(defconstant +mem-box-pathname+         7 "box is a pathname")
-(defconstant +mem-box-base-string+      8 "box is a base-string")
-(defconstant +mem-box-string+           9 "box is a string")
-(defconstant +mem-box-vector+          10 "box is a 1-dimensional array, i.e. a vector")
+(defconstant +mem-box-complex-sfloat+   5 "box is a complex of single-floats")
+(defconstant +mem-box-complex-dfloat+   6 "box is a complex of double-floats")
+(defconstant +mem-box-complex-rational+ 7 "box is a complex of rationals")
+(defconstant +mem-box-pathname+         8 "box is a pathname")
+(defconstant +mem-box-list+             9 "box is a cons or list")
+(defconstant +mem-box-hash-table+      10 "box is a hash-table")
 (defconstant +mem-box-array+           11 "box is a N-dimensional array")
-(defconstant +mem-box-hash-table+      12 "box is a hash-table")
+(defconstant +mem-box-vector+          12 "box is a 1-dimensional array, i.e. a vector")
+(defconstant +mem-box-string+          13 "box is a string, i.e. a (vector character)")
+(defconstant +mem-box-base-string+     14 "box is a base-string, i.e. a (vector base-char)")
+(defconstant +mem-box-bit-vector+      15 "box is a bit-vector, i.e. a (vector bit)")
 

@@ -132,13 +132,14 @@
     (declare (type symbol sym))
     (string-downcase (symbol-name (parse-type sym))))
 
-  ;; we need at least a 32-bit architecture
+  ;; (msizeof :byte) must be 1
   (when (/= +msizeof-byte+ 1)
     (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
     size of ~S is ~S bytes, expecting exactly 1 byte"
            (cffi-type-name :byte) +msizeof-byte+))
 
 
+  ;; we need at least a 32-bit architecture
   (when (< +msizeof-word+ 4)
     (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
     size of ~S is ~S bytes, expecting at least 4 bytes"
@@ -174,7 +175,57 @@
                    (setf bits-per-word bits))
 
                (condition ()
-                 (return-from %detect-bits-per-word bits-per-word))))))))
+                 (return-from %detect-bits-per-word bits-per-word)))))))
+
+
+  (defun binary-search-pred (low high pred)
+    "find the largest integer in range LO...(1- HI) that satisfies PRED.
+Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
+    (declare (type integer low high)
+             (type function pred))
+
+    (loop for delta = (- high low)
+       while (> delta 1)
+       for middle = (+ low (ash delta -1))
+       do
+         (if (funcall pred middle)
+             (setf low  middle)
+             (setf high middle)))
+    low)
+         
+
+  (defun find-most-positive-pred (pred)
+    "find the largest positive integer that satisfies PRED."
+    (declare (type function pred))
+
+    (unless (funcall pred 1)
+      (return-from find-most-positive-pred 0))
+
+    (let ((n 1))
+      (loop for next = (ash n 1)
+         while (funcall pred next)
+         do
+           (setf n next))
+
+      (binary-search-pred n (ash n 1) pred)))
+
+  (defun %is-char-code? (code type)
+    (declare (optimize (speed 0) (safety 3)) ;; better be safe here
+             (type integer code)
+             (type symbol type))
+
+    (handler-case
+        (typep (code-char code) type)
+      (condition () nil)))
+
+  (defun %detect-most-positive-character ()
+    (find-most-positive-pred (lambda (n) (%is-char-code? n 'character))))
+
+  (defun %detect-most-positive-base-char ()
+    (find-most-positive-pred (lambda (n) (%is-char-code? n 'base-char)))))
+
+
+
 
 
 
@@ -186,21 +237,40 @@
 (defconstant +mem-byte/mask+     (1- (ash 1 +mem-byte/bits+)))
 (defconstant +most-positive-byte+ +mem-byte/mask+)
 
+(defconstant +most-positive-character+ (%detect-most-positive-character))
+;; round up characters to unicode (21 bits)
+(defconstant +character/bits+          (max 21 (integer-length +most-positive-character+)))
+(defconstant +character/mask+          (1- (ash 1 +character/bits+)))
+(defconstant +characters-per-word+     (truncate +mem-word/bits+ +character/bits+))
 
 
-;; we need at least 7 bits per byte (to store ASCII characters in a single byte)
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (when (< +mem-byte/bits+ 7)
-    (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
-    each byte contains only ~S bits, expecting at least 7 bits" +mem-byte/bits+))) 
+(defconstant +most-positive-base-char+ (%detect-most-positive-base-char))
+;; round up base-chars to 1 byte
+(defconstant +base-char/bits+          (max +mem-byte/bits+
+                                            (integer-length +most-positive-base-char+)))
+(defconstant +base-char/mask+          (1- (ash 1 +base-char/bits+)))
+(defconstant +base-char/fits-byte?+    (<= +base-char/bits+ +mem-byte/bits+))
 
 
 
-;; we need at least a 32-bit architecture
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (when (< +mem-word/bits+ 32)
-    (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
-    size of CPU word is ~S bits, expecting at least 32 bits" +mem-word/bits+))) 
+
+
+(eval-always
+
+ ;; we need at least a 32-bit architecture to store a useful amount of data
+ (when (< +mem-word/bits+ 32)
+   (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
+    size of CPU word is ~S bits, expecting at least 32 bits" +mem-word/bits+))
+
+ (set-feature 'sp/base-char/fits-byte +base-char/fits-byte?+)
+ (set-feature 'sp/base-char/eql/character (= +most-positive-base-char+ +most-positive-character+))
+
+ ;; we support up to 21 bits for characters 
+ (when (> +character/bits+ 21)
+   (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
+    each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+)))
+
+
 
 
 
@@ -311,17 +381,31 @@
 (declaim (inline !memset !mzero !memcpy))
            
 
-(defun !memset (ptr fill-byte n-bytes)
+(defun !memset (ptr fill-byte start-byte end-byte)
   (declare (type maddress ptr)
            (type (unsigned-byte 8) fill-byte)
-           (type ufixnum n-bytes))
-  (osicat-posix:memset ptr fill-byte n-bytes))
+           (type ufixnum start-byte end-byte))
+  (osicat-posix:memset (if (zerop start-byte)
+                           ptr
+                           (cffi-sys:inc-pointer ptr start-byte))
+                       fill-byte
+                       (- end-byte start-byte))
+  nil)
 
-(defun !mzero (ptr n-bytes)
+(defun !mzero (ptr start-byte end-byte)
   (declare (type maddress ptr)
-           (type ufixnum n-bytes))
-  (!memset ptr 0 n-bytes))
+           (type ufixnum start-byte end-byte))
+  (!memset ptr 0 start-byte end-byte))
            
+
+(defun !mzero-words (ptr &optional (start-index 0) (end-index (1+ start-index)))
+  "mzero-words is only used for debugging."
+  (declare (type maddress ptr)
+           (type ufixnum start-index end-index))
+        
+  (loop for index from start-index below end-index
+       do (mset-word ptr index 0)))
+
 
 (defun !memcpy (dst src n-bytes)
   (declare (type maddress dst src)

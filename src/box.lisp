@@ -251,6 +251,30 @@ and BOXED-TYPE as multiple values"
 
 
 
+(defun !mzero-box (ptr box)
+  "Fill an allocated box with zeroes."
+  (declare (type maddress ptr)
+           (type box box))
+  (let* ((index   (box-index box))
+         (n-words (box-n-words box))
+         (start   index)
+         (end     (mem-size+ start n-words)))
+
+    (!mzero-words ptr start end)))
+
+
+
+(defun !mzero-fbox (ptr box)
+  "Fill a free box with zeroes."
+  (declare (type maddress ptr)
+           (type box box))
+  (let* ((index   (box-index box))
+         (n-words (box-n-words box))
+         ;; free boxes are written at the end of the free mmap area they represent!
+         (start   (mem-size- index (mem-size- n-words +mem-box/header-words+)))
+         (end     (mem-size+ start n-words)))
+    
+    (!mzero-words ptr start end)))
 
 
 

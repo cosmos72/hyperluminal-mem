@@ -31,8 +31,7 @@
   (declare (type integer n))
 
   (let* ((len (integer-length n))
-         (words (truncate (+ len +mem-word/bits+ -1) ;; round up
-                          +mem-word/bits+)))
+         (words (ceiling len +mem-word/bits+))) ;; round up
     (unless (<= words +mem-bignum/max-words+)
       (error "HYPERLUMINAL-DB: bignum too large for object store,
     it requires ~S words, maximum supported is ~S words"

@@ -30,14 +30,12 @@
 (defun sfloat-words (n)
   "Return the number of words needed to store single-float N in memory."
   (declare (ignore n))
-  #.(truncate (+ +msizeof-sfloat+ +msizeof-word+ -1) ;; round up
-              +msizeof-word+))
+  #.(ceiling +msizeof-sfloat+ +msizeof-word+)) ;; round up
 
 (defun dfloat-words (n)
   "Return the number of words needed to store double-float N in memory."
   (declare (ignore n))
-  #.(truncate (+ +msizeof-dfloat+ +msizeof-word+ -1) ;; round up
-              +msizeof-word+))
+  #.(ceiling +msizeof-dfloat+ +msizeof-word+)) ;; round up
 
 (defun box-words/sfloat (n)
   "Return the number of words needed to store a BOX containing single-float N in memory."

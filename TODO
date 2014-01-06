@@ -3,4 +3,6 @@
 mwrite-box/string and mread-box/string should use compact representation:
   pack as many characters as possible in each CPU word
 
+bit-vector
+
 everything else...

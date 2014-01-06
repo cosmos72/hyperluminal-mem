@@ -73,6 +73,8 @@
     (:bits-per-tag   . #.+mem-tag/bits+)
     (:bits-per-pointer . #.+mem-pointer/bits+)
     (:bits-per-word  . #.+mem-word/bits+)
+    (:bits-per-base-char  . #.+base-char/bits+)
+    (:bits-per-character  . #.+character/bits+)
     (:sizeof-byte    . #.+msizeof-byte+)
     (:sizeof-word    . #.+msizeof-word+)
     (:sizeof-single-float . #.+msizeof-sfloat+)
@@ -208,7 +210,8 @@ and write them back to file"
                  (init-store ptr words)))
 
         (unless ptr
-          (close-fd *fd*))))))
+          (close-fd *fd*)
+          (setf *fd* +bad-fd+))))))
     
 
          
