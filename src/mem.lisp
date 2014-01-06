@@ -262,8 +262,8 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
    (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
     size of CPU word is ~S bits, expecting at least 32 bits" +mem-word/bits+))
 
- (set-feature 'sp/base-char/fits-byte +base-char/fits-byte?+)
- (set-feature 'sp/base-char/eql/character (= +most-positive-base-char+ +most-positive-character+))
+ (set-feature 'hldb/base-char/fits-byte +base-char/fits-byte?+)
+ (set-feature 'hldb/base-char/eql/character (= +most-positive-base-char+ +most-positive-character+))
 
  ;; we support up to 21 bits for characters 
  (when (> +character/bits+ 21)

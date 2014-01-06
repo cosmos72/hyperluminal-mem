@@ -137,8 +137,8 @@
 (defconstant +mem-dfloat/inline?+ (mem-float/inline? :dfloat))
 
 (eval-always
- (set-feature 'sp/sfloat/inline +mem-sfloat/inline?+)
- (set-feature 'sp/dfloat/inline +mem-dfloat/inline?+))
+ (set-feature 'hldb/sfloat/inline +mem-sfloat/inline?+)
+ (set-feature 'hldb/dfloat/inline +mem-dfloat/inline?+))
 
 
 

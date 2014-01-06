@@ -50,8 +50,8 @@
 (deftype mem-unboxed () 
   "Union of all types that can be stored as unboxed in memory store"
   '(or mem-int character boolean symbol
-    #?+sp/sfloat/inline single-float
-    #?+sp/dfloat/inline double-float))
+    #?+hldb/sfloat/inline single-float
+    #?+hldb/dfloat/inline double-float))
 
 
 (defun !mdump-words (stream ptr &optional (start-index 0) (end-index (1+ start-index)))
@@ -294,14 +294,14 @@ boolean, unbound slots, character and medium-size integer
       ((eq value stmx::+unbound-tvar+) (setf val +mem-unbound+))
 
       ;; value is a single-float?
-      #?+sp/sfloat/inline
+      #?+hldb/sfloat/inline
       ((typep value 'single-float)
        (mset-fulltag-and-value ptr index +mem-tag-sfloat+ 0)
        (mset-float/inline :sfloat ptr index value)
        (return-from mset-unboxed t))
 
       ;; value is a double-float?
-      #?+sp/dfloat/inline
+      #?+hldb/dfloat/inline
       ((typep value 'double-float)
        (mset-fulltag-and-value ptr index +mem-tag-dfloat+ 0)
        (mset-float/inline :dfloat ptr index value)
@@ -341,11 +341,11 @@ medium-size integer) or a pointer from memory store.
             (#.+mem-tag-character+ ;; found a character
              (code-char (logand value +character/mask+)))
 
-            #?+sp/sfloat/inline
+            #?+hldb/sfloat/inline
             (#.+mem-tag-sfloat+ ;; found a single-float
              (mget-float/inline :sfloat ptr index))
 
-            #?+sp/dfloat/inline
+            #?+hldb/dfloat/inline
             (#.+mem-tag-dfloat+ ;; found a double-float
              (mget-float/inline :dfloat ptr index))
 

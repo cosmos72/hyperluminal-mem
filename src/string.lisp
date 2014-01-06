@@ -228,7 +228,7 @@ Note: increments POS!"
 and write them into RESULT-STRING. Return RESULT-STRING."
   (declare (type maddress ptr)
            (type mem-size index)
-           (type (and simple-string #?-sp/base-char/eql/character (not base-string)) result-string)
+           (type (and simple-string #?-hldb/base-char/eql/character (not base-string)) result-string)
            (type ufixnum n-chars))
 
   (multiple-value-bind (bulk-n-words tail-n-chars) (truncate n-chars +characters-per-word+)
