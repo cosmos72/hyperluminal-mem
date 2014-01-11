@@ -49,7 +49,7 @@
       (return-from mread-magic nil))
 
     (unless (equal magic +short-magic+)
-      (error "HYPERLUMINAL-DB: unsupported file. expecting magic string (~{~S ~}), found (~{~S ~})"
+      (error "HYPERLUMINAL-DB: unsupported file format. expecting magic string (~{~S ~}), found (~{~S ~})"
              (coerce +short-magic+ 'list)
              (coerce magic 'list))))
 
@@ -62,7 +62,7 @@
      for value = (rest pair)
      for ch = (mget-byte ptr i)
      unless (eql ch value) do
-       (error "HYPERLUMINAL-DB: unsupported file. expecting ~S = ~S, found ~S"
+       (error "HYPERLUMINAL-DB: unsupported file format. expecting ~S = ~S, found ~S"
               name value ch))
   t)
   

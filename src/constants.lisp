@@ -96,8 +96,9 @@
 ;;;;        boxed values          ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defconstant +mem-box/min-words+    4 "boxed values are allocated in multiples of 4 CPU-words.
-    This value must be a power of two.")
+(defconstant +mem-box/min-words+    4 "boxed values are allocated
+    in multiples of 4 CPU-words. This value must be a power of two.")
+     
 (defconstant +mem-box/max-words+    (* +most-positive-pointer+ +mem-box/min-words+))
 (defconstant +mem-box/header-words+ 1 "boxed values have a 1 CPU-word header")
 (defconstant +mem-box/payload-words+ (- +mem-box/min-words+ +mem-box/header-words+))
@@ -159,30 +160,37 @@
 (defconstant +mem-nil+           2 "persistent representation of NIL")
 (defconstant +mem-t+             3 "persistent representation of T")
 
-(defconstant +mem-tag-symbol+    0)
-(defconstant +mem-tag-character+ 1 "type tag for inline characters")
-(defconstant +mem-tag-sfloat+    2 "type tag for inline single-floats")
-(defconstant +mem-tag-dfloat+    3 "type tag for inline double-floats")
-(defconstant +mem-tag-box+       4 "type tag for boxed values that do NOT contain pointers")
-(defconstant +mem-tag-box-gc+    5 "type tag for boxed values that may contain pointers")
-(defconstant +mem-tag-user+      6 "first type tag available for user-defined types")
-(defconstant +mem-tag-last+      +mem-tag/bits+)
+(defconstant +mem-tag/symbol+    0)
+(defconstant +mem-tag/character+ 1 "type tag for inline characters")
+(defconstant +mem-tag/sfloat+    2 "type tag for inline single-floats")
+(defconstant +mem-tag/dfloat+    3 "type tag for inline double-floats")
+(defconstant +mem-tag/box+       4 "type tag for boxed values that do NOT contain pointers")
+(defconstant +mem-tag/box-gc+    5 "type tag for boxed values that may contain pointers")
+(defconstant +mem-tag/user+      6 "first type tag available for user-defined types")
+(defconstant +mem-tag/last+      +mem-tag/bits+)
 
 
-(defconstant +mem-box-unallocated+      0 "box is not allocated")
-(defconstant +mem-box-bignum+           1 "box is a bignum")
-(defconstant +mem-box-ratio+            2 "box is a ratio")
-(defconstant +mem-box-sfloat+           3 "box is a single-float")
-(defconstant +mem-box-dfloat+           4 "box is a double-float")
-(defconstant +mem-box-complex-sfloat+   5 "box is a complex of single-floats")
-(defconstant +mem-box-complex-dfloat+   6 "box is a complex of double-floats")
-(defconstant +mem-box-complex-rational+ 7 "box is a complex of rationals")
-(defconstant +mem-box-pathname+         8 "box is a pathname")
-(defconstant +mem-box-list+             9 "box is a cons or list")
-(defconstant +mem-box-hash-table+      10 "box is a hash-table")
-(defconstant +mem-box-array+           11 "box is a N-dimensional array")
-(defconstant +mem-box-vector+          12 "box is a 1-dimensional array, i.e. a vector")
-(defconstant +mem-box-string+          13 "box is a string, i.e. a (vector character)")
-(defconstant +mem-box-base-string+     14 "box is a base-string, i.e. a (vector base-char)")
-(defconstant +mem-box-bit-vector+      15 "box is a bit-vector, i.e. a (vector bit)")
+(defconstant +mem-box/unallocated+      0 "box is not allocated")
+(defconstant +mem-box/bignum+           1 "box is a bignum")
+(defconstant +mem-box/ratio+            2 "box is a ratio")
+(defconstant +mem-box/sfloat+           3 "box is a single-float")
+(defconstant +mem-box/dfloat+           4 "box is a double-float")
+(defconstant +mem-box/complex-sfloat+   5 "box is a complex of single-floats")
+(defconstant +mem-box/complex-dfloat+   6 "box is a complex of double-floats")
+(defconstant +mem-box/complex-rational+ 7 "box is a complex of rationals")
+(defconstant +mem-box/pathname+         8 "box is a pathname")
+(defconstant +mem-box/hash-table+       9 "box is a hash-table")
+(defconstant +mem-box/list+            10 "box is a cons or list")
+(defconstant +mem-box/array+           11 "box is a N-dimensional array")
+(defconstant +mem-box/vector+          12 "box is a 1-dimensional array, i.e. a vector")
+(defconstant +mem-box/string+          13 "box is a string, i.e. a (vector character)")
+(defconstant +mem-box/base-string+     14 "box is a base-string, i.e. a (vector base-char)")
+(defconstant +mem-box/bit-vector+      15 "box is a bit-vector, i.e. a (vector bit)")
+
+(declaim (type vector +mem-box-type-syms+))
+
+(define-constant-once +mem-box-type-syms+
+    #(unallocated bignum ratio sfloat dfloat complex-sfloat complex-dfloat complex-rational
+      pathname hash-table list array vector string base-string bit-vector))
+
 

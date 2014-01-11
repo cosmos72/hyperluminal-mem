@@ -26,23 +26,18 @@
 
 (enable-#?-syntax)
 
-(defun base-string-words (string)
-  "Return the number of words needed to store base-string STRING in memory."
-  (declare (type base-string string))
-  (ceiling (length string) +msizeof-word+)) ;; round up
-
-
 (defun box-words/base-string (string)
-  "Return the number of words needed to store a BOX containing base-string STRING in memory."
+  "Return the number of words needed to store base-string STRING in mmap memory,
+not including BOX header words."
   (declare (type base-string string))
-  (mem-size+ +mem-box/header-words+ 1 (base-string-words string)))
+  ;; 1-word length prefix, and round up required bytes to a whole word
+  (mem-size+1 (ceiling (length string) +msizeof-word+)))
 
 
-(defun mwrite-base-string (ptr index string n-chars)
-  "Write characters from STRING into the memory starting at (PTR+INDEX).
-Characters are written using the compact, single-byte representation.
-For this reason the codes of all characters to be stored must be in the range
-0 ... +most-positive-byte+ (typically 0 ... 255)"
+(declaim (inline %mwrite-base-string))
+
+(defun %mwrite-base-string (ptr index string n-chars)
+  "Write the first N-CHARS single-byte characters of STRING into the memory starting at (PTR+INDEX)."
   (declare (type maddress ptr)
            (type mem-size index)
            (type base-string string)
@@ -51,37 +46,37 @@ For this reason the codes of all characters to be stored must be in the range
   (let ((offset (the mem-word (* index +msizeof-word+))))
 
     (macrolet ((loop-write (char-func ptr offset string n-chars)
-                 `(loop for i from 0 below ,n-chars do
-                       (%mset-t (the (unsigned-byte #.+mem-byte/bits+)
-                                  (char-code
-                                   (,char-func ,string i)))
-                                :byte ,ptr (the mem-word (+ ,offset i))))))
-
+                  `(loop for i from 0 below ,n-chars do
+                        (%mset-t (the (unsigned-byte #.+mem-byte/bits+)
+                                   (char-code
+                                    (,char-func ,string i)))
+                                 :byte ,ptr (the mem-word (+ ,offset i))))))
+    
       (if (typep string 'simple-string)
           (loop-write schar ptr offset string n-chars)
-          (loop-write char ptr offset string n-chars)))))
+          (loop-write char ptr offset string n-chars))))
+  t)
 
 
-(defun mwrite-box/base-string (ptr index n-words string)
+(defun mwrite-box/base-string (ptr index string)
   "Reuse the memory block starting at (+ PTR INDEX)
-and write STRING into it.
+and write STRING into it. Assumes BOX header is already written.
 
-ABI: string is stored as box prefix, followed by characters count and array of characters"
+ABI: writes characters count as mem-int, followed by array of characters each occupying one byte"
   (declare (type maddress ptr)
-           (type mem-size index n-words)
+           (type mem-size index)
            (type base-string string))
-
-  (setf index
-        (mwrite-box/header ptr index n-words +mem-box-base-string+))
 
   (let ((n-chars (length string)))
     
     (mset-int ptr index n-chars)
-    (mwrite-base-string ptr (mem-size+1 index) string n-chars)
-    t))
+    (%mwrite-base-string ptr (mem-size+1 index) string n-chars)))
 
 
-(defun mread-base-string (ptr index result-string n-chars)
+
+(declaim (inline %mread-base-string))
+
+(defun %mread-base-string (ptr index result-string n-chars)
   "Read (END-START) single-byte characters from the memory starting at (PTR+INDEX)
 and write them into RESULT-STRING.  Return RESULT-STRING.
 Characters are read from memory using the compact, single-byte representation.
@@ -104,18 +99,15 @@ For this reason only codes in the range 0 ... +most-positive-byte+ can be read
 
 
 (defun mread-box/base-string (ptr index)
-  "Read a boxed base-string from the memory starting at (PTR+INDEX).
-Return the base-string"
+  "Read a boxed base-string from the memory starting at (PTR+INDEX) and return it.
+Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))
   
-  ;; skip the box header
-  (incf-mem-size index +mem-box/header-words+)
-
   (let* ((n-chars (mget-int ptr index))
          (string (make-string n-chars :element-type 'base-char)))
 
-    (mread-base-string ptr (mem-size+1 index) string n-chars)))
+    (%mread-base-string ptr (mem-size+1 index) string n-chars)))
 
 
 
@@ -125,16 +117,12 @@ Return the base-string"
 ;;;;    boxed    STRING                                                      ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun string-words (string)
-  "Return the number of words needed to store STRING in memory."
-  (declare (type string string))
-  (ceiling (length string) +characters-per-word+)) ;; round up
-
-
 (defun box-words/string (string)
-  "Return the number of words needed to store a BOX containing STRING in memory."
+  "Return the number of words needed to store STRING in memory, not including BOX header."
   (declare (type string string))
-  (mem-size+ +mem-box/header-words+ 1 (string-words string)))
+  ;; 1-word length prefix, and round up required bytes to a whole word
+  (mem-size+1 (ceiling (length string) +characters-per-word+)))
+
 
 
 (defmacro %bulk-pack-string (char-func string pos)
@@ -157,7 +145,7 @@ Return the base-string"
                                     (the fixnum (* ,i +character/bits+)))))))
        ,word)))
 
-(defmacro %mwrite-string (char-func ptr index string bulk-n-words tail-n-chars)
+(defmacro %%mwrite-string (char-func ptr index string bulk-n-words tail-n-chars)
   (with-gensyms (char-i word-i)
     `(loop
         for ,char-i from 0 by +characters-per-word+
@@ -169,8 +157,9 @@ Return the base-string"
             (mset-word ,ptr (mem-size+ ,index ,bulk-n-words)
                        (%tail-pack-string ,char-func ,string ,char-i ,tail-n-chars))))))
 
+(declaim (inline %mwrite-string))
 
-(defun mwrite-string (ptr index string n-chars)
+(defun %mwrite-string (ptr index string n-chars)
   "Write characters from string STRING to the memory starting at (PTR+INDEX).
 Characters will be stored by packing as many as possible into words."
   (declare (type maddress ptr)
@@ -182,33 +171,30 @@ Characters will be stored by packing as many as possible into words."
 
       (typecase string
         (simple-base-string
-         (%mwrite-string schar ptr index string bulk-n-words tail-n-chars))
+         (%%mwrite-string schar ptr index string bulk-n-words tail-n-chars))
         (simple-string
-         (%mwrite-string schar ptr index string bulk-n-words tail-n-chars))
+         (%%mwrite-string schar ptr index string bulk-n-words tail-n-chars))
         (otherwise
-         (%mwrite-string char ptr index string bulk-n-words tail-n-chars))))
+         (%%mwrite-string char ptr index string bulk-n-words tail-n-chars))))
   t)
 
 
 
 
-(defun mwrite-box/string (ptr index n-words string)
-  "Reuse the memory block starting at (+ PTR INDEX)
-and write STRING into it.
+(defun mwrite-box/string (ptr index string)
+  "write STRING into the memory starting at (+ PTR INDEX).
+Assumes BOX header is already written.
 
-ABI: string is stored as box prefix, followed by characters count and array of characters"
+ABI: writes string length as mem-int, followed by packed array of characters
+\(each character occupies 21 bits)"
   (declare (type maddress ptr)
-           (type mem-size index n-words)
+           (type mem-size index)
            (type string string))
-
-  (setf index
-        (mwrite-box/header ptr index n-words +mem-box-string+))
 
   (let ((n-chars (length string)))
     
     (mset-int ptr index n-chars)
-    (mwrite-string ptr (mem-size+1 index) string n-chars)
-    t))
+    (%mwrite-string ptr (mem-size+1 index) string n-chars)))
 
 
 
@@ -223,8 +209,10 @@ Note: increments POS!"
                          ,pos  (the ufixnum (1+ ,pos))))))
 
 
-(defun mread-string (ptr index result-string n-chars)
-  "Read characters from the memory starting at (PTR+INDEX)
+(declaim (inline %mread-string))
+
+(defun %mread-string (ptr index result-string n-chars)
+  "Read N-CHAR packed characters from the memory starting at (PTR+INDEX)
 and write them into RESULT-STRING. Return RESULT-STRING."
   (declare (type maddress ptr)
            (type mem-size index)
@@ -257,18 +245,15 @@ and write them into RESULT-STRING. Return RESULT-STRING."
 
 
 (defun mread-box/string (ptr index)
-  "Read a boxed string from the memory starting at (PTR+INDEX).
-Return the string"
+  "Read a string from the memory starting at (PTR+INDEX) and return it.
+Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))
   
-  ;; skip the box header
-  (incf-mem-size index +mem-box/header-words+)
-
   (let* ((n-chars (mget-int ptr index))
          (string (make-string n-chars)))
 
-    (mread-string ptr (mem-size+1 index) string n-chars)))
+    (%mread-string ptr (mem-size+1 index) string n-chars)))
 
 
 

@@ -22,9 +22,8 @@
 (deftype ufixnum () '(and fixnum (integer 0)))
 (deftype maddress () 'cffi-sys:foreign-pointer)
 
-(defconstant +null-pointer+ (if (boundp '+null-pointer+)
-                                (symbol-value '+null-pointer+)
-                                (cffi-sys:null-pointer)))
+
+(define-constant-once +null-pointer+ (cffi-sys:null-pointer))
 
 
 
@@ -36,6 +35,8 @@
 
 
 (eval-when (:compile-toplevel :load-toplevel)
+
+  (pushnew :hyperluminal-db *features*)
 
   #-(and)
   (pushnew :hyperluminal-db/debug *features*)

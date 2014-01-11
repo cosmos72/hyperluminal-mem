@@ -20,6 +20,11 @@
 (in-package :hyperluminal-db)
 
 
+(deftype mem-box-type ()
+  "Valid range for boxed-type tags"
+  `(mod ,(length +mem-box-type-syms+)))
+
+
 ;;;; boxed values, i.e. mem-box, are variable-length mmap areas
 ;;;; used to store all kind of CL built-in types that do not fit a single CPU word:
 ;;;; bignums, ratios, single-floats and double-floats, complexes,
@@ -28,7 +33,7 @@
 ;;;; mem-boxes are allocates in multiples of 4 (actually +mem-box/min-words+) CPU words,
 ;;;; and they contain a 2 CPU-word header followed by type-specific payload:
 ;;;;
-;;;;   word 0: tag = type. it uses a different coding than pointer tags (see +mem-box-*+ constants)
+;;;;   word 0: tag = type. it uses a different coding than pointer tags (see +mem-box/...+ constants)
 ;;;;           value = pointer to owner. used by GC.
 ;;;;
 ;;;;   word 1: tag = available for type-specific data, for example sign bits
@@ -40,7 +45,8 @@
 (declaim (inline box-index   (setf box-index)
                  box-n-words (setf box-n-words)
                  box-value   (setf box-value)
-                 box-next    (setf box-next)))
+                 box-next    (setf box-next)
+                 reuse-box))
 
 
 ;; wrapper for values that cannot be stored as unboxed
@@ -77,9 +83,22 @@
            (type mem-size n-words))
   (setf (rest (rest box)) n-words))
 
+(defun reuse-box (box index n-words value)
+  "Set BOX slots to specified values. Return BOX."
+  (declare (type box box)
+           (type mem-size index n-words))
+  (setf (box-value box) value)
+  (let ((tail (rest box)))
+    (setf (first tail)  index
+          (rest  tail)  n-words))
+  box)
+    
+
+  
+  
 
 #|
-(declaim (inline %make-box))
+(declaim (inline %make-box setf-box-value-index-n-words))
 (defstruct (box (:constructor %make-box))
   (index   0 :type mem-size)
   (n-words 0 :type mem-size)
@@ -90,6 +109,12 @@
   "Create a new box to wrap VALUE. Assumes VALUE will be stored at INDEX in memory store."
   (declare (type mem-size index n-words))
   (%make-box :index index :n-words n-words :value value))
+
+(defun reuse-box (box index n-words value)
+  (setf (box-value   box) value
+        (box-index   box) index
+        (box-n-words box) n-words)
+  box)
 |#
 
 (defun box-next (box)
@@ -472,5 +497,13 @@ FIXME: it currently loads the whole free-list in RAM (bad!)"
 
 
 
+(defun box-realloc (ptr box n-words)
+  "Extend BOX to N-WORDS if possible, otherwise free it then allocate N-WORDS and return them."
+  (declare (type maddress ptr)
+           (type (or null box) box)
+           (type mem-size n-words))
 
+  ;; very naive implementation: always frees BOX and allocates a new one.
+  (when box (box-free ptr box))
+  (box-alloc ptr n-words))
 

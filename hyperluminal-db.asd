@@ -39,14 +39,34 @@
 
                (:module :src
                 :components ((:file "package")
-                             (:file "mem"         :depends-on ("package"))
-                             (:file "constants"   :depends-on ("mem"))
-                             (:file "unboxed"     :depends-on ("constants"))
-                             (:file "box"         :depends-on ("unboxed"))
-                             (:file "bignum"      :depends-on ("box"))
-                             (:file "string"      :depends-on ("box"))
-                             (:file "boxed"       :depends-on ("bignum" "string"))
-                             (:file "store"       :depends-on ("boxed"))))))
+                             (:file "macro"          :depends-on ("package"))
+                             (:file "mem"            :depends-on ("macro"))
+                             (:file "constants"      :depends-on ("mem"))
+                             (:file "unboxed"        :depends-on ("constants"))
+                             (:file "box"            :depends-on ("unboxed"))
+                             (:file "box-bignum"     :depends-on ("box"))
+                             (:file "box-ratio"      :depends-on ("box-bignum"))
+                             (:file "box-float"      :depends-on ("box"))
+                             (:file "box-complex"    :depends-on ("box-float" "box-ratio"))
+                             (:file "box-pathname"   :depends-on ("box"))
+                             (:file "box-hash-table" :depends-on ("box"))
+                             (:file "box-list"       :depends-on ("box"))
+                             (:file "box-array"      :depends-on ("box"))
+                             (:file "box-vector"     :depends-on ("box-array"))
+                             (:file "box-string"     :depends-on ("box-vector"))
+                             (:file "box-bit-vector" :depends-on ("box-vector"))
+                             (:file "boxed"          :depends-on ("box-bignum"
+                                                                  "box-ratio"
+                                                                  "box-float"
+                                                                  "box-complex"
+                                                                  "box-pathname"
+                                                                  "box-hash-table"
+                                                                  "box-list"
+                                                                  "box-array"
+                                                                  "box-vector"
+                                                                  "box-string"
+                                                                  "box-bit-vector"))
+                             (:file "store"          :depends-on ("boxed"))))))
 
 
 (asdf:defsystem :hyperluminal-db.test

@@ -204,7 +204,7 @@ ignoring any sign bit"
            (type mem-size index)
            (type character value))
 
-  (mset-fulltag-and-value ptr index +mem-tag-character+ (char-code value)))
+  (mset-fulltag-and-value ptr index +mem-tag/character+ (char-code value)))
 
 
 (defun mget-character (ptr index)
@@ -273,7 +273,7 @@ boolean, unbound slots, character and medium-size integer
            (type mem-size index)
            (type mem-unboxed value))
 
-  (let ((tag +mem-tag-symbol+)
+  (let ((tag +mem-tag/symbol+)
         (val +mem-nil+))
 
     (cond
@@ -282,7 +282,7 @@ boolean, unbound slots, character and medium-size integer
        (return-from mset-unboxed (mset-int ptr index value)))
 
       ;; value is a character?
-      ((characterp value) (setf tag +mem-tag-character+
+      ((characterp value) (setf tag +mem-tag/character+
                                 val (char-code value)))
       ;; value is T ?
       ((eq value t)       (setf val +mem-t+))
@@ -296,14 +296,14 @@ boolean, unbound slots, character and medium-size integer
       ;; value is a single-float?
       #?+hldb/sfloat/inline
       ((typep value 'single-float)
-       (mset-fulltag-and-value ptr index +mem-tag-sfloat+ 0)
+       (mset-fulltag-and-value ptr index +mem-tag/sfloat+ 0)
        (mset-float/inline :sfloat ptr index value)
        (return-from mset-unboxed t))
 
       ;; value is a double-float?
       #?+hldb/dfloat/inline
       ((typep value 'double-float)
-       (mset-fulltag-and-value ptr index +mem-tag-dfloat+ 0)
+       (mset-fulltag-and-value ptr index +mem-tag/dfloat+ 0)
        (mset-float/inline :dfloat ptr index value)
        (return-from mset-unboxed t))
 
@@ -329,7 +329,7 @@ medium-size integer) or a pointer from memory store.
         (multiple-value-bind (fulltag value) (%to-fulltag-and-value value)
 
           (case fulltag
-            (#.+mem-tag-symbol+ ;; found a symbol
+            (#.+mem-tag/symbol+ ;; found a symbol
 
              (case value
                (#.+mem-unallocated+ nil) ;; should not happen :(
@@ -338,15 +338,15 @@ medium-size integer) or a pointer from memory store.
                (#.+mem-nil+     nil)
                (otherwise       (values value fulltag)))) ;; generic symbol
 
-            (#.+mem-tag-character+ ;; found a character
+            (#.+mem-tag/character+ ;; found a character
              (code-char (logand value +character/mask+)))
 
             #?+hldb/sfloat/inline
-            (#.+mem-tag-sfloat+ ;; found a single-float
+            (#.+mem-tag/sfloat+ ;; found a single-float
              (mget-float/inline :sfloat ptr index))
 
             #?+hldb/dfloat/inline
-            (#.+mem-tag-dfloat+ ;; found a double-float
+            (#.+mem-tag/dfloat+ ;; found a double-float
              (mget-float/inline :dfloat ptr index))
 
             (otherwise ;; found a boxed value or a pointer

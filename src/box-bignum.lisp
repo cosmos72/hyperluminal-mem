@@ -26,24 +26,28 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun bignum-words (n)
-  "Return the number of words needed to store bignum N in memory."
+(declaim (inline %bignum-words))
+
+(defun %bignum-words (n)
+  "Return the number of words needed to store bignum N in memory, not including BOX header
+nor the N-WORDS prefix."
   (declare (type integer n))
 
-  (let* ((len (integer-length n))
-         (words (ceiling len +mem-word/bits+))) ;; round up
-    (unless (<= words +mem-bignum/max-words+)
-      (error "HYPERLUMINAL-DB: bignum too large for object store,
-    it requires ~S words, maximum supported is ~S words"
-             words +mem-bignum/max-words+))
-
-    (the (integer 0 #.+mem-bignum/max-words+) words)))
+  (the ufixnum
+    (ceiling (integer-length n) +mem-word/bits+))) ;; round up 
 
 
 (defun box-words/bignum (n)
-  "Return the number of words needed to store a BOX containing bignum N in memory."
+  "Return the number of words needed to store bignum N in memory, not including BOX header."
   (declare (type integer n))
-  (the mem-size (mem-size+ 1 +mem-box/header-words+ (bignum-words n))))
+
+  (let ((words (%bignum-words n)))
+    (unless (< words +mem-bignum/max-words+)
+      (error "HYPERLUMINAL-DB: bignum too large for object store,
+    it requires ~S words, maximum supported is ~S words"
+             (1+ words) +mem-bignum/max-words+))
+
+    (the (integer 0 #.+mem-bignum/max-words+) (1+ words)))) ;; add 1 word for N-WORDS prefix
   
 
 
@@ -56,7 +60,8 @@
         (mask +mem-word/mask+))
 
     (loop for i-word from n-words downto 1 do
-         (mset-word ptr (incf (the mem-size index)) (logand n mask))
+         (mset-word ptr index (logand n mask))
+         (incf (the mem-size index))
          (setf n (ash n shift)))))
 
 
@@ -80,21 +85,21 @@
                                 n-words-high (ash n (- high-shift))))))
 
 
-(defun mwrite-box/bignum (ptr index n-words n)
-  "Reuse the memory block starting at (PTR+INDEX) and write bignum N into it.
+(defun mwrite-box/bignum (ptr index n)
+  "Write bignum N into memory starting at (PTR+INDEX).
+Assumes BOX header is already written.
 
-ABI: bignum is stored as box prefix, followed by mem-int N-WORDS
-\(if bignum is negative, (lognot N-WORDS) is stored instead)
+ABI: writes mem-int N-WORDS, i.e. (%bignum-words N)
+\(if bignum is negative, writes (lognot N-WORDS) instead)
 followed by an array of words containing N in two's complement."
   (declare (type maddress ptr)
-           (type mem-size index n-words)
+           (type mem-size index)
            (type integer n))
 
-  (setf index
-        (mwrite-box/header ptr index n-words +mem-box-bignum+))
+  (let ((n-words (%bignum-words n)))
 
-  (mset-int ptr index (if (< n 0) (lognot n-words) n-words))
-  (%mwrite-bignum-recurse ptr index n-words n))
+    (mset-int ptr index (if (< n 0) (lognot n-words) n-words))
+    (%mwrite-bignum-recurse ptr (mem-size+1 index) n-words n)))
 
 
 
@@ -162,14 +167,11 @@ followed by an array of words containing N in two's complement."
 
 
 (defun mread-box/bignum (ptr index)
-  "Read a bignum from the boxed memory starting at (PTR+INDEX).
-Return the bignum"
+  "Read a bignum from the memory starting at (PTR+INDEX) and return it.
+Assumes the BOX header was read already."
   (declare (type maddress ptr)
            (type mem-size index))
   
-  ;; skip BOX header
-  (incf-mem-size index +mem-box/header-words+)
-
   (let* ((sign-n-words (mget-int ptr index))
          (sign         0)
          (n-words      sign-n-words))
@@ -182,26 +184,4 @@ Return the bignum"
 
 
   
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;    generic    BOXes                                                     ;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defun mwrite-box (ptr index value)
-  (declare (ignore ptr index value))
-  #+never
-  (when (typep value 'integer)
-    (when (> n-words +mem-bignum/max-words+)
-      (error "bignum too large, cannot store in mmap: this bignum requires ~S words,
-    maximum supported words in a bignum is ~S" n-words +mem-bignum/max-words+))
-
-
-    (let (;; overhead is: bignum-words prefix (1 word) plus box header (2 words)
-          (min-allocated-words (the mem-size (+ 1 n-words +mem-box/header-words+)))
-          (allocated-words (if (mem-invalid-index? ptr index) 0 (mread-box-n-words *p* index))))
-      
-      ;; if current memory is not large enough, free it and allocate a new block
-      (when (< allocated-words min-allocated-words)
-        (mem-free ptr index allocated-words)
-        (setf index (mem-alloc-rounded ptr min-allocated-words))))))
 

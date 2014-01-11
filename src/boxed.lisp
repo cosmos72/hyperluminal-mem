@@ -20,78 +20,203 @@
 (in-package :hyperluminal-db)
 
 
+(defun box-words/unallocated (value)
+  (declare (ignore value))
+  (error "internal error! attempt to write boxed-type +MEM-BOX/UNALLOCATED+"))
+
+(defun mwrite-box/unallocated (ptr index value)
+  (declare (ignore ptr index value))
+  (error "internal error! attempt to write boxed-type +MEM-BOX/UNALLOCATED+"))
+
+(defun mread-box/unallocated (ptr index)
+  (declare (ignore ptr index))
+  (error "internal error! attempt to read boxed-type +MEM-BOX/UNALLOCATED+"))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;    dispatcher for all boxed types                                       ;;;;
+;;;;    dispatchers for all boxed types                                      ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun mwrite-box (ptr index n-words value)
-  "Write a boxed value into the memory starting at (PTR+INDEX)."
+
+(declaim (type vector +box-words-funcs+ +mwrite-box-funcs+  +mread-box-funcs+))
+
+(defmacro define-global-constant (name value &optional documentation)
+  `(#+(and) defparameter #-(and) define-constant-once
+      ,name ,value
+      ,@(when documentation `(,documentation))))
+
+
+(define-global-constant +box-words-funcs+
+    (let* ((syms +mem-box-symbols+)
+           (array (make-array (length syms))))
+
+      (loop for i from 0 below (length syms) do
+           (setf (svref array i) (fdefinition (symbol-concat 'box-words/ (svref syms i)))))
+      array))
+
+
+(define-global-constant +mwrite-box-funcs+
+     (let* ((syms +mem-box-symbols+)
+            (array (make-array (length syms))))
+
+       (loop for i from 0 below (length syms) do
+            (setf (svref array i) (fdefinition (symbol-concat 'mwrite-box/ (svref syms i)))))
+       array))
+
+
+(define-global-constant +mread-box-funcs+
+    (let* ((syms +mem-box-symbols+)
+           (array (make-array (length syms))))
+
+      (loop for i from 0 below (length syms) do
+           (setf (svref array i) (fdefinition (symbol-concat 'mread-box/ (svref syms i)))))
+      array))
+
+
+(declaim (notinline detect-box-type))
+
+(defun detect-box-type (value)
+  "Detect the boxed-type of VALUE. Returns one of the constants +mem-box/...+"
+
+  (the mem-box-type
+    (etypecase value
+      (integer      +mem-box/bignum+)
+      (ratio        +mem-box/ratio+)
+
+      (single-float +mem-box/sfloat+)
+      (double-float +mem-box/dfloat+)
+
+      ((complex single-float) +mem-box/complex-sfloat+)
+      ((complex double-float) +mem-box/complex-dfloat+)
+      (complex      (etypecase (realpart value)
+                      (rational     +mem-box/complex-rational+)))
+
+      (list         +mem-box/list+)
+
+      (array        (if (= 1 (array-rank value))
+                        (case (array-element-type value)
+                          (character +mem-box/string+)
+                          (base-char +mem-box/base-string+)
+                          (bit       +mem-box/bit-vector+)
+                          (otherwise +mem-box/vector+))
+                        +mem-box/array+))
+      
+      (hash-table   +mem-box/hash-table+)
+      (pathname     +mem-box/pathname+))))
+
+(declaim (inline detect-box-n-words))
+
+(defun detect-box-n-words (value boxed-type)
+  "Return the number of words needed to store boxed VALUE in memory,
+not including BOX header."
+
+  (declare (type mem-box-type boxed-type))
+
+  (let ((funcs +box-words-funcs+))
+    #-(and)
+    (check-vector-index  funcs boxed-type
+                         "internal error! invalid boxed-type detected for value ~S:
+    found boxed-type ~S, expecting a number between 0 and ~S"
+                         value boxed-type (length funcs))
+
+    (funcall (the function (svref funcs boxed-type)) value)))
+
+
+(defun detect-box-type-n-words (value)
+  "Return boxed-type and the number of words needed to store boxed VALUE in memory as multiple values,
+not including BOX header."
+
+  (let ((boxed-type (detect-box-type value)))
+    (values
+     boxed-type
+     (detect-box-n-words value boxed-type))))
+
+
+(declaim (inline %mwrite-box))
+
+(defun %mwrite-box (ptr index value n-words boxed-type)
+  "Write a boxed value into the mmap memory starting at (PTR+INDEX).
+Also writes BOX header."
   (declare (type maddress ptr)
            (type mem-size index n-words)
-           (type t value))
+           (type mem-box-type boxed-type))
 
-  (etypecase value
-    (integer      (mwrite-box/bignum     ptr index n-words value))
-    (ratio        (mwrite-box/ratio      ptr index n-words value))
-    (single-float (mwrite-box/sfloat     ptr index n-words value))
-    (double-float (mwrite-box/dfloat     ptr index n-words value))
-    (complex      (mwrite-box/complex    ptr index n-words value))
-    (list         (mwrite-box/list       ptr index n-words value))
-    (array        (mwrite-box/array      ptr index n-words value))
-    (hash-table   (mwrite-box/hash-table ptr index n-words value))
-    (pathname     (mwrite-box/pathname   ptr index n-words value))))
+  ;; write BOX header
+  (let ((index (mwrite-box/header ptr index n-words boxed-type)))
+      
+    (funcall (the function (svref +mwrite-box-funcs+ boxed-type))
+             ptr index value)))
 
-             
 
-(defun mwrite-box/box (ptr box)
-  "Write a boxed value into the memory starting at (PTR+(box-index BOX))."
+
+(defun mwrite-box (ptr value &optional box)
+  "Write a boxed value into the object store, (re)allocating space if needed.
+Return the written box."
   (declare (type maddress ptr)
-           (type box box))
+           (type (or null box) box))
 
-  (mwrite-box ptr (box-index box) (box-n-words box) (box-value box)))
+  (let* ((boxed-type (detect-box-type    value))
+         (n-words    (mem-size+ +mem-box/header-words+ (detect-box-n-words value boxed-type)))
+         (allocated-n-words (if box (box-n-words box) 0)))
+    
+    (if (and (<= n-words allocated-n-words)
+             (>= n-words (ash allocated-n-words -1)))
+        ;; reuse the existing memory
+        (setf n-words allocated-n-words)
+        ;; we must (re)allocate memory
+        (setf box (box-realloc ptr box n-words)
+              ;; read back rounded-up n-words - absolutely necessary!
+              n-words (box-n-words box)))
+
+    (setf (box-value box) value)
+    (%mwrite-box ptr (box-index box) value n-words boxed-type)
+    box))
 
 
-(defun mread-box (ptr index)
+
+(declaim (inline %%mread-box %mread-box))
+
+(defun %%mread-box (ptr index boxed-type)
+  "Read a boxed value from the memory starting at (PTR+INDEX) and return it.
+Assumes BOX header was already read."
+  (declare (type maddress ptr)
+           (type mem-size index)
+           (type mem-fulltag boxed-type))
+
+  (let ((funcs +mread-box-funcs+))
+    
+    (check-vector-index funcs boxed-type
+                        "invalid BOX-TYPE at mmap word (+ ~S ~S):
+found ~S, expecting a number between 0 and ~S"
+                        ptr index boxed-type (1- (length funcs)))
+
+    (funcall (the function (svref funcs boxed-type))
+             ptr index)))
+
+
+(defun %mread-box (ptr index)
   "Read a boxed value from the memory starting at (PTR+INDEX).
-Return the value and number of words allocated for it as multiple values."
+Return the value and the number of read words as multiple values."
   (declare (type maddress ptr)
            (type mem-size index))
 
   ;; read BOX header
   (multiple-value-bind (n-words boxed-type) (mread-box/header ptr index)
     (values
-     (case boxed-type
-       (#.+mem-box-unallocated+ (error "attempt to read an unallocated area at mmap address ~S + ~S"
-                                       ptr index))
-       (#.+mem-box-bignum+           (mread-box/bignum           ptr index))
-       (#.+mem-box-ratio+            (mread-box/ratio            ptr index))
-       (#.+mem-box-sfloat+           (mread-box/sfloat           ptr index))
-       (#.+mem-box-dfloat+           (mread-box/dfloat           ptr index))
-       (#.+mem-box-complex-sfloat+   (mread-box/complex/sfloat   ptr index))
-       (#.+mem-box-complex-dfloat+   (mread-box/complex/dfloat   ptr index))
-       (#.+mem-box-complex-rational+ (mread-box/complex/rational ptr index))
-       (#.+mem-box-pathname+         (mread-box/pathname         ptr index))
-       (#.+mem-box-list+             (mread-box/list             ptr index))
-       (#.+mem-box-hash-table+       (mread-box/hash-table       ptr index))
-       (#.+mem-box-array+            (mread-box/array            ptr index))
-       (#.+mem-box-vector+           (mread-box/vector           ptr index))
-       (#.+mem-box-string+           (mread-box/string           ptr index))
-       (#.+mem-box-base-string+      (mread-box/base-string      ptr index))
-       (#.+mem-box-bit-vector+       (mread-box/bit-vector       ptr index))
-       (otherwise  (error "unsupported boxed type ~S at mmap address ~S + ~S"
-                          boxed-type ptr index)))
+     (%%mread-box ptr (mem-size+ +mem-box/header-words+ index) boxed-type)
      n-words)))
 
 
-(defun mread-box/box (ptr index)
+
+(defun mread-box (ptr index &optional box)
   "Read a boxed value from the memory starting at (PTR+INDEX).
 Return the boxed value."
   (declare (type maddress ptr)
-           (type mem-size index))
-  
+           (type mem-size index)
+           (type (or null box) box))
+
   (multiple-value-bind (value n-words) (mread-box ptr index)
-    (make-box index n-words value)))
-
-
+    (if box
+        (reuse-box box index n-words value)
+        (make-box index n-words value))))
 
