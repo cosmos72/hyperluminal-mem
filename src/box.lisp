@@ -189,7 +189,7 @@ at (+ PTR (box-index BOX))"
   (declare (type maddress ptr)
            (type mem-size index))
 
-  (mem-size+ +mem-box/payload-words+
+  (mem-size+ +mem-box/min-payload-words+
              (box-pointer->size (mget-value ptr (mem-size-1 index)))))
 
 
@@ -310,11 +310,11 @@ and BOXED-TYPE as multiple values"
   (declare (type maddress ptr)
            (ignore ptr)
            (type mem-size total-n-words))
-  (let ((lo +mem-box/payload-words+)
+  (let ((lo +mem-box/min-payload-words+)
         (hi (mem-size- total-n-words +mem-box/header-words+)))
 
     (setf *mfree*
-          (make-box +mem-box/payload-words+ 0
+          (make-box +mem-box/min-payload-words+ 0
                     (make-box hi (mem-size- hi lo))))))
 
 (defun mwrite-free-list (ptr free-list)
@@ -329,11 +329,11 @@ FIXME: it currently loads the whole free-list in RAM (bad!)"
 
 
 (defun mread-free-list (ptr)
-  "Read a list of free boxes from memory starting at (PTR + +MEM-BOX/PAYLOAD-WORDS+) and return it.
+  "Read a list of free boxes from memory starting at (PTR + +MEM-BOX/MIN-PAYLOAD-WORDS+) and return it.
 FIXME: it currently loads the whole free-list in RAM (bad!)"
   (declare (type maddress ptr))
 
-  (let ((index +mem-box/payload-words+)
+  (let ((index +mem-box/min-payload-words+)
         (head)
         (prev))
     (loop

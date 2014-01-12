@@ -44,10 +44,11 @@ nor the N-WORDS prefix."
   (let ((words (%bignum-words n)))
     (unless (< words +mem-bignum/max-words+)
       (error "HYPERLUMINAL-DB: bignum too large for object store,
-    it requires ~S words, maximum supported is ~S words"
+it requires ~S words, maximum supported is ~S words"
              (1+ words) +mem-bignum/max-words+))
 
-    (the (integer 0 #.+mem-bignum/max-words+) (1+ words)))) ;; add 1 word for N-WORDS prefix
+    ;; add 1 word for N-WORDS prefix
+    (the (integer 0 #.+mem-bignum/max-words+) (1+ words))))
   
 
 
@@ -88,6 +89,7 @@ nor the N-WORDS prefix."
 (defun mwrite-box/bignum (ptr index n)
   "Write bignum N into memory starting at (PTR+INDEX).
 Assumes BOX header is already written.
+Returns number of words actually written.
 
 ABI: writes mem-int N-WORDS, i.e. (%bignum-words N)
 \(if bignum is negative, writes (lognot N-WORDS) instead)
@@ -99,7 +101,12 @@ followed by an array of words containing N in two's complement."
   (let ((n-words (%bignum-words n)))
 
     (mset-int ptr index (if (< n 0) (lognot n-words) n-words))
-    (%mwrite-bignum-recurse ptr (mem-size+1 index) n-words n)))
+    (%mwrite-bignum-recurse ptr (mem-size+1 index) n-words n)
+
+    ;; also add 1 word for N-WORDS prefix
+    (mem-size+ +mem-box/header-words+ 1 n-words)))
+    
+
 
 
 
@@ -168,6 +175,7 @@ followed by an array of words containing N in two's complement."
 
 (defun mread-box/bignum (ptr index)
   "Read a bignum from the memory starting at (PTR+INDEX) and return it.
+Also returns the number of words actually written as additional value.
 Assumes the BOX header was read already."
   (declare (type maddress ptr)
            (type mem-size index))
@@ -180,7 +188,11 @@ Assumes the BOX header was read already."
       (setf sign    1
             n-words (lognot n-words)))
 
-    (%mread-bignum-recurse ptr index n-words sign)))
+    (values
+     (%mread-bignum-recurse ptr index n-words sign)
+     ;; also add 1 word for N-WORDS prefix
+     (mem-size+ +mem-box/header-words+ 1 n-words))))
+
 
 
   

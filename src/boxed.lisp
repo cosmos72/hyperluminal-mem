@@ -19,6 +19,8 @@
 
 (in-package :hyperluminal-db)
 
+(enable-#?-syntax)
+
 
 (defun box-words/unallocated (value)
   (declare (ignore value))
@@ -126,30 +128,43 @@
       (hash-table   +mem-box/hash-table+)
       (pathname     +mem-box/pathname+))))
 
-(declaim (inline detect-box-n-words))
-
-(defun detect-box-n-words (value &optional (boxed-type (detect-box-type value)))
-  "Return the number of words needed to store boxed VALUE in memory,
-also including BOX header."
-
-  (declare (type mem-box-type boxed-type))
-
-  (mem-size+
-   +mem-box/header-words+
-   (call-box-func +box-words-funcs+ boxed-type value)))
-
-
-
 
 (declaim (inline round-up-n-words %mwrite-box))
 
 (defun round-up-n-words (n-words)
-  "Round up N-WORDS to a multiple of +mem-box/min-words+"
+  "Round up N-WORDS to a multiple of +MEM-BOX/MIN-WORDS+"
   (declare (type mem-size n-words))
 
-  (if (zerop (logand n-words (1- +mem-box/min-words+)))
-      n-words
-      (1+ (logior n-words (1- +mem-box/min-words+)))))
+  (logand (mem-size+ n-words #.(1- +mem-box/min-words+))
+	  #.(lognot (1- +mem-box/min-words+))))
+
+
+(declaim (inline detect-box-n-words detect-box-n-words-rounded-up))
+
+(defun detect-box-n-words (value &optional (boxed-type (detect-box-type value)))
+  "Return the number of words needed to store boxed VALUE in memory,
+also including BOX header.
+Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
+
+  (declare (type mem-box-type boxed-type))
+
+  (mem-size+ +mem-box/header-words+
+	     (call-box-func +box-words-funcs+ boxed-type value)))
+
+
+(defun detect-box-n-words-rounded-up (value &optional
+				      (boxed-type (detect-box-type value)))
+  "Return the number of words needed to store boxed VALUE in memory,
+also including BOX header.
+Rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
+
+  (declare (type mem-box-type boxed-type))
+
+  (round-up-n-words (detect-box-n-words boxed-type)))
+
+
+
+
 
 
 (defun %mwrite-box (ptr index value n-words boxed-type)
@@ -160,9 +175,9 @@ Also writes BOX header. Returns T."
            (type mem-box-type boxed-type))
 
   ;; write BOX header.
-  ;; also round-up n-words to a multiple of +mem-box/min-words+
+  ;; assumes n-words is already rounded up to a multiple of +mem-box/min-words+
   ;; because only such multiples can be written accurately into the store.
-  (let ((index (mwrite-box/header ptr index (round-up-n-words n-words) boxed-type)))
+  (let ((index (mwrite-box/header ptr index n-words boxed-type)))
       
     (call-box-func +mwrite-box-funcs+ boxed-type ptr index value)))
 
@@ -175,7 +190,7 @@ Return the written box."
            (type (or null box) box))
 
   (let* ((boxed-type (detect-box-type    value))
-         (n-words    (detect-box-n-words value boxed-type))
+         (n-words    (detect-box-n-words-rounded-up value boxed-type))
          (allocated-n-words (if box (box-n-words box) 0)))
     
     (if (and (<= n-words allocated-n-words)
@@ -184,7 +199,8 @@ Return the written box."
         (setf n-words allocated-n-words)
         ;; we must (re)allocate memory
         (setf box (box-realloc ptr box n-words)
-              ;; ABSOLUTELY NECESSARY! read back actually allocated n-words (usually rounded up)
+              ;; ABSOLUTELY NECESSARY! read back actually allocated
+	      ;; n-words (usually rounded up somewhat)
               n-words (box-n-words box)))
 
     (setf (box-value box) value)
@@ -197,6 +213,7 @@ Return the written box."
 
 (defun %%mread-box (ptr index boxed-type)
   "Read a boxed value from the memory starting at (PTR+INDEX) and return it.
+Return the number of words actually read as additional value.
 Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index)
@@ -207,15 +224,13 @@ Assumes BOX header was already read."
 
 (defun %mread-box (ptr index)
   "Read a boxed value from the memory starting at (PTR+INDEX).
-Return the value and the number of read words as multiple values."
+Return the value and the number of words actually read as multiple values."
   (declare (type maddress ptr)
            (type mem-size index))
 
   ;; read BOX header
-  (multiple-value-bind (n-words boxed-type) (mread-box/header ptr index)
-    (values
-     (%%mread-box ptr (mem-size+ +mem-box/header-words+ index) boxed-type)
-     n-words)))
+  (let ((boxed-type (mget-fulltag ptr index)))
+    (%%mread-box ptr (mem-size+ +mem-box/header-words+ index) boxed-type)))
 
 
 
@@ -237,9 +252,30 @@ Return the boxed value."
 ;;;; mid-level functions accepting both boxed and unboxed values             ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun detect-n-words (value)
+  "Compute and return the number of CPU words needed to store VALUE.
+If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
+to DETECT-BOX-N-WORDS.
+Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
+  (if (is-unboxed? value)
+      1
+      (detect-box-n-words value)))
+
+
+(defun detect-n-words-rounded-up (value)
+  "Compute and return the number of CPU words needed to store VALUE.
+If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
+to DETECT-BOX-N-WORDS.
+Also rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
+
+  (if (is-unboxed? value)
+      1
+      (detect-box-n-words-rounded-up value)))
+
+
 (defun mwrite (ptr index value)
   "Write a value (either boxed or unboxed) into the memory starting at (PTR+INDEX).
-Return the number of words written.
+Return the number of words actually written (not rounded up).
 
 WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
   (declare (type maddress ptr)
@@ -249,15 +285,15 @@ WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
     (return-from mwrite 1))
 
   ;; TODO: handle symbols and pointers!
-  (let* ((boxed-type (detect-box-type value))
-         (n-words    (detect-box-n-words value boxed-type)))
-    (%mwrite-box ptr index value n-words boxed-type)
-    n-words))
+  (the mem-size
+    (let* ((boxed-type (detect-box-type value))
+	   (n-words    (detect-box-n-words-rounded-up value boxed-type)))
+      (%mwrite-box ptr index value n-words boxed-type))))
 
 
 (defun mread (ptr index)
   "Read a value (either boxed or unboxed) from the memory starting at (PTR+INDEX).
-Return the value and the number of read words as multiple values."
+Return the value and the number of words actually read as multiple values."
   (declare (type maddress ptr)
            (type mem-size index))
 

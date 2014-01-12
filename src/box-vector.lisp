@@ -26,27 +26,92 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/vector (value)
-  "Return the number of words needed to store vector VALUE in mmap memory, not including BOX header."
-  (declare (type vector value))
+(defun box-words/vector (vector)
+  "Return the number of words needed to store VECTOR in mmap memory, not including BOX header."
+  (declare (type (and vector (not (or string base-string bit-vector))) vector))
 
-  (error "TODO"))
-  
+  (let ((len (length vector)))
+    (unless (<= len +most-positive-int+)
+      (error "HYPERLUMINAL-DB: vector too large for object store.
+it contains ~S elements, maximum supported is ~S elements"
+	     len +most-positive-int+)))
 
-(defun mwrite-box/vector (ptr index value)
-  "Reuse the memory block starting at (PTR+INDEX) and write vector VALUE into it.
-Assumes BOX header is already written."
+  ;; -1 to store vector length
+  (let ((words-left (1- +mem-box/max-payload-words+)))
+
+    (declare (type mem-size words-left))
+    ;; count downward: easier to check for overflows
+
+    (macrolet
+	((compute-n-words (vector words-left)
+	   (with-gensyms (e e-len detect-n-words)
+	     `(let ((,detect-n-words #'detect-n-words))
+		(loop for ,e across ,vector
+		   for ,e-len = (the mem-size (funcall ,detect-n-words ,e))
+		   do
+		     (unless (>= ,words-left ,e-len)
+		       (error "HYPERLUMINAL-DB: vector too large for object store,
+it requires more space than the maximum supported ~S words"
+			      +mem-box/max-payload-words+))
+		     (decf ,words-left ,e-len))))))
+
+      (if (typep vector 'simple-vector)
+	  ;; optimize for simple-vector
+	  (compute-n-words vector words-left)
+	  (compute-n-words vector words-left)))
+
+    (mem-size- +mem-box/max-payload-words+ words-left)))
+
+
+(defun mwrite-box/vector (ptr index vector)
+  "write VECTOR into the memory starting at (PTR+INDEX).
+Return number of words actually written.
+
+Assumes BOX header is already written, and that enough memory is available
+at (PTR+INDEX)."
   (declare (type maddress ptr)
            (type mem-size index)
-           (type vector value))
+	   (type (and vector (not (or string base-string bit-vector))) vector))
 
-  (error "TODO"))
+  (let ((orig-index index))
+
+    (mset-int ptr index (the mem-int (length vector)))
+    (incf-mem-size index)
+
+    (let ((mwrite #'mwrite))
+      (if (typep vector 'simple-vector)
+	  (loop for e across vector
+	     do (incf-mem-size index
+			       (the mem-size (funcall mwrite ptr index e))))
+	  (loop for e across vector
+	     do (incf-mem-size index
+			       (the mem-size (funcall mwrite ptr index e))))))
+
+    (mem-size+ +mem-box/header-words+
+	       (mem-size- index orig-index))))
 
 
 (defun mread-box/vector (ptr index)
   "Read a vector from the boxed memory starting at (PTR+INDEX) and return it.
+Also returns number of words actually read as additional value.
+
 Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))
   
-  (error "TODO"))
+  (let* ((orig-index index)
+	 (len        (mget-int ptr index))
+	 (vector     (the simple-vector (make-array len))))
+
+    (incf-mem-size index)
+
+    (let ((mread #'mread))
+      (loop for i from 0 below len
+	 do (multiple-value-bind (e e-len) (funcall mread ptr index)
+	      (setf (svref vector i) e)
+	      (incf-mem-size index e-len))))
+
+    (values
+     vector
+     (mem-size+ +mem-box/header-words+
+		(mem-size- index orig-index)))))

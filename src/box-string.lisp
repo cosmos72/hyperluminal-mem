@@ -26,6 +26,8 @@
 
 (enable-#?-syntax)
 
+(declaim (inline box-words/base-string))
+
 (defun box-words/base-string (string)
   "Return the number of words needed to store base-string STRING in mmap memory,
 not including BOX header words."
@@ -37,7 +39,7 @@ not including BOX header words."
 (declaim (inline %mwrite-base-string))
 
 (defun %mwrite-base-string (ptr index string n-chars)
-  "Write the first N-CHARS single-byte characters of STRING into the memory starting at (PTR+INDEX)."
+  "Write the first N-CHARS single-byte characters of STRING into the memory starting at (PTR+INDEX). Return the number of words actually written."
   (declare (type maddress ptr)
            (type mem-size index)
            (type base-string string)
@@ -55,7 +57,9 @@ not including BOX header words."
       (if (typep string 'simple-string)
           (loop-write schar ptr offset string n-chars)
           (loop-write char ptr offset string n-chars))))
-  t)
+  
+  (mem-size+ +mem-box/header-words+ (box-words/base-string string)))
+
 
 
 (defun mwrite-box/base-string (ptr index string)
@@ -78,8 +82,10 @@ ABI: writes characters count as mem-int, followed by array of characters each oc
 
 (defun %mread-base-string (ptr index result-string n-chars)
   "Read (END-START) single-byte characters from the memory starting at (PTR+INDEX)
-and write them into RESULT-STRING.  Return RESULT-STRING.
-Characters are read from memory using the compact, single-byte representation.
+and write them into RESULT-STRING. Return RESULT-STRING and number of words
+actually read as multiple values.
+
+ABI: characters are read from memory using the compact, single-byte representation.
 For this reason only codes in the range 0 ... +most-positive-byte+ can be read
 \(typically 0 ... 255)"
   (declare (type maddress ptr)
@@ -94,12 +100,17 @@ For this reason only codes in the range 0 ... +most-positive-byte+ can be read
                (code-char
                 (the (unsigned-byte #.+mem-byte/bits+)
                   (%mget-t :byte ptr (the mem-word (+ offset i))))))))
-  result-string)
+  (values
+   result-string
+   (mem-size+ +mem-box/header-words+
+	      (box-words/base-string result-string)))) 
 
 
 
 (defun mread-box/base-string (ptr index)
   "Read a boxed base-string from the memory starting at (PTR+INDEX) and return it.
+Also return number of words actually read as addition value.
+
 Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))
@@ -116,6 +127,8 @@ Assumes BOX header was already read."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;    boxed    STRING                                                      ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(declaim (inline box-words/string))
 
 (defun box-words/string (string)
   "Return the number of words needed to store STRING in memory, not including BOX header."
@@ -161,7 +174,9 @@ Assumes BOX header was already read."
 
 (defun %mwrite-string (ptr index string n-chars)
   "Write characters from string STRING to the memory starting at (PTR+INDEX).
-Characters will be stored by packing as many as possible into words."
+Return the number of words actually written.
+
+ABI: characters will be stored by packing as many as possible into words."
   (declare (type maddress ptr)
            (type mem-size index)
            (type string string)
@@ -175,8 +190,12 @@ Characters will be stored by packing as many as possible into words."
         (simple-string
          (%%mwrite-string schar ptr index string bulk-n-words tail-n-chars))
         (otherwise
-         (%%mwrite-string char ptr index string bulk-n-words tail-n-chars))))
-  t)
+         (%%mwrite-string char ptr index string bulk-n-words tail-n-chars)))
+
+      ;; also add 1 word for length prefix
+      (mem-size+ +mem-box/header-words+
+		 (if (zerop tail-n-chars) 1 2)
+		 bulk-n-words)))
 
 
 
@@ -213,7 +232,8 @@ Note: increments POS!"
 
 (defun %mread-string (ptr index result-string n-chars)
   "Read N-CHAR packed characters from the memory starting at (PTR+INDEX)
-and write them into RESULT-STRING. Return RESULT-STRING."
+and write them into RESULT-STRING.
+Return RESULT-STRING and number of words actually read as multiple values."
   (declare (type maddress ptr)
            (type mem-size index)
            (type (and simple-string #?-hldb/base-char/eql/character (not base-string)) result-string)
@@ -240,12 +260,17 @@ and write them into RESULT-STRING. Return RESULT-STRING."
                       word   (the mem-word (ash word #.(- +character/bits+)))
                       char-i (the fixnum (1+ char-i))))))))
 
-  result-string)
+  (values
+   result-string
+   (mem-size+ +mem-box/header-words+
+	      (box-words/string result-string))))
 
 
 
 (defun mread-box/string (ptr index)
   "Read a string from the memory starting at (PTR+INDEX) and return it.
+Also return number of words actually read as addition value.
+
 Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))

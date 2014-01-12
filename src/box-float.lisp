@@ -25,16 +25,16 @@
 ;;;;    boxed    SINGLE-FLOATs and DOUBLE-FLOATs                             ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun box-words/sfloat (value)
+(declaim (inline box-words/sfloat box-words/dfloat))
+
+(defun box-words/sfloat (&optional value)
   "Return the number of words needed to store single-float VALUE in memory, not including BOX header."
-  (declare (type single-float value)
-           (ignore value))
+  (declare (ignore value))
   #.(ceiling +msizeof-sfloat+ +msizeof-word+)) ;; round up
 
-(defun box-words/dfloat (value)
+(defun box-words/dfloat (&optional value)
   "Return the number of words needed to store a BOX containing double-float VALUE in memory."
-  (declare (type double-float value)
-           (ignore value))
+  (declare (ignore value))
   #.(ceiling +msizeof-dfloat+ +msizeof-word+)) ;; round up
   
 
@@ -49,7 +49,7 @@ ABI: single-float is stored raw (usually means IEEE format)"
            (type single-float value))
 
   (mset-t value :sfloat ptr index)
-  t)
+  (mem-size+ +mem-box/header-words+ (box-words/sfloat)))
 
 
 (defun mwrite-box/dfloat (ptr index value)
@@ -62,7 +62,7 @@ ABI: double-float is stored raw (usually means IEEE format)"
            (type double-float value))
 
   (mset-t value :dfloat ptr index)
-  t)
+  (mem-size+ +mem-box/header-words+ (box-words/dfloat)))
 
 
 (defun mread-box/sfloat (ptr index)
@@ -71,7 +71,9 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))
   
-  (the single-float (mget-t :sfloat ptr index)))
+  (values
+   (the single-float (mget-t :sfloat ptr index))
+   (mem-size+ +mem-box/header-words+ (box-words/sfloat))))
 
 
 (defun mread-box/dfloat (ptr index)
@@ -80,5 +82,7 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))
   
-  (the double-float (mget-t :dfloat ptr index)))
+  (values
+   (the double-float (mget-t :dfloat ptr index))
+   (mem-size+ +mem-box/header-words+ (box-words/dfloat))))
   

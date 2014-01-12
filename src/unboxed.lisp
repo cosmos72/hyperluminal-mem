@@ -156,9 +156,9 @@
            (type mem-size index)
            (type mem-int value))
 
-  (setf (mget-word ptr index)
-        (logand +mem-word/mask+
-                (logior +mem-int/flag+ value)))
+  (mset-word ptr index
+	     (logior +mem-int/flag+
+		     (logand +mem-int/mask+ value)))
   t)
 
 
@@ -258,6 +258,8 @@ ignoring any sign bit"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(declaim (inline is-unboxed?))
+
 (defun is-unboxed? (value)
   "Return T if VALUE can be written to mmap memory as an unboxed value."
   (if (typep value 'mem-unboxed)
@@ -270,14 +272,13 @@ ignoring any sign bit"
   (eq value +unbound-tvar+))
 
 (defun mset-unboxed (ptr index value)
-  "Write an unboxed value to memory store. Supported types are:
-boolean, unbound slots, character and medium-size integer
+  "Try to write an unboxed value to memory store. Supported types are:
+boolean, unbound slots, character and medium-size integers
 \(on 64bit architectures can also write single-floats).
 
 Return T on success, or NIL if VALUE is a pointer or must be boxed."
   (declare (type maddress ptr)
-           (type mem-size index)
-           (type mem-unboxed value))
+           (type mem-size index))
 
   (let ((tag +mem-tag/symbol+)
         (val +mem-nil+))
