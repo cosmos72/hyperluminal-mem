@@ -148,6 +148,8 @@ Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
   (declare (type mem-box-type boxed-type))
 
+  (log.trace value boxed-type)
+
   (mem-size+ +mem-box/header-words+
 	     (call-box-func +box-words-funcs+ boxed-type value)))
 
@@ -160,7 +162,7 @@ Rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
   (declare (type mem-box-type boxed-type))
 
-  (round-up-n-words (detect-box-n-words boxed-type)))
+  (round-up-n-words (detect-box-n-words value boxed-type)))
 
 
 

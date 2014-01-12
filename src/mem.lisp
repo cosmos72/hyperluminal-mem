@@ -381,7 +381,8 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
        (setf value (logand #xFF (+ value increment)))))
 
 
-(declaim (inline !memset !mzero !memcpy))
+(declaim (notinline !memset !memcpy)
+	 (inline !mzero))
            
 
 (defun !memset (ptr fill-byte start-byte end-byte)
@@ -402,12 +403,23 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
            
 
 (defun !mzero-words (ptr &optional (start-index 0) (end-index (1+ start-index)))
-  "mzero-words is only used for debugging."
+  "!mzero-words is only used for debugging."
   (declare (type maddress ptr)
            (type ufixnum start-index end-index))
         
   (loop for index from start-index below end-index
        do (mset-word ptr index 0)))
+
+
+(defun !memset-words (ptr fill-word &optional (start-index 0) (end-index (1+ start-index)))
+  "!memset-words is only used for debugging."
+  (declare (type maddress ptr)
+	   (type mem-word fill-word)
+           (type ufixnum start-index end-index))
+        
+  (loop for index from start-index below end-index
+       do (mset-word ptr index fill-word)))
+
 
 
 (defun !memcpy (dst src n-bytes)

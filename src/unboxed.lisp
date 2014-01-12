@@ -94,6 +94,9 @@
 (defmacro incf-mem-size (place &optional (delta 1))
   `(incf (the mem-size ,place) ,delta))
 
+(defmacro decf-mem-size (place &optional (delta 1))
+  `(decf (the mem-size ,place) ,delta))
+
 
     
   

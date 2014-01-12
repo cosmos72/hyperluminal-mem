@@ -53,7 +53,7 @@ it contains ~S elements, maximum supported is ~S elements"
 		       (error "HYPERLUMINAL-DB: vector too large for object store,
 it requires more space than the maximum supported ~S words"
 			      +mem-box/max-payload-words+))
-		     (decf ,words-left ,e-len))))))
+		     (decf-mem-size ,words-left ,e-len))))))
 
       (if (typep vector 'simple-vector)
 	  ;; optimize for simple-vector
@@ -64,7 +64,7 @@ it requires more space than the maximum supported ~S words"
 
 
 (defun mwrite-box/vector (ptr index vector)
-  "write VECTOR into the memory starting at (PTR+INDEX).
+  "Write VECTOR into the memory starting at (PTR+INDEX).
 Return number of words actually written.
 
 Assumes BOX header is already written, and that enough memory is available
@@ -73,20 +73,21 @@ at (PTR+INDEX)."
            (type mem-size index)
 	   (type (and vector (not (or string base-string bit-vector))) vector))
 
-  (let ((orig-index index))
+  (let ((orig-index index)
+	(mwrite #'mwrite))
 
     (mset-int ptr index (the mem-int (length vector)))
     (incf-mem-size index)
 
-    (let ((mwrite #'mwrite))
-      (if (typep vector 'simple-vector)
-	  (loop for e across vector
-	     do (incf-mem-size index
-			       (the mem-size (funcall mwrite ptr index e))))
-	  (loop for e across vector
-	     do (incf-mem-size index
-			       (the mem-size (funcall mwrite ptr index e))))))
+    (if (typep vector 'simple-vector)
+	(loop for e across vector
+	   do (incf-mem-size index
+			     (the mem-size (funcall mwrite ptr index e))))
+	(loop for e across vector
+	   do (incf-mem-size index
+			     (the mem-size (funcall mwrite ptr index e)))))
 
+    ;; return number of words actually written, including BOX header
     (mem-size+ +mem-box/header-words+
 	       (mem-size- index orig-index))))
 
