@@ -13,20 +13,39 @@ It is designed and optimized for the following scenarios:
 - designed to allow high concurrency, i.e. hundreds or thousands of threads
   that simultaneously access the same dataset.
 - designed and optimized for extremely fast transactions - as of 2013,
-  theoretical peak is approx. **400 millions** transactions per second
-  on a fast desktop computer (Intel Core i7 4770, which supports
-  hardware memory transactions) running 64 bit SBCL.
+  theoretical peak is approx. **400 millions** concurrent transactions
+  per second on a fast desktop computer (Intel Core i7 4770, which
+  supports hardware memory transactions) running 64 bit SBCL.
 - optimized for 64 bit systems, where dataset is limited only by `mmap()`
-  maximum size (on Linux 3.x, the limit is approx. 128 terabytes). 
-- usable on 32 bit systems, with restrictions on the dataset size
-  (approx. 256 megabytes). 
+  maximum size (on Linux 3.x, the limit is about 128 terabytes). 
+- usable on 32 bit systems, with restrictions on the number of
+  user-defined persistent types (approximately 100) and the dataset
+  size: about 256 megabytes per persistent type; the total dataset size
+  is also limited by `mmap()` maximum size. 
 
+Implementation
+--------------
 Hyperluminal-DB is loosely inspired by some techniques used by
 [manardb](http://cl-www.msi.co.jp/projects/manardb/index.html)
 but it is a completely separate and independent project.
 
-It is based on [STMX](https://github.com/cosmos72/stmx), a high-performance
-hybrid transactional memory library from the same author.
+It is based on [STMX](https://github.com/cosmos72/stmx),
+a high-performance hybrid transactional memory library from the same
+author.
+
+Hyperluminal-DB uses a (supposedly) clever trick in order to overcome Intel
+claims that hardware memory transactions (specifically, Intel TSX) cannot
+perform input/output.
+
+The result is that Hyperluminal-DB is able to perform transactional
+input/output while running hardware memory transactions - an apparent
+paradox - in an extremely specific but significant case: reading and
+writing mmap() memory.
+
+This allows reaching extremely high transaction speeds: the only hard limit
+is the hardware - an Intel Core i7 4770 peaks at **400 millions** transactions
+per second when all the 4 cores and hyperthreading are exploited.
+
 
 Contacts, help, discussion
 --------------------------
@@ -40,7 +59,7 @@ The author will also try to answer support requests, but gives no guarantees.
 Status
 ------
 
-As of December 2013, Hyperluminal-DB is being written by Massimiliano Ghilardi
+As of January 2014, Hyperluminal-DB is being written by Massimiliano Ghilardi
 and is in the early-implementation stage, not yet ready for general use.
 
 Legal
