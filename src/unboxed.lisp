@@ -274,6 +274,8 @@ ignoring any sign bit"
 (defun !is-unbound-tvar? (value)
   (eq value +unbound-tvar+))
 
+(declaim (inline mset-unboxed))
+
 (defun mset-unboxed (ptr index value)
   "Try to write an unboxed value to memory store. Supported types are:
 boolean, unbound slots, character and medium-size integers

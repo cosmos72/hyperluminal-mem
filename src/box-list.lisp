@@ -124,7 +124,7 @@ Assumes BOX header was already read."
     (incf-mem-size index)
 
     (unless (zerop len)
-      (setf list (cons nil nil)
+      (setf list (stmx.lang::cons^ nil nil)
 	    tail list)
 
       (let ((mread #'mread))
@@ -132,16 +132,18 @@ Assumes BOX header was already read."
 	   do
 	     (multiple-value-bind (e e-len) (funcall mread ptr index)
 	       (incf-mem-size index e-len)
-	       (let ((cons (cons e nil)))
+	       (let ((cons (stmx.lang::cons^ e nil)))
 		 (setf prev tail
 		       (rest tail) cons
 		       tail cons)))))
 
       ;; adjust for dotted pair
       (when (and dotted-pair prev tail)
-	(setf (rest prev) (first tail)))
+	(setf (rest prev) (first tail))
+	(stmx.lang::free-cons^ tail)))
 
     (values
-     (rest list)
+     (prog1 (rest list)
+       (stmx.lang::free-cons^ list))
      (mem-size+ +mem-box/header-words+
-		(mem-size- index orig-index))))))
+		(mem-size- index orig-index)))))

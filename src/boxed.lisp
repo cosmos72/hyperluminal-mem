@@ -129,7 +129,7 @@
       (pathname     +mem-box/pathname+))))
 
 
-(declaim (inline round-up-n-words %mwrite-box))
+(declaim (inline round-up-n-words))
 
 (defun round-up-n-words (n-words)
   "Round up N-WORDS to a multiple of +MEM-BOX/MIN-WORDS+"
@@ -139,7 +139,7 @@
 	  #.(lognot (1- +mem-box/min-words+))))
 
 
-(declaim (inline detect-box-n-words detect-box-n-words-rounded-up))
+(declaim (inline detect-box-n-words))
 
 (defun detect-box-n-words (value &optional (boxed-type (detect-box-type value)))
   "Return the number of words needed to store boxed VALUE in memory,
@@ -154,6 +154,8 @@ Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 	     (call-box-func +box-words-funcs+ boxed-type value)))
 
 
+(declaim (inline detect-box-n-words-rounded-up))
+
 (defun detect-box-n-words-rounded-up (value &optional
 				      (boxed-type (detect-box-type value)))
   "Return the number of words needed to store boxed VALUE in memory,
@@ -167,7 +169,10 @@ Rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
 
 
-
+(declaim (ftype (function (maddress mem-size t mem-size mem-box-type)
+			  (values mem-size &optional))
+		 %mwrite-box)
+	 (inline %mwrite-box))
 
 (defun %mwrite-box (ptr index value n-words boxed-type)
   "Write a boxed value into the mmap memory starting at (PTR+INDEX).
@@ -274,6 +279,9 @@ Also rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
       1
       (detect-box-n-words-rounded-up value)))
 
+(declaim (ftype (function (maddress mem-size t) (values mem-size &optional))
+		mwrite)
+	 (inline mwrite))
 
 (defun mwrite (ptr index value)
   "Write a value (either boxed or unboxed) into the memory starting at (PTR+INDEX).
@@ -287,10 +295,9 @@ WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
     (return-from mwrite 1))
 
   ;; TODO: handle symbols and pointers!
-  (the mem-size
-    (let* ((boxed-type (detect-box-type value))
-	   (n-words    (detect-box-n-words-rounded-up value boxed-type)))
-      (%mwrite-box ptr index value n-words boxed-type))))
+  (let* ((boxed-type (detect-box-type value))
+	 (n-words    (detect-box-n-words-rounded-up value boxed-type)))
+    (%mwrite-box ptr index value n-words boxed-type)))
 
 
 (defun mread (ptr index)
