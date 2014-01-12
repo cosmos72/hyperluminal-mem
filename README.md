@@ -21,7 +21,7 @@ It is designed and optimized for the following scenarios:
 - usable on 32 bit systems, with restrictions on the number of
   user-defined persistent types (approximately 100) and the dataset
   size: about 256 megabytes per persistent type; the total dataset size
-  is also limited by `mmap()` maximum size. 
+  is also limited by `mmap()` maximum size (usually around 1 gigabyte).
 
 Implementation
 --------------
