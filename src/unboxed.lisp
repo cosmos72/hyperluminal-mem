@@ -258,17 +258,23 @@ ignoring any sign bit"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun mvalue-is-unboxed? (value)
-  "Return T if VALUE can be stored as an unboxed value to memory store."
-  
+(defun is-unboxed? (value)
+  "Return T if VALUE can be written to mmap memory as an unboxed value."
   (if (typep value 'mem-unboxed)
       t nil))
 
+(defun !get-unbound-tvar ()
+   +unbound-tvar+)
+
+(defun !is-unbound-tvar? (value)
+  (eq value +unbound-tvar+))
 
 (defun mset-unboxed (ptr index value)
   "Write an unboxed value to memory store. Supported types are:
 boolean, unbound slots, character and medium-size integer
-\(on 64bit architectures can also write single-floats)"
+\(on 64bit architectures can also write single-floats).
+
+Return T on success, or NIL if VALUE is a pointer or must be boxed."
   (declare (type maddress ptr)
            (type mem-size index)
            (type mem-unboxed value))
@@ -277,7 +283,6 @@ boolean, unbound slots, character and medium-size integer
         (val +mem-nil+))
 
     (cond
-      ;; value is an integer?
       ((typep value 'mem-int)
        (return-from mset-unboxed (mset-int ptr index value)))
 
@@ -291,7 +296,7 @@ boolean, unbound slots, character and medium-size integer
       ((eq value nil))
 
       ;; value is +unbound-tvar+ ?
-      ((eq value stmx::+unbound-tvar+) (setf val +mem-unbound+))
+      ((eq value +unbound-tvar+) (setf val +mem-unbound+))
 
       ;; value is a single-float?
       #?+hldb/sfloat/inline
@@ -308,16 +313,21 @@ boolean, unbound slots, character and medium-size integer
        (return-from mset-unboxed t))
 
       ;; default case: value cannot be be stored as unboxed type, return NIL
-      (t (return-from mset-unboxed nil)))
+      ;; TODO: handle symbols and pointers
+      (t 
+       (return-from mset-unboxed nil)))
 
     (mset-fulltag-and-value ptr index tag val)))
 
      
 
 (defun mget-unboxed (ptr index)
-  "Read an unboxed value (boolean, unbound slot, character or
-medium-size integer) or a pointer from memory store.
-\(on 64bit architectures can also read single-floats)"
+  "Try to read an unboxed value (boolean, unbound slot, character or mem-int)
+from memory store (on 64 bit architectures, also single-floats are unboxed)
+and return it.
+
+If memory contains a pointer or a boxed value, return their value and fulltag
+as multiple values."
   (declare (type maddress ptr)
            (type mem-size index))
 
@@ -332,8 +342,8 @@ medium-size integer) or a pointer from memory store.
             (#.+mem-tag/symbol+ ;; found a symbol
 
              (case value
-               (#.+mem-unallocated+ nil) ;; should not happen :(
-               (#.+mem-unbound+ stmx::+unbound-tvar+) ;; unbound slot
+               ;; (#.+mem-unallocated+ nil) ;; should not happen :(
+               (#.+mem-unbound+ +unbound-tvar+) ;; unbound slot
                (#.+mem-t+       t)
                (#.+mem-nil+     nil)
                (otherwise       (values value fulltag)))) ;; generic symbol

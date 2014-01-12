@@ -62,10 +62,12 @@
 
 
 ;; not really used, but handy
-(cffi:defctype mfloat  #.(parse-type :sfloat))
-(cffi:defctype mdouble #.(parse-type :dfloat))
-(cffi:defctype mbyte   #.(parse-type :byte))
-(cffi:defctype mword   #.(parse-type :word))
+#-(and)
+(eval-always
+ (cffi:defctype mfloat  #.(parse-type :sfloat))
+ (cffi:defctype mdouble #.(parse-type :dfloat))
+ (cffi:defctype mbyte   #.(parse-type :byte))
+ (cffi:defctype mword   #.(parse-type :word)))
 
 
 

@@ -40,6 +40,9 @@
                 #:when-bind    #:if-bind       #:awhen #:aif 
                 #:log.debug    #:log.trace     #:log.make-logger)
 
+  (:import-from #:stmx
+                #:+unbound-tvar+)
+
   (:export #:+null-pointer+ #:+bad-fd+
            #:open-fd #:close-fd #:mmap #:munmap
            #:mget-primitive #:mset-primitive

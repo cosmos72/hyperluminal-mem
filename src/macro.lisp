@@ -27,10 +27,9 @@ Otherwise keep its current value."
      ,@(when documentation `(,documentation))))
 
 
-(defun symbol-concat (a b)
-  "Concatenate the two symbols A and B."
-  (declare (type symbol a b))
-  (intern (concatenate 'string (symbol-name a) (symbol-name b))))
+(defun concat-symbols (&rest syms)
+  "Concatenate the names of specified symbols. Returns a symbol."
+  (intern (apply #'concatenate 'string (mapcar #'symbol-name syms))))
 
 
 (defmacro check-vector-index (vector index &rest error-message-and-args)

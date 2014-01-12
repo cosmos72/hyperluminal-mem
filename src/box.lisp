@@ -20,11 +20,6 @@
 (in-package :hyperluminal-db)
 
 
-(deftype mem-box-type ()
-  "Valid range for boxed-type tags"
-  `(mod ,(length +mem-box-type-syms+)))
-
-
 ;;;; boxed values, i.e. mem-box, are variable-length mmap areas
 ;;;; used to store all kind of CL built-in types that do not fit a single CPU word:
 ;;;; bignums, ratios, single-floats and double-floats, complexes,
