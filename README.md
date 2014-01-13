@@ -3,7 +3,7 @@ Hyperluminal-DB
 
 Summary
 -------
-Hyperluminal-DB is a high-performance, memory-mapped database for Common Lisp.
+Hyperluminal-DB is a high-performance, memory-mapped object database for Common Lisp.
 
 It is designed and optimized for the following scenarios:
 - adding persistence and transactions to Lisp objects through an easy-to-use
@@ -18,10 +18,11 @@ It is designed and optimized for the following scenarios:
   supports hardware memory transactions) running 64 bit SBCL.
 - optimized for 64 bit systems, where dataset is limited only by `mmap()`
   maximum size (on Linux 3.x, the limit is about 128 terabytes). 
-- usable on 32 bit systems, with restrictions on the number of
-  user-defined persistent types (approximately 100) and the dataset
-  size: about 256 megabytes per persistent type; the total dataset size
-  is also limited by `mmap()` maximum size (usually around 1 gigabyte).
+- usable on 32 bit systems, with the following limitations:
+  - 100 user-defined persistent classes
+  - 16 millions instances per user-defined persistent class
+  - 256 megabytes storage per user-defined persistent class
+  - also limited by `mmap()` maximum size, usually around 1 gigabyte
 
 Implementation
 --------------
