@@ -27,7 +27,8 @@
 
 
 (defun box-words/vector (vector)
-  "Return the number of words needed to store VECTOR in mmap memory, not including BOX header."
+  "Return the number of words needed to store VECTOR in mmap memory,
+not including BOX header."
   (declare (type (and vector (not (or string base-string bit-vector))) vector))
 
   (let ((len (length vector)))

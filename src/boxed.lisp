@@ -83,12 +83,6 @@
            (type mem-box-type boxed-type))
 
   (let ((i (- boxed-type +mem-box/first+)))
-
-    #-(and)
-    (check-vector-index funcs i
-                        "out-of-range boxed-type! found ~S, expecting a number between ~S and ~S"
-                        boxed-type +mem-box/first+ (+ +mem-box/first+ -1 (length funcs)))
-
     (the function (svref funcs i))))
 
 
@@ -117,15 +111,20 @@
 
       (list         +mem-box/list+)
 
-      (array        (if (= 1 (array-rank value))
+      (array        (if (/= 1 (array-rank value))
+                        +mem-box/array+
                         (case (array-element-type value)
                           (character +mem-box/string+)
                           (base-char +mem-box/base-string+)
                           (bit       +mem-box/bit-vector+)
-                          (otherwise +mem-box/vector+))
-                        +mem-box/array+))
+                          (otherwise +mem-box/vector+))))
       
-      (hash-table   +mem-box/hash-table+)
+      (hash-table   (ecase (hash-table-test value)
+                      (eq +mem-box/hash-table-eq+)
+                      (eql +mem-box/hash-table-eq+)
+                      (equal +mem-box/hash-table-equal+)
+                      (equalp +mem-box/hash-table-equal+)))
+                              
       (pathname     +mem-box/pathname+))))
 
 
@@ -229,15 +228,25 @@ Assumes BOX header was already read."
   (call-box-func +mread-box-funcs+ boxed-type ptr index))
 
 
-(defun %mread-box (ptr index)
+(defun boxed-type-error (ptr index boxed-type)
+  (error "the value of ~S at address (+ ~S ~S)
+is ~S, which is not in the valid range ~S..~S for ~S"
+         'boxed-type ptr index boxed-type
+         +mem-box/first+ +mem-box/last+ 'mem-box-type))
+
+
+(defun %mread-box (ptr index &optional (boxed-type (mget-fulltag ptr index)))
   "Read a boxed value from the memory starting at (PTR+INDEX).
 Return the value and the number of words actually read as multiple values."
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index)
+           (type mem-fulltag boxed-type))
 
-  ;; read BOX header
-  (let ((boxed-type (mget-fulltag ptr index)))
-    (%%mread-box ptr (mem-size+ +mem-box/header-words+ index) boxed-type)))
+  ;; validate BOXED-TYPE
+  (unless (typep boxed-type 'mem-box-type)
+    (boxed-type-error ptr index boxed-type))
+
+  (%%mread-box ptr (mem-size+ +mem-box/header-words+ index) boxed-type))
 
 
 
@@ -309,5 +318,5 @@ Return the value and the number of words actually read as multiple values."
   (multiple-value-bind (value boxed-type) (mget-unboxed ptr index)
     (if boxed-type
         ;; TODO: handle symbols and pointers!
-        (%mread-box ptr index)
+        (%mread-box ptr index boxed-type)
         (values value 1))))

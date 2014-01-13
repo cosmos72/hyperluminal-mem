@@ -184,18 +184,19 @@
 (defconstant +mem-box/complex-dfloat+    9 "box is a complex of double-floats")
 (defconstant +mem-box/complex-rational+ 10 "box is a complex of rationals")
 (defconstant +mem-box/pathname+         11 "box is a pathname")
-(defconstant +mem-box/hash-table+       12 "box is a hash-table")
-(defconstant +mem-box/list+             13 "box is a cons or list")
-(defconstant +mem-box/array+            14 "box is a N-dimensional array")
-(defconstant +mem-box/vector+           15 "box is a 1-dimensional array, i.e. a vector")
-(defconstant +mem-box/string+           16 "box is a string, i.e. a (vector character)")
-(defconstant +mem-box/base-string+      17 "box is a base-string, i.e. a (vector base-char)")
-(defconstant +mem-box/bit-vector+       18 "box is a bit-vector, i.e. a (vector bit)")
+(defconstant +mem-box/hash-table-eq+    12 "box is a hash-table with 'eq or 'eql test")
+(defconstant +mem-box/hash-table-equal+ 13 "box is a hash-table with 'equal or 'equalp test")
+(defconstant +mem-box/list+             14 "box is a cons or list")
+(defconstant +mem-box/array+            15 "box is a N-dimensional array")
+(defconstant +mem-box/vector+           16 "box is a 1-dimensional array, i.e. a vector")
+(defconstant +mem-box/string+           17 "box is a string, i.e. a (vector character)")
+(defconstant +mem-box/base-string+      18 "box is a base-string, i.e. a (vector base-char)")
+(defconstant +mem-box/bit-vector+       19 "box is a bit-vector, i.e. a (vector bit)")
 
 (defconstant +mem-box/first+            +mem-box/bignum+)
 (defconstant +mem-box/last+             +mem-box/bit-vector+)
 
-(defconstant +mem-user/first+           20 "first type tag available for user-defined types")
+(defconstant +mem-user/first+           28 "first type tag available for user-defined types")
 (defconstant +mem-user/last+            +mem-tag/mask+)
 
 
@@ -205,7 +206,9 @@
 (define-constant-once +mem-boxed-type-syms+
     #(bignum ratio sfloat dfloat
       complex-sfloat complex-dfloat complex-rational
-      pathname hash-table list
+      ;; hash-table is repeated twice to match
+      ;; +mem-box/hash-table-eq+ and +mem-box/hash-table-equal+ 
+      pathname hash-table hash-table list
       array vector string base-string bit-vector))
 
 
