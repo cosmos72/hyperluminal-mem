@@ -17,7 +17,7 @@ It is designed and optimized for the following scenarios:
   per second, on a fast desktop computer (Intel Core i7 4770, which
   supports hardware memory transactions) running 64 bit SBCL.
   - on the same hardware, micro-benchmarks exceeding **200 millions**
-    concurrent transactions per second have been alrady measured in
+    concurrent transactions per second have been already measured in
     practice.
     The speed difference is largely due to the need to make hardware
     transactions compatible with software ones.
