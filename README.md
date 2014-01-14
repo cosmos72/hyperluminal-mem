@@ -38,7 +38,7 @@ Hyperluminal-DB uses a (supposedly) clever trick in order to overcome Intel
 claims that hardware memory transactions (specifically, Intel TSX) cannot
 perform input/output.
 
-The result is that Hyperluminal-DB is able to perform transactional
+The result is that Hyperluminal-DB is able to perform **transactional**
 input/output while running hardware memory transactions - an apparent
 paradox - in an extremely specific but significant case: reading and
 writing mmap() memory.

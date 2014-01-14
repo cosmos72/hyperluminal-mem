@@ -200,7 +200,6 @@
 (defconstant +mem-user/last+            +mem-tag/mask+)
 
 
-
 (declaim (type vector +mem-boxed-type-syms+))
 
 (define-constant-once +mem-boxed-type-syms+
