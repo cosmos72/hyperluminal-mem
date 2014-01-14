@@ -14,8 +14,13 @@ It is designed and optimized for the following scenarios:
   that simultaneously access the same dataset.
 - designed and optimized for extremely fast transactions - as of 2013,
   theoretical peak is approx. **400 millions** concurrent transactions
-  per second on a fast desktop computer (Intel Core i7 4770, which
+  per second, on a fast desktop computer (Intel Core i7 4770, which
   supports hardware memory transactions) running 64 bit SBCL.
+  - on the same hardware, micro-benchmarks exceeding **200 millions**
+    concurrent transactions per second have been alrady measured in
+    practice.
+    The speed difference is largely due to the need to make hardware
+    transactions compatible with software ones.
 - optimized for 64 bit systems, where dataset is limited only by `mmap()`
   maximum size (on Linux 3.x, the limit is about 128 terabytes). 
 - usable on 32 bit systems, with the following limitations:
@@ -46,6 +51,9 @@ writing mmap() memory.
 This allows reaching extremely high transaction speeds: the only hard limit
 is the hardware - an Intel Core i7 4770 peaks at **400 millions** transactions
 per second when all the 4 cores and hyperthreading are exploited.
+
+Quite clearly, the speed also strongly depends on the amount (and type) of
+data read and written during each transaction.
 
 
 Contacts, help, discussion
