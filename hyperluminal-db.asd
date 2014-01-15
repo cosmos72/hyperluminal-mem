@@ -39,8 +39,8 @@
 
                (:module :src
                 :components ((:file "package")
-                             (:file "macro"          :depends-on ("package"))
-                             (:file "mem"            :depends-on ("macro"))
+                             (:file "lang"           :depends-on ("package"))
+                             (:file "mem"            :depends-on ("lang"))
                              (:file "constants"      :depends-on ("mem"))
                              (:file "unboxed"        :depends-on ("constants"))
                              (:file "box"            :depends-on ("unboxed"))

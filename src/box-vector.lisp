@@ -77,12 +77,16 @@ at (PTR+INDEX)."
   (let ((orig-index index)
 	(mwrite #'mwrite))
 
+    (log:debug ptr index vector)
+
     (mset-int ptr index (the mem-int (length vector)))
     (incf-mem-size index)
 
     (if (typep vector 'simple-vector)
 	(loop for e across vector
-	   do (incf-mem-size index
+	   do
+             (log:debug e (funcall mwrite ptr index e))
+             (incf-mem-size index
 			     (the mem-size (funcall mwrite ptr index e))))
 	(loop for e across vector
 	   do (incf-mem-size index

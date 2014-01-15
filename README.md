@@ -23,11 +23,14 @@ It is designed and optimized for the following scenarios:
     transactions compatible with software ones.
 - optimized for 64 bit systems, where dataset is limited only by `mmap()`
   maximum size (on Linux 3.x, the limit is about 128 terabytes). 
-- usable on 32 bit systems, with the following limitations:
+- usable on 32 bit systems, either retaining 64 bit file format
+  (with some performance loss), or using native 32 bit file format - fast,
+  but has the following limitations:
   - 100 user-defined persistent classes
   - 16 millions instances per user-defined persistent class
   - 256 megabytes storage per user-defined persistent class
-  - also limited by `mmap()` maximum size, usually around 1 gigabyte
+  In both cases, dataset size is limited by `mmap()` maximum size,
+  usually around 1 gigabyte
 
 Implementation
 --------------

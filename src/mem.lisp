@@ -36,11 +36,6 @@
 
 (eval-when (:compile-toplevel :load-toplevel)
 
-  (pushnew :hyperluminal-db *features*)
-
-  #-(and)
-  (pushnew :hyperluminal-db/debug *features*)
-
   (defun expr-is-constant? (expr)
     (or (keywordp expr)
         (and (consp expr)
@@ -52,12 +47,15 @@
         (second expr)
         expr))
 
+  (declaim (type keyword +chosen-word-type+))
+  (defconstant +chosen-word-type+ (choose-word-type))
+
   (defun parse-type (type)
     (case type
       (:sfloat :float)         ;; this is the ONLY code mapping :sfloat to a CFFI type
       (:dfloat :double)        ;; this is the ONLY code mapping :dfloat to a CFFI type
       (:byte   :unsigned-char) ;; this is the ONLY code mapping :byte to a CFFI type
-      (:word   :unsigned-long) ;; this is the ONLY code mapping :word to a CFFI type
+      (:word   +chosen-word-type+) ;; :word is mapped to a CFFI type by (choose-word-type)
       (otherwise type))))
 
 
@@ -72,10 +70,10 @@
 
 
 (defmacro %msizeof (type)
-  "Wrapper for (CFFI:FOREIGN-TYPE-SIZE), interprets :SFLOAT :DFLOAT :BYTE AND :WORD"
-  `(cffi:foreign-type-size ,(if (expr-is-constant? type)
-                                (parse-type type)
-                                `(parse-type ,type))))
+  "Wrapper for (CFFI-SYS:%FOREIGN-TYPE-SIZE), interprets :SFLOAT :DFLOAT :BYTE AND :WORD"
+  `(cffi-sys:%foreign-type-size ,(if (expr-is-constant? type)
+                                     (parse-type type)
+                                     `(parse-type ,type))))
 
 (defmacro msizeof (type)
   "Wrapper for (%MSIZEOF), computes (CFFI:FOREIGN-TYPE-SIZE) at compile time whenever possible"
@@ -86,20 +84,6 @@
 
 
 
-
-(defconstant +msizeof-char+    (msizeof :char))
-(defconstant +msizeof-short+   (msizeof :short))
-(defconstant +msizeof-int+     (msizeof :int))
-(defconstant +msizeof-long+    (msizeof :long))
-(defconstant +msizeof-float+   (msizeof :float))
-(defconstant +msizeof-double+  (msizeof :double))
-(defconstant +msizeof-pointer+ (msizeof :pointer))
-
-(defconstant +msizeof-uchar+   (msizeof :uchar))
-(defconstant +msizeof-ushort+  (msizeof :ushort))
-(defconstant +msizeof-uint+    (msizeof :uint))
-(defconstant +msizeof-ulong+   (msizeof :ulong))
-(defconstant +msizeof-ullong+  (msizeof :ullong))
 
 (defconstant +msizeof-sfloat+  (msizeof :sfloat))
 (defconstant +msizeof-dfloat+  (msizeof :dfloat))
@@ -138,14 +122,14 @@
   ;; (msizeof :byte) must be 1
   (when (/= +msizeof-byte+ 1)
     (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
-    size of ~S is ~S bytes, expecting exactly 1 byte"
+size of ~S is ~S bytes, expecting exactly 1 byte"
            (cffi-type-name :byte) +msizeof-byte+))
 
 
   ;; we need at least a 32-bit architecture
   (when (< +msizeof-word+ 4)
     (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
-    size of ~S is ~S bytes, expecting at least 4 bytes"
+size of ~S is ~S bytes, expecting at least 4 bytes"
            (cffi-type-name :byte) +msizeof-word+))
 
   ;; determine number of bits per CPU word
@@ -241,16 +225,15 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
 (defconstant +most-positive-byte+ +mem-byte/mask+)
 
 (defconstant +most-positive-character+ (%detect-most-positive-character))
-;; round up characters to unicode (21 bits)
+;; round up characters to 21 bits (unicode)
 (defconstant +character/bits+          (max 21 (integer-length +most-positive-character+)))
 (defconstant +character/mask+          (1- (ash 1 +character/bits+)))
 (defconstant +characters-per-word+     (truncate +mem-word/bits+ +character/bits+))
 
 
 (defconstant +most-positive-base-char+ (%detect-most-positive-base-char))
-;; round up base-chars to 1 byte
-(defconstant +base-char/bits+          (max +mem-byte/bits+
-                                            (integer-length +most-positive-base-char+)))
+;; round up base-chars to 8 bits (iso-8859-1 or similar)
+(defconstant +base-char/bits+          (max 8 (integer-length +most-positive-base-char+)))
 (defconstant +base-char/mask+          (1- (ash 1 +base-char/bits+)))
 (defconstant +base-char/fits-byte?+    (<= +base-char/bits+ +mem-byte/bits+))
 
@@ -437,7 +420,7 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
   (cffi-sys:foreign-free ptr))
 
 (defun !hex (n)
-  (format t "~x" n))
+  (format t "#x~x" n))
 
 (defun !readable (n &optional (stream t))
   "Print N in human-readable format."
