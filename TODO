@@ -1,8 +1,14 @@
 ========== TO DO ==========
 
-mwrite-box/string and mread-box/string should use compact representation:
-  pack as many characters as possible in each CPU word
+(mwrite) should not call (detect-n-words), but simply dispatch the write
+and get the return value, which is the actual number of written words.
+As last, it should write the box header.
 
 bit-vector
 
 everything else...
+
+========== DONE ==========
+
+mwrite-box/string and mread-box/string use compact representation:
+  they pack as many characters as possible in each CPU word

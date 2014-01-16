@@ -44,8 +44,8 @@
                 #:+unbound-tvar+)
 
   (:export #:+null-pointer+ #:+bad-fd+
-           #:open-fd #:close-fd #:mmap #:munmap
-           #:mget-primitive #:mset-primitive
-           #:mwrite-n-chars #:mwrite-n-byte-chars))
+           #:open-store #:close-store
+           #:mget-unboxed #:mset-unboxed
+           #:mread #:mwrite))
 
 
