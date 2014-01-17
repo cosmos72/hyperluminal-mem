@@ -88,7 +88,9 @@
 
 
 (defmacro call-box-func (funcs boxed-type &rest args)
-  `(funcall (get-box-func ,funcs ,boxed-type) ,@args))
+  `(progn
+     (log:debug 'funcall ,boxed-type ,@args)
+     (funcall (get-box-func ,funcs ,boxed-type) ,@args)))
 
 
 (declaim (notinline detect-box-type))
@@ -168,24 +170,35 @@ Rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
 
 
-(declaim (ftype (function (maddress mem-size t mem-size mem-box-type)
+(declaim (ftype (function (maddress mem-size mem-size t mem-box-type)
 			  (values mem-size &optional))
 		 %mwrite-box)
 	 (inline %mwrite-box))
 
-(defun %mwrite-box (ptr index value n-words boxed-type)
+(defun %mwrite-box (ptr index end-index value boxed-type)
   "Write a boxed value into the mmap memory starting at (PTR+INDEX).
-Also writes BOX header. Returns T."
+Also writes BOX header. Returns INDEX pointing to immediately after written value."
   (declare (type maddress ptr)
-           (type mem-size index n-words)
+           (type mem-size index end-index)
            (type mem-box-type boxed-type))
 
-  ;; write BOX header.
-  ;; assumes n-words is already rounded up to a multiple of +mem-box/min-words+
-  ;; because only such multiples can be written accurately into the store.
-  (let ((index (mwrite-box/header ptr index n-words boxed-type)))
-      
-    (call-box-func +mwrite-box-funcs+ boxed-type ptr index value)))
+  ;; write BOX payload.
+  (let* ((new-index
+          (call-box-func +mwrite-box-funcs+ boxed-type ptr
+                         (mem-size+ index +mem-box/header-words+)
+                         end-index value))
+         (actual-words (mem-size- new-index index)))
+         
+    (when (> new-index end-index)
+      (error "HYPERLUMINAL-DB internal error!
+wrote ~S word~P at address (+ ~S ~S),
+but only ~S words were available at that location.
+Either this is a bug in hyperluminal-db, or some object
+was concurrently modified while being written"
+             actual-words actual-words ptr index (mem-size- end-index index)))
+
+    (mwrite-box/header ptr index boxed-type (round-up-n-words actual-words))
+    new-index))
 
 
 
@@ -210,32 +223,30 @@ Return the written box."
               n-words (box-n-words box)))
 
     (setf (box-value box) value)
-    (%mwrite-box ptr (box-index box) value n-words boxed-type)
+    (let ((index (box-index box)))
+      (%mwrite-box ptr index (mem-size+ index n-words) value boxed-type))
     box))
 
 
 
 (declaim (inline %%mread-box %mread-box))
 
-(defun %%mread-box (ptr index boxed-type)
+(defun %%mread-box (ptr index end-index boxed-type)
   "Read a boxed value from the memory starting at (PTR+INDEX) and return it.
 Return the number of words actually read as additional value.
-Assumes BOX header was already read."
+Skips over BOX header."
   (declare (type maddress ptr)
-           (type mem-size index)
+           (type mem-size index end-index)
            (type mem-fulltag boxed-type))
 
-  (call-box-func +mread-box-funcs+ boxed-type ptr index))
+  (call-box-func +mread-box-funcs+ boxed-type ptr
+                 (mem-size+ index +mem-box/header-words+) end-index))
 
 
-(defun boxed-type-error (ptr index boxed-type)
-  (error "the value of ~S at address (+ ~S ~S)
-is ~S, which is not in the valid range ~S..~S for ~S"
-         'boxed-type ptr index boxed-type
-         +mem-box/first+ +mem-box/last+ 'mem-box-type))
+         
 
 
-(defun %mread-box (ptr index &optional (boxed-type (mget-fulltag ptr index)))
+(defun %mread-box2 (ptr index end-index boxed-type)
   "Read a boxed value from the memory starting at (PTR+INDEX).
 Return the value and the number of words actually read as multiple values."
   (declare (type maddress ptr)
@@ -244,23 +255,37 @@ Return the value and the number of words actually read as multiple values."
 
   ;; validate BOXED-TYPE
   (unless (typep boxed-type 'mem-box-type)
-    (boxed-type-error ptr index boxed-type))
+    (box-type-error ptr index boxed-type))
 
-  (%%mread-box ptr (mem-size+ +mem-box/header-words+ index) boxed-type))
+  (%%mread-box ptr index end-index boxed-type))
+
+(defun %mread-box (ptr index end-index)
+  "Read a boxed value from the memory starting at (PTR+INDEX).
+Return the value and the number of words actually read as multiple values."
+  (declare (type maddress ptr)
+           (type mem-size index))
+  
+  (multiple-value-bind (boxed-type n-words) (mread-box/header ptr index)
+    (check-box-type ptr index boxed-type)
+    (check-mem-length ptr index end-index n-words)
+
+    (let ((end-index (mem-size+ index n-words)))
+      
+      (%%mread-box ptr index end-index boxed-type))))
 
 
 
-(defun mread-box (ptr index &optional box)
+
+
+(defun mread-box (ptr index box)
   "Read a boxed value from the memory starting at (PTR+INDEX).
 Return the boxed value."
   (declare (type maddress ptr)
            (type mem-size index)
-           (type (or null box) box))
+           (type box box))
 
-  (multiple-value-bind (value n-words) (%mread-box ptr index)
-    (if box
-        (reuse-box box index n-words value)
-        (make-box index n-words value))))
+  (multiple-value-bind (value n-words) (%mread-box ptr index (mem-size+ index (box-n-words box)))
+    (reuse-box box index n-words value)))
 
 
 
@@ -288,35 +313,61 @@ Also rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
       1
       (detect-box-n-words-rounded-up value)))
 
-(declaim (ftype (function (maddress mem-size t) (values mem-size &optional))
+(declaim (ftype (function (maddress mem-size mem-size t)
+                          (values mem-size &optional))
 		mwrite)
-	 (inline mwrite))
+	 (notinline mwrite))
 
-(defun mwrite (ptr index value)
+(defun mwrite (ptr index end-index value)
   "Write a value (either boxed or unboxed) into the memory starting at (PTR+INDEX).
-Return the number of words actually written (not rounded up).
+Return the INDEX pointing to immediately after the value just written.
 
 WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index end-index)
+           (type t value))
 
-  (when (mset-unboxed ptr index value)
-    (return-from mwrite 1))
+  (check-mem-overrun ptr index end-index 1)
 
-  ;; TODO: handle symbols and pointers!
-  (let* ((boxed-type (detect-box-type value))
-	 (n-words    (detect-box-n-words-rounded-up value boxed-type)))
-    (%mwrite-box ptr index value n-words boxed-type)))
+  (if (mset-unboxed ptr index value)
+      (mem-size+1 index)
+      ;; TODO: handle symbols and pointers!
+      (%mwrite-box ptr index end-index value (detect-box-type value))))
 
 
-(defun mread (ptr index)
+(declaim (ftype (function (maddress mem-size mem-size)
+                          (values t mem-size &optional))
+		mread)
+	 (notinline mread))
+
+(defun mread (ptr index end-index)
   "Read a value (either boxed or unboxed) from the memory starting at (PTR+INDEX).
-Return the value and the number of words actually read as multiple values."
+Return multiple values:
+1) the value 
+2) the INDEX pointing to immediately after the value just read"
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index end-index))
+
+  (check-mem-length ptr index end-index 1)
 
   (multiple-value-bind (value boxed-type) (mget-unboxed ptr index)
     (if boxed-type
         ;; TODO: handle symbols and pointers!
-        (%mread-box ptr index boxed-type)
-        (values value 1))))
+        (%mread-box2 ptr index end-index boxed-type)
+        (values value (mem-size+1 index)))))
+
+
+(defun !mwrite (ptr index value)
+  "Used only for debugging. Returns number of written words."
+  (declare (type maddress ptr)
+           (type mem-size index))
+
+  (let ((new-index (mwrite ptr index +mem-box/max-words+ value)))
+    (- new-index index)))
+
+(defun !mread (ptr index)
+  "Used only for debugging. Returns value and number of read words."
+  (declare (type maddress ptr)
+           (type mem-size index))
+  (multiple-value-bind (value end-index) (mread ptr index +mem-box/max-words+)
+    (values value (- end-index index))))

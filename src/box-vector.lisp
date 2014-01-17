@@ -64,40 +64,36 @@ it requires more space than the maximum supported ~S words"
     (mem-size- +mem-box/max-payload-words+ words-left)))
 
 
-(defun mwrite-box/vector (ptr index vector)
+(defun mwrite-box/vector (ptr index end-index vector)
   "Write VECTOR into the memory starting at (PTR+INDEX).
 Return number of words actually written.
 
 Assumes BOX header is already written, and that enough memory is available
 at (PTR+INDEX)."
   (declare (type maddress ptr)
-           (type mem-size index)
+           (type mem-size index end-index)
 	   (type (and vector (not (or string base-string bit-vector))) vector))
 
-  (let ((orig-index index)
-	(mwrite #'mwrite))
+  (let ((mwrite #'mwrite))
 
-    (log:debug ptr index vector)
+    (log.trace ptr index vector)
+
+    (check-mem-overrun ptr index end-index 1)
 
     (mset-int ptr index (the mem-int (length vector)))
     (incf-mem-size index)
 
     (if (typep vector 'simple-vector)
-	(loop for e across vector
-	   do
-             (log:debug e (funcall mwrite ptr index e))
-             (incf-mem-size index
-			     (the mem-size (funcall mwrite ptr index e))))
-	(loop for e across vector
-	   do (incf-mem-size index
-			     (the mem-size (funcall mwrite ptr index e)))))
+	(loop for e across vector do
+             (log:debug index end-index e)
+             (setf index (the mem-size (funcall mwrite ptr index end-index e))))
+	(loop for e across vector do
+             (setf index (the mem-size (funcall mwrite ptr index end-index e)))))
 
-    ;; return number of words actually written, including BOX header
-    (mem-size+ +mem-box/header-words+
-	       (mem-size- index orig-index))))
+    index))
 
 
-(defun mread-box/vector (ptr index)
+(defun mread-box/vector (ptr index end-index)
   "Read a vector from the boxed memory starting at (PTR+INDEX) and return it.
 Also returns number of words actually read as additional value.
 
@@ -105,19 +101,17 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))
   
-  (let* ((orig-index index)
-	 (len        (mget-int ptr index))
+  (check-mem-length ptr index end-index 1)
+
+  (let* ((len        (mget-int ptr index))
 	 (vector     (the simple-vector (make-array len))))
 
     (incf-mem-size index)
 
     (let ((mread #'mread))
       (loop for i from 0 below len
-	 do (multiple-value-bind (e e-len) (funcall mread ptr index)
-	      (setf (svref vector i) e)
-	      (incf-mem-size index e-len))))
+	 do (multiple-value-bind (e e-index) (funcall mread ptr index end-index)
+	      (setf (svref vector i) e
+                    index (the mem-size e-index)))))
 
-    (values
-     vector
-     (mem-size+ +mem-box/header-words+
-		(mem-size- index orig-index)))))
+    (values vector index)))

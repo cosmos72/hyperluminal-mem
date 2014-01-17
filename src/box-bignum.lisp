@@ -63,7 +63,8 @@ it requires ~S words, maximum supported is ~S words"
     (loop for i-word from n-words downto 1 do
          (mset-word ptr index (logand n mask))
          (incf (the mem-size index))
-         (setf n (ash n shift)))))
+         (setf n (ash n shift))))
+  index)
 
 
 (defun %mwrite-bignum-recurse (ptr index n-words n)
@@ -86,25 +87,24 @@ it requires ~S words, maximum supported is ~S words"
                                 n-words-high (ash n (- high-shift))))))
 
 
-(defun mwrite-box/bignum (ptr index n)
+(defun mwrite-box/bignum (ptr index end-index n)
   "Write bignum N into memory starting at (PTR+INDEX).
 Assumes BOX header is already written.
-Returns number of words actually written.
+Return INDEX pointing to immediately after written value.
 
 ABI: writes mem-int N-WORDS, i.e. (%bignum-words N)
 \(if bignum is negative, writes (lognot N-WORDS) instead)
 followed by an array of words containing N in two's complement."
   (declare (type maddress ptr)
-           (type mem-size index)
+           (type mem-size index end-index)
            (type integer n))
 
   (let ((n-words (%bignum-words n)))
 
-    (mset-int ptr index (if (< n 0) (lognot n-words) n-words))
-    (%mwrite-bignum-recurse ptr (mem-size+1 index) n-words n)
+    (check-mem-overrun ptr index end-index (mem-size+1 n-words))
 
-    ;; also add 1 word for N-WORDS prefix
-    (mem-size+ +mem-box/header-words+ 1 n-words)))
+    (mset-int ptr index (if (< n 0) (lognot n-words) n-words))
+    (%mwrite-bignum-recurse ptr (mem-size+1 index) n-words n)))
     
 
 
@@ -121,8 +121,9 @@ followed by an array of words containing N in two's complement."
     (declare (type integer n))
 
     (loop for shift from 0 below limit by bits
-       for word = (mget-word ptr (incf (the mem-size index)))
+       for word = (mget-word ptr index)
        do
+         (incf (the mem-size index))
          (setf n (logior n (ash word shift))))
 
     (the integer n)))
@@ -173,13 +174,15 @@ followed by an array of words containing N in two's complement."
         (logior n-low (ash n-high high-shift)))))
 
 
-(defun mread-box/bignum (ptr index)
+(defun mread-box/bignum (ptr index end-index)
   "Read a bignum from the memory starting at (PTR+INDEX) and return it.
 Also returns the number of words actually written as additional value.
 Assumes the BOX header was read already."
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index end-index))
   
+  (check-mem-length ptr index end-index 1)
+
   (let* ((sign-n-words (mget-int ptr index))
          (sign         0)
          (n-words      sign-n-words))
@@ -188,10 +191,14 @@ Assumes the BOX header was read already."
       (setf sign    1
             n-words (lognot n-words)))
 
+    ;; we just read N-WORDS prefix above
+    (incf (the mem-size index))
+
+    (check-mem-length ptr index end-index n-words)
+
     (values
      (%mread-bignum-recurse ptr index n-words sign)
-     ;; also add 1 word for N-WORDS prefix
-     (mem-size+ +mem-box/header-words+ 1 n-words))))
+     index)))
 
 
 

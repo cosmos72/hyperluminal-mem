@@ -223,7 +223,7 @@ Note: NEXT slot of returned object always contains NIL,
 (declaim (inline mwrite-box/header mwrite-box/box-header
                  mread-box/header  mread-box/box-header))
 
-(defun mwrite-box/header (ptr index n-words boxed-type)
+(defun mwrite-box/header (ptr index boxed-type n-words)
   "Write to mmap area the header common to all boxed values.
 Return INDEX pointing to box payload"
   (declare (type maddress ptr)
@@ -241,20 +241,20 @@ Return INDEX pointing to box payload"
            (type box box)
            (type mem-fulltag boxed-type))
 
-  (mwrite-box/header ptr (box-index box) (box-n-words box) boxed-type))
+  (mwrite-box/header ptr (box-index box) boxed-type (box-n-words box)))
 
 
 (defun mread-box/header (ptr index)
   "Read from mmap area the header common to all boxed values.
-Return N-WORDS and BOXED-TYPE as multiple values"
+Return BOXED-TYPE and N-WORDS as multiple values"
   (declare (type maddress ptr)
            (type mem-size index))
 
   (multiple-value-bind (boxed-type allocated-words/4) (mget-fulltag-and-value ptr index)
 
     (values
-     (box-pointer->size allocated-words/4)
-     boxed-type)))
+     boxed-type
+     (box-pointer->size allocated-words/4))))
 
 
 (defun mread-box/box-header (ptr index)
@@ -297,6 +297,72 @@ and BOXED-TYPE as multiple values"
     (!mzero-words ptr start end)))
 
 
+(defun box-type-error (ptr index boxed-type)
+  (error "the object at address (+ ~S ~S) declares to have type ~S,
+which is not in the valid range ~S..~S for ~S"
+         ptr index boxed-type +mem-box/first+ +mem-box/last+ 'boxed-type))
+
+(defun mem-length-error (ptr index end-index n-words)
+  (declare (type integer index end-index))
+  (let ((available-words (- end-index index)))
+    (error "the object at address (+ ~S ~S) declares to be ~S word~P long,
+but only ~S word~P available at that location"
+           ptr index n-words n-words available-words available-words)))
+
+(defun mem-overrun-error (ptr index end-index n-words)
+  (declare (type integer index end-index))
+  (let ((available-words (- end-index index)))
+    (error "attempt to write ~S word~P at address (+ ~S ~S),
+but only ~S word~P available at that location"
+           n-words n-words ptr index available-words available-words)))
+
+
+(defmacro check-box-type (ptr index boxed-type)
+  (with-gensyms (ptr_ index_ boxed-type_)
+    `(let ((,ptr_        ,ptr)
+           (,index_      ,index)
+           (,boxed-type_ ,boxed-type))
+       (unless (typep ,boxed-type_ 'mem-box-type)
+         (box-type-error ,ptr_ ,index_ ,boxed-type_)))))
+
+
+(defmacro check-mem-length (ptr index end-index n-words)
+  (with-gensyms (ptr_ index_ end-index_ n-words_)
+    `(let ((,ptr_       ,ptr)
+           (,index_     ,index)
+           (,end-index_ ,end-index)
+           (,n-words_   ,n-words))
+       (unless (<= ,n-words_ (mem-size- ,end-index_ ,index_))
+         (mem-length-error ,ptr_ ,index_ ,end-index_ ,n-words_)))))
+
+
+(defmacro check-mem-length (ptr index end-index n-words)
+  (with-gensyms (ptr_ index_ end-index_ n-words_)
+    `(let ((,ptr_       ,ptr)
+           (,index_     ,index)
+           (,end-index_ ,end-index)
+           (,n-words_   ,n-words))
+       (unless (<= ,n-words_ (mem-size- ,end-index_ ,index_))
+         (mem-length-error ,ptr_ (1- ,index_) ,end-index_ (1+ ,n-words_))))))
+
+
+(defmacro check-mem-overrun (ptr index end-index n-words)
+  (with-gensyms (ptr_ index_ end-index_ n-words_)
+    `(let ((,ptr_       ,ptr)
+           (,index_     ,index)
+           (,end-index_ ,end-index)
+           (,n-words_   ,n-words))
+       (unless (<= ,n-words_ (mem-size- ,end-index_ ,index_))
+         (mem-overrun-error ,ptr_ ,index_ ,end-index_ ,n-words_)))))
+
+(defmacro check-mem-overrun (ptr index end-index n-words)
+  (with-gensyms (ptr_ index_ end-index_ n-words_)
+    `(let ((,ptr_       ,ptr)
+           (,index_     ,index)
+           (,end-index_ ,end-index)
+           (,n-words_   ,n-words))
+       (unless (<= ,n-words_ (mem-size- ,end-index_ ,index_))
+         (mem-overrun-error ,ptr_ (1- ,index_) ,end-index_ (1+ ,n-words_))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -501,4 +567,5 @@ FIXME: it currently loads the whole free-list in RAM (bad!)"
   ;; very naive implementation: always frees BOX and allocates a new one.
   (when box (box-free ptr box))
   (box-alloc ptr n-words))
+
 

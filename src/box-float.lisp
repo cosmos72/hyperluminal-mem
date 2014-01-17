@@ -39,50 +39,61 @@
   
 
 
-(defun mwrite-box/sfloat (ptr index value)
+(defun mwrite-box/sfloat (ptr index end-index value)
   "Write single-float VALUE into the memory starting at (+ PTR INDEX).
 Assumes BOX header is already written.
 
 ABI: single-float is stored raw (usually means IEEE format)"
   (declare (type maddress ptr)
-           (type mem-size index)
+           (type mem-size index end-index)
            (type single-float value))
 
-  (mset-t value :sfloat ptr index)
-  (mem-size+ +mem-box/header-words+ (box-words/sfloat)))
+  (let ((n-words (box-words/sfloat)))
+    (check-mem-overrun ptr index end-index n-words)
+
+    (mset-t value :sfloat ptr index)
+    (mem-size+ index n-words)))
 
 
-(defun mwrite-box/dfloat (ptr index value)
+(defun mwrite-box/dfloat (ptr index end-index value)
   "Write double-float VALUE into the memory starting at (+ PTR INDEX).
 Assumes BOX header is already written.
 
 ABI: double-float is stored raw (usually means IEEE format)"
   (declare (type maddress ptr)
-           (type mem-size index)
+           (type mem-size index end-index)
            (type double-float value))
 
-  (mset-t value :dfloat ptr index)
-  (mem-size+ +mem-box/header-words+ (box-words/dfloat)))
+  (let ((n-words (box-words/dfloat)))
+    (check-mem-overrun ptr index end-index n-words)
+
+    (mset-t value :dfloat ptr index)
+    (mem-size+ index n-words)))
 
 
-(defun mread-box/sfloat (ptr index)
+(defun mread-box/sfloat (ptr index end-index)
   "Read a single-float from the memory starting at (PTR+INDEX) and return it.
 Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))
   
-  (values
-   (the single-float (mget-t :sfloat ptr index))
-   (mem-size+ +mem-box/header-words+ (box-words/sfloat))))
+  (let ((n-words (box-words/sfloat)))
+    (check-mem-length ptr index end-index n-words)
+
+    (values
+     (the single-float (mget-t :sfloat ptr index))
+     (mem-size+ index n-words))))
 
 
-(defun mread-box/dfloat (ptr index)
+(defun mread-box/dfloat (ptr index end-index)
   "Read a double-float from the memory starting at (PTR+INDEX) and return it.
 Assumes BOX header was already read."
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index end-index))
   
-  (values
-   (the double-float (mget-t :dfloat ptr index))
-   (mem-size+ +mem-box/header-words+ (box-words/dfloat))))
-  
+  (let ((n-words (box-words/dfloat)))
+    (check-mem-length ptr index end-index n-words)
+
+    (values
+     (the double-float (mget-t :dfloat ptr index))
+     (mem-size+ index n-words))))

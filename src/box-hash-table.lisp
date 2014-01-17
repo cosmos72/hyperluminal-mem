@@ -63,20 +63,21 @@ it requires more space than the maximum supported ~S words"
 
   
 
-(defun mwrite-box/hash-table (ptr index htable)
+(defun mwrite-box/hash-table (ptr index end-index htable)
   "Write hash-table HTABLE into the memory starting at (PTR+INDEX).
-Return number of words actually written.
+Return INDEX pointing to immediately after written hash-table.
 
 Assumes BOX header is already written, and that enough memory is available
 at (PTR+INDEX)."
   (declare (type maddress ptr)
-           (type mem-size index)
+           (type mem-size index end-index)
            (type hash-table htable))
 
-  (let ((orig-index index)
-	(mwrite #'mwrite)
+  (let ((mwrite #'mwrite)
         (len (hash-table-count htable))
         (test (hash-table-test htable)))
+
+    (check-mem-overrun ptr index end-index 1)
 
     (mset-int ptr index (if (or (eq test 'eq) (eq test 'equal))
                             len
@@ -86,26 +87,25 @@ at (PTR+INDEX)."
 
     (loop for k being the hash-keys in htable using (hash-value v)
        do
-         (incf-mem-size index (funcall mwrite ptr index k))
-         (incf-mem-size index (funcall mwrite ptr index v)))
+         (incf-mem-size index (funcall mwrite ptr index end-index k))
+         (incf-mem-size index (funcall mwrite ptr index end-index v)))
 
-    ;; return number of words actually written, including BOX header
-    (mem-size+ +mem-box/header-words+
-	       (mem-size- index orig-index))))
+    index))
 
 
 (define-constant-once +hash-table-tests+ #(eq eql equal equalp))
 
-(defun mread-box/hash-table (ptr index)
+(defun mread-box/hash-table (ptr index end-index)
   "Read a hash-table from the boxed memory starting at (PTR+INDEX) and return it.
-Also returns number of words actually read as additional value.
+Also returns as additional value INDEX pointing to immediately after read hash-table.
 
 Assumes BOX header was already read."
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index end-index))
   
-  (let* ((orig-index index)
-         ;; re-read BOX header, because we need the boxed-type
+  (check-mem-length ptr index end-index 1)
+
+  (let* (;; re-read BOX header, because we need the boxed-type
          (boxed-type (mget-fulltag ptr (mem-size- index +mem-box/header-words+)))
          (test-index (if (= boxed-type +mem-box/hash-table-eq+) 0 2))
 	 (len (mget-int ptr index)))
@@ -123,14 +123,10 @@ Assumes BOX header was already read."
           (htable (make-hash-table :test (svref +hash-table-tests+ test-index)
                                    :size len)))
       (loop for i from 0 below len
-	 do (multiple-value-bind (k k-len) (funcall mread ptr index)
-	      (incf-mem-size index k-len)
-              (multiple-value-bind (v v-len) (funcall mread ptr index)
-                (incf-mem-size index v-len)
+	 do (multiple-value-bind (k k-index) (funcall mread ptr index end-index)
+              (declare (type mem-size k-index))
+              (multiple-value-bind (v v-index) (funcall mread ptr k-index end-index)
+                (setf index (the mem-size v-index))
                 (setf (gethash k htable) v))))
 
-      (values
-       htable
-       (mem-size+ +mem-box/header-words+
-                  (mem-size- index orig-index))))))
-
+      (values htable index))))

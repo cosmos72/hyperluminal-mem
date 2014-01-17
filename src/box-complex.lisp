@@ -29,33 +29,53 @@
 ;;;;    boxed    COMPLEXes                                                   ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun box-words/complex-sfloat (value)
+(declaim (inline box-words/complex-sfloat))
+
+(defun box-words/complex-sfloat (&optional value)
   "Return the number of words needed to store a complex-sfloat VALUE in mmap memory.
 Does not count the space needed by BOX header."
-  (declare (type complex-sfloat value))
+  (declare (ignore value))
 
-  (error "TODO"))
+  (* 2 (box-words/sfloat)))
 
   
-(defun mwrite-box/complex-sfloat (ptr index value)
+(defun mwrite-box/complex-sfloat (ptr index end-index value)
   "Reuse the memory starting at (PTR+INDEX) and write complex-sfloat VALUE into it.
 Assumes BOX header is already written.
 
 ABI: Writes real part, then imaginary part."
   (declare (type maddress ptr)
-           (type mem-size index)
+           (type mem-size index end-index)
            (type complex-sfloat value))
 
-  (error "TODO"))
+  (let* ((n-words-real (box-words/sfloat))
+         (n-words-imag (box-words/sfloat))
+         (n-words (+ n-words-real n-words-imag)))
+    (check-mem-overrun ptr index end-index n-words)
+
+    (mset-t (realpart value) :sfloat ptr index)
+    (incf-mem-size index n-words-real)
+    (mset-t (imagpart value) :sfloat ptr index)
+    (incf-mem-size index n-words-imag)))
 
 
-(defun mread-box/complex-sfloat (ptr index)
+(defun mread-box/complex-sfloat (ptr index end-index)
   "Read a complex-sfloat from the memory starting at (PTR+INDEX) and return it.
 Assumes BOX header was already read."
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index end-index))
   
-  (error "TODO"))
+  (let* ((n-words-real (box-words/sfloat))
+         (n-words-imag (box-words/sfloat))
+         (n-words (+ n-words-real n-words-imag)))
+    (check-mem-length ptr index end-index n-words)
+
+    (values
+     (complex
+      (the single-float (mget-t :sfloat ptr index))
+      (the single-float (mget-t :sfloat ptr (mem-size+ index n-words-real))))
+
+     (mem-size+ index n-words))))
 
 
 
@@ -63,33 +83,53 @@ Assumes BOX header was already read."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun box-words/complex-dfloat (value)
+(declaim (inline box-words/complex-dfloat))
+
+(defun box-words/complex-dfloat (&optional value)
   "Return the number of words needed to store a complex-dfloat VALUE in mmap memory.
 Does not count the space needed by BOX header."
-  (declare (type complex-dfloat value))
+  (declare (ignore value))
 
-  (error "TODO"))
+  (* 2 (box-words/dfloat)))
 
   
-(defun mwrite-box/complex-dfloat (ptr index value)
+(defun mwrite-box/complex-dfloat (ptr index end-index value)
   "Reuse the memory starting at (PTR+INDEX) and write complex-dfloat VALUE into it.
 Assumes BOX header is already written.
 
 ABI: Writes real part, then imaginary part."
   (declare (type maddress ptr)
-           (type mem-size index)
+           (type mem-size index end-index)
            (type complex-dfloat value))
 
-  (error "TODO"))
+  (let* ((n-words-real (box-words/dfloat))
+         (n-words-imag (box-words/dfloat))
+         (n-words (+ n-words-real n-words-imag)))
+    (check-mem-overrun ptr index end-index n-words)
+
+    (mset-t (realpart value) :dfloat ptr index)
+    (incf-mem-size index n-words-real)
+    (mset-t (imagpart value) :dfloat ptr index)
+    (incf-mem-size index n-words-imag)))
 
 
-(defun mread-box/complex-dfloat (ptr index)
+(defun mread-box/complex-dfloat (ptr index end-index)
   "Read a complex-dfloat from the memory starting at (PTR+INDEX) and return it.
 Assumes BOX header was already read."
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index end-index))
   
-  (error "TODO"))
+  (let* ((n-words-real (box-words/dfloat))
+         (n-words-imag (box-words/dfloat))
+         (n-words (+ n-words-real n-words-imag)))
+    (check-mem-length ptr index end-index n-words)
+
+    (values
+     (complex
+      (the double-float (mget-t :dfloat ptr index))
+      (the double-float (mget-t :dfloat ptr (mem-size+ index n-words-real))))
+
+     (mem-size+ index n-words))))
 
 
 
@@ -102,26 +142,35 @@ Assumes BOX header was already read."
 Does not count the space needed by BOX header."
   (declare (type complex-rational value))
 
-  (error "TODO"))
+  (mem-size+ (detect-n-words (realpart value))
+             (detect-n-words (imagpart value))))
+     
 
   
-(defun mwrite-box/complex-rational (ptr index value)
+(defun mwrite-box/complex-rational (ptr index end-index value)
   "Reuse the memory starting at (PTR+INDEX) and write complex-rational VALUE into it.
 Assumes BOX header is already written.
 
 ABI: Writes real part, then imaginary part."
   (declare (type maddress ptr)
-           (type mem-size index)
+           (type mem-size index end-index)
            (type complex-rational value))
 
-  (error "TODO"))
+  (let ((mwrite #'mwrite))
+    (setf index (funcall mwrite ptr index end-index (realpart value)))
+    (funcall mwrite ptr index end-index (imagpart value))))
 
 
-(defun mread-box/complex-rational (ptr index)
+(defun mread-box/complex-rational (ptr index end-index)
   "Read a complex-rational from the memory starting at (PTR+INDEX) and return it.
 Assumes BOX header is already read."
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index end-index))
   
-  (error "TODO"))
+  (let ((mread #'mread))
+    (multiple-value-bind (realpart index) (funcall mread ptr index end-index)
+      (multiple-value-bind (imagpart index) (funcall mread ptr index end-index)
+        (values
+         (complex realpart imagpart)
+         index)))))
 

@@ -60,18 +60,20 @@ it requires more space than the maximum supported ~S words"
        
 
 
-(defun mwrite-box/list (ptr index list)
+(defun mwrite-box/list (ptr index end-index list)
   "Write LIST into the memory starting at (PTR+INDEX).
-Return number of words actually written.
+Return INDEX pointing to immediately after written list.
 
 Assumes BOX header is already written, and that enough memory is available
 at (PTR+INDEX)."
   (declare (type maddress ptr)
-           (type mem-size index)
+           (type mem-size index end-index)
            (type list list))
 
   ;; note: written length is (length list) for proper lists,
   ;; but is (lognot (length list)) for lists ending with a dotted pair
+
+  (check-mem-overrun ptr index end-index 1)
 
   (let ((orig-index index) ;; we write list length later
 	(len 0)
@@ -84,34 +86,32 @@ at (PTR+INDEX)."
        while (consp cons)
        for e = (first cons)
        do
-	 (incf index (the mem-size (funcall mwrite ptr index e)))
+	 (setf index (the mem-size (funcall mwrite ptr index end-index e)))
 	 (incf len)
        finally
 	 (when cons
-	   (incf index (the mem-size (funcall mwrite ptr index cons)))
+	   (setf index (the mem-size (funcall mwrite ptr index end-index cons)))
 	   (incf len)
 	   ;; dotted pair: store (lognot len)
 	   (setf len (lognot len))))
 
-    ;; finally write len
+           ;; finally write list length
     (mset-int ptr orig-index len)
-
-    ;; return number of words actually written, including BOX header
-    (mem-size+ +mem-box/header-words+
-	       (mem-size- index orig-index))))
+    index))
 
 
 
-(defun mread-box/list (ptr index)
+(defun mread-box/list (ptr index end-index)
   "Read a list from the memory starting at (PTR+INDEX) and return it.
-Also returns number of words actually read as additional value.
+Also returns as additional value the INDEX pointing to immediately after the list read.
 
 Assumes BOX header was already read."
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index end-index))
   
-  (let* ((orig-index  index)
-	 (len         (mget-int ptr index))
+  (check-mem-length ptr index end-index 1)
+
+  (let* ((len         (mget-int ptr index))
 	 (dotted-pair (< len 0))
 	 (list        nil)
 	 (prev        nil)
@@ -130,8 +130,8 @@ Assumes BOX header was already read."
       (let ((mread #'mread))
 	(loop for i from 0 below len
 	   do
-	     (multiple-value-bind (e e-len) (funcall mread ptr index)
-	       (incf-mem-size index e-len)
+	     (multiple-value-bind (e e-index) (funcall mread ptr index end-index)
+	       (setf index (the mem-size e-index))
 	       (let ((cons (stmx.lang::cons^ e nil)))
 		 (setf prev tail
 		       (rest tail) cons
@@ -145,5 +145,4 @@ Assumes BOX header was already read."
     (values
      (prog1 (rest list)
        (stmx.lang::free-cons^ list))
-     (mem-size+ +mem-box/header-words+
-		(mem-size- index orig-index)))))
+     index)))

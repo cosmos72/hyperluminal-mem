@@ -40,23 +40,23 @@
   
 
 
-(defun mwrite-box/ratio (ptr index n-words n)
+(defun mwrite-box/ratio (ptr index end-index n)
   "Reuse the memory block starting at (PTR+INDEX) and write ratio N into it.
 
 ABI: ratio is stored as box prefix, followed by numerator and denominator."
   (declare (type maddress ptr)
-           (type mem-size index n-words)
+           (type mem-size index end-index)
            (type integer n))
 
   (error "TODO"))
 
 
 
-(defun mread-box/ratio (ptr index)
+(defun mread-box/ratio (ptr index end-index)
   "Read a ratio from the boxed memory starting at (PTR+INDEX).
 Return the ratio"
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index end-index))
   
   (error "TODO"))
 

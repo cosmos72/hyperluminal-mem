@@ -33,20 +33,22 @@
   (error "TODO"))
   
 
-(defun mwrite-box/array (ptr index value)
+(defun mwrite-box/array (ptr index value end-index)
   "Reuse the memory block starting at (PTR+INDEX) and write array VALUE into it.
-Assumes BOX header is already written."
+Assumes BOX header is already written.
+
+Return INDEX pointing to immediately after written value."
   (declare (type maddress ptr)
-           (type mem-size index)
+           (type mem-size index end-index)
            (type array value))
 
   (error "TODO"))
 
 
-(defun mread-box/array (ptr index)
+(defun mread-box/array (ptr index end-index)
   "Read a array from the boxed memory starting at (PTR+INDEX) and return it.
 Assumes BOX header was already read."
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index end-index))
   
   (error "TODO"))
