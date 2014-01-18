@@ -162,13 +162,20 @@
 ;; They are read from and written to the store, so they are part of the ABI   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defconstant +mem-unallocated+   0)
-(defconstant +mem-unbound+       1 "persistent representation of unbound slot")
-(defconstant +mem-nil+           2 "persistent representation of NIL")
-(defconstant +mem-t+             3 "persistent representation of T")
+(defconstant +mem-unallocated+          0)
+(defconstant +mem-sym/unbound+          1 "persistent representation of unbound slot")
+(defconstant +mem-sym/nil+              2 "persistent representation of NIL")
+(defconstant +mem-sym/t+                3 "persistent representation of T")
+
+(defconstant +mem-syms/first+           +mem-sym/nil+ "first value available for symbols")
+
+(defconstant +mem-pkg/keyword+          1 "persistent representation of the package KEYWORD")
+(defconstant +mem-pkg/common-lisp+      2 "persistent representation of the package COMMON-LISP")
+(defconstant +mem-pkg/common-lisp-user+ 3 "persistent representation of the package COMMON-LISP-USER")
+
 
 (defconstant +mem-tag/int+              -1 "unboxed mem-int. It is a special case")
-(defconstant +mem-tag/symbol+            0 "unboxed symbol or keyword")
+(defconstant +mem-tag/symbol+            0 "unboxed reference to symbol or keyword")
 (defconstant +mem-tag/character+         1 "unboxed character")
 (defconstant +mem-tag/sfloat+            2 "unboxed single-float")
 (defconstant +mem-tag/dfloat+            3 "unboxed double-float")
@@ -196,8 +203,14 @@
 (defconstant +mem-box/first+            +mem-box/bignum+)
 (defconstant +mem-box/last+             +mem-box/bit-vector+)
 
-(defconstant +mem-user/first+           28 "first type tag available for user-defined types")
-(defconstant +mem-user/last+            +mem-tag/mask+)
+(defconstant +mem-obj/package+          20 "object is a package")
+(defconstant +mem-obj/symbol+           21 "object is a symbol or keyword")
+
+(defconstant +mem-obj/first+            +mem-obj/symbol+ "first type tag available for objects or structs")
+(defconstant +mem-obj/last+             +mem-tag/mask+)
+
+(defconstant +mem-obj-user/first+       27 "first type tag available for user-defined objects or structs")
+(defconstant +mem-obj-user/last+        +mem-obj/last+)
 
 
 (declaim (type vector +mem-boxed-type-syms+))

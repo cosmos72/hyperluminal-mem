@@ -313,10 +313,8 @@ Also rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
       1
       (detect-box-n-words-rounded-up value)))
 
-(declaim (ftype (function (maddress mem-size mem-size t)
-                          (values mem-size &optional))
-		mwrite)
-	 (notinline mwrite))
+
+;; (declaim (ftype (...) mwrite)) is in box.lisp
 
 (defun mwrite (ptr index end-index value)
   "Write a value (either boxed or unboxed) into the memory starting at (PTR+INDEX).
@@ -335,10 +333,7 @@ WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
       (%mwrite-box ptr index end-index value (detect-box-type value))))
 
 
-(declaim (ftype (function (maddress mem-size mem-size)
-                          (values t mem-size &optional))
-		mread)
-	 (notinline mread))
+;; (declaim (ftype (...) mread)) is in box.lisp
 
 (defun mread (ptr index end-index)
   "Read a value (either boxed or unboxed) from the memory starting at (PTR+INDEX).

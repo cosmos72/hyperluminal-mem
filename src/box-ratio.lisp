@@ -26,7 +26,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun ratio-words (n)
+(defun %ratio-words (n)
   "Return the number of words needed to store ratio N in mmap memory."
   (declare (type ratio n))
 
@@ -36,7 +36,7 @@
 (defun box-words/ratio (n)
   "Return the number of words needed to store a BOX containing ratio N in mmap memory."
   (declare (type integer n))
-  (the mem-size (mem-size+ 1 +mem-box/header-words+ (ratio-words n))))
+  (the mem-size (mem-size+ 1 +mem-box/header-words+ (%ratio-words n))))
   
 
 

@@ -42,7 +42,8 @@
                              (:file "lang"           :depends-on ("package"))
                              (:file "mem"            :depends-on ("lang"))
                              (:file "constants"      :depends-on ("mem"))
-                             (:file "unboxed"        :depends-on ("constants"))
+                             (:file "symbols"        :depends-on ("mem"))
+                             (:file "unboxed"        :depends-on ("constants" "symbols"))
                              (:file "box"            :depends-on ("unboxed"))
                              (:file "box-bignum"     :depends-on ("box"))
                              (:file "box-ratio"      :depends-on ("box-bignum"))
@@ -66,7 +67,8 @@
                                                                   "box-vector"
                                                                   "box-string"
                                                                   "box-bit-vector"))
-                             (:file "store"          :depends-on ("boxed"))))))
+                             (:file "obj-symbol"     :depends-on ("boxed"))
+                             (:file "store"          :depends-on ("obj-symbol"))))))
 
 
 (asdf:defsystem :hyperluminal-db.test

@@ -54,6 +54,7 @@
     #?+hldb/dfloat/inline double-float))
 
 
+
 (defun !mdump-words (stream ptr &optional (start-index 0) (end-index (1+ start-index)))
   "mdump-words is only used for debugging. it assumes sizeof(byte) == 1"
   (declare (type maddress ptr)
@@ -68,6 +69,17 @@
               '!mdump-forward)
           stream ptr start-byte end-byte)
        (format stream " ")))
+
+
+(declaim (inline mem-int+ mem-int-))
+
+(defun mem-int+ (a &optional (b 0) (c 0))
+  (declare (type mem-int a b c))
+  (the mem-int (+ a b c)))
+
+(defun mem-int- (a b)
+  (declare (type mem-int a b))
+  (the mem-int (- a b)))
 
 
 (declaim (inline mem-size+ mem-size+1 mem-size+2 mem-size- mem-size-1))
@@ -286,7 +298,7 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
            (type mem-size index))
 
   (let ((tag +mem-tag/symbol+)
-        (val +mem-nil+))
+        (val +mem-sym/nil+))
 
     (cond
       ((typep value 'mem-int)
@@ -295,14 +307,14 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
       ;; value is a character?
       ((characterp value) (setf tag +mem-tag/character+
                                 val (char-code value)))
-      ;; value is T ?
-      ((eq value t)       (setf val +mem-t+))
-
       ;; value is NIL ?
       ((eq value nil))
 
+      ;; value is T ?
+      ((eq value t)       (setf val +mem-sym/t+))
+
       ;; value is +unbound-tvar+ ?
-      ((eq value +unbound-tvar+) (setf val +mem-unbound+))
+      ((eq value +unbound-tvar+) (setf val +mem-sym/unbound+))
 
       ;; value is a single-float?
       #?+hldb/sfloat/inline
@@ -349,10 +361,10 @@ as multiple values."
 
              (case value
                ;; (#.+mem-unallocated+ nil) ;; should not happen :(
-               (#.+mem-unbound+ +unbound-tvar+) ;; unbound slot
-               (#.+mem-t+       t)
-               (#.+mem-nil+     nil)
-               (otherwise       (values value fulltag)))) ;; generic symbol
+               (#.+mem-sym/unbound+ +unbound-tvar+) ;; unbound slot
+               (#.+mem-sym/t+       t)
+               (#.+mem-sym/nil+     nil)
+               (otherwise           (values value fulltag)))) ;; generic symbol
 
             (#.+mem-tag/character+ ;; found a character
              (code-char (logand value +character/mask+)))
