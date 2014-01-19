@@ -26,10 +26,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(define-constant-once +package-keyword+          (find-package '#:keyword))
-(define-constant-once +package-common-lisp+      (find-package '#:common-lisp))
-(define-constant-once +package-common-lisp-user+ (find-package '#:common-lisp-user))
-
 
 (defun %package-words (pkg)
   "Return the number of words needed to store package PKG in mmap memory."

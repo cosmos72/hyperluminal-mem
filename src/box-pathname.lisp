@@ -26,27 +26,63 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/pathname (value)
-  "Return the number of words needed to store pathname VALUE in mmap memory, not including BOX header."
-  (declare (type pathname value))
+(defun box-words/pathname (path)
+  "Return the number of words needed to store pathname PATH in mmap memory,
+not including BOX header."
+  (declare (type pathname path))
 
-  (error "TODO"))
+  (let ((n-words (+ (detect-n-words (pathname-host path))
+                    (detect-n-words (pathname-device path))
+                    (detect-n-words (pathname-directory path))
+                    (detect-n-words (pathname-name path))
+                    (detect-n-words (pathname-type path))
+                    (detect-n-words (pathname-version path)))))
+    (unless (<= n-words +mem-box/max-payload-words+)
+      (error "HYPERLUMINAL-DB: pathname too large for object store,
+it requires ~S words, maximum supported is ~S words"
+             (1+ n-words) +mem-box/max-words+))
+    (the mem-size n-words)))
+
+
+
   
 
-(defun mwrite-box/pathname (ptr index value)
-  "Reuse the memory block starting at (PTR+INDEX) and write pathname VALUE into it.
+(defun mwrite-box/pathname (ptr index end-index path)
+  "write pathname PATH into the memory starting at (PTR+INDEX).
 Assumes BOX header is already written."
   (declare (type maddress ptr)
            (type mem-size index)
-           (type pathname value))
+           (type pathname path))
 
-  (error "TODO"))
+  (let ((mwrite #'mwrite)
+        (host (pathname-host path :case :common))
+        (default-host (pathname-host *default-pathname-defaults* :case :common)))
+
+    (setf index (funcall mwrite ptr index end-index (if (eq host default-host) nil host)))
+    (setf index (funcall mwrite ptr index end-index (pathname-device path :case :common)))
+    (setf index (funcall mwrite ptr index end-index (pathname-directory path :case :common)))
+    (setf index (funcall mwrite ptr index end-index (pathname-name path :case :common)))
+    (setf index (funcall mwrite ptr index end-index (pathname-type path :case :common)))
+    (setf index (funcall mwrite ptr index end-index (pathname-version path)))
+    index))
 
 
-(defun mread-box/pathname (ptr index)
-  "Read a pathname from the boxed memory starting at (PTR+INDEX) and return it.
+(defun mread-box/pathname (ptr index end-index)
+  "Read a pathname from the memory starting at (PTR+INDEX) and return it.
 Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))
   
-  (error "TODO"))
+  (let ((mread #'mread))
+    (multiple-value-bind (host index) (funcall mread ptr index end-index)
+      (multiple-value-bind (device index) (funcall mread ptr index end-index)
+        (multiple-value-bind (directory index) (funcall mread ptr index end-index)
+          (multiple-value-bind (name index) (funcall mread ptr index end-index)
+            (multiple-value-bind (type index) (funcall mread ptr index end-index)
+              (multiple-value-bind (version index) (funcall mread ptr index end-index)
+                (values
+                 (make-pathname
+                  :host (or host (pathname-host *default-pathname-defaults* :case :common))
+                  :device device :directory directory
+                  :name name :type type :version version :case :common)
+                 index)))))))))

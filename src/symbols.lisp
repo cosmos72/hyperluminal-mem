@@ -22,6 +22,10 @@
 
 (eval-always
 
+ (define-constant-once +package-keyword+          (find-package '#:keyword))
+ (define-constant-once +package-common-lisp+      (find-package '#:common-lisp))
+ (define-constant-once +package-common-lisp-user+ (find-package '#:common-lisp-user))
+
  (defun collect-symbols (package-designator &key expected-n-symbols start-with)
    "Return a sorted vector containing all external symbols of a package."
    (declare (type (or null fixnum) expected-n-symbols))
@@ -258,16 +262,20 @@
  write-char write-line write-sequence write-string write-to-string y-or-n-p
  yes-or-no-p zerop
 
- 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0 0 0 0
  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
- 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+ #.(load-time-value +package-common-lisp-user+ t) 
+ #.(load-time-value +package-common-lisp+ t) 
+ #.(load-time-value +package-keyword+ t) 
 
  :compile-toplevel :load-toplevel :execute ;; eval-when options
  :inherited :external :internal ;; intern options
  :element-type :initial-element :initial-contents :adjustable :fill-pointer :displaced-to :displaced-index-offset ;; make-array options
  :test :size :rehash-size :rehash-threshold ;; make-hash-table options
- :case :common :local ;; pathname-* functions options
- :wild :newest :unspecific :oldest :previous :installed ;; used inside pathname components
+ :case :common :local ;; make-pathname options
+ :absolute :relative :wild :newest :unspecific :oldest :previous :installed ;; used inside pathnames
  :before :after :around ;; defmethod options
 ))
 
@@ -275,9 +283,9 @@
 
 (define-constant-once +symbols-table+  (symbols-vector-to-table +symbols-vector+))
 
-(defconstant +mem-pkg/keyword+       1008 "persistent representation of the package KEYWORD")
-(defconstant +mem-pkg/common-lisp+   1009 "persistent representation of the package COMMON-LISP")
-(defconstant +mem-pkg/common-lisp-user+ 1010 "persistent representation of the package COMMON-LISP-USER")
+(defconstant +mem-pkg/common-lisp-user+ 1021 "persistent representation of the package COMMON-LISP-USER")
+(defconstant +mem-pkg/common-lisp+   1022 "persistent representation of the package COMMON-LISP")
+(defconstant +mem-pkg/keyword+       1023 "persistent representation of the package KEYWORD")
 
 
 (defconstant +mem-syms/first+           0 "first value used by predefined symbols")
@@ -292,20 +300,22 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
 
-  (loop for (sym . expected-pos) in '((nil    . #.+mem-sym/nil+)
-                                      (t      . #.+mem-sym/t+)
-                                      (&whole .  10)
-                                      (and    .  85)
-                                      (car    . 181)
-                                      (cons   . 256)
-                                      (do     . 318)
-                                      (if     . 442)
-                                      (map    . 564)
-                                      (nth    . 632)
-                                      (setf   . 784)
-                                      (string . 851)
-                                      (vector . 948)
-                                      (zerop  . 978))
+  (loop for (sym . expected-pos) in '((nil     . #.+mem-sym/nil+)
+                                      (t       . #.+mem-sym/t+)
+                                      (&whole  .  10)
+                                      (and     .  85)
+                                      (car     . 181)
+                                      (cons    . 256)
+                                      (do      . 318)
+                                      (if      . 442)
+                                      (map     . 564)
+                                      (nth     . 632)
+                                      (setf    . 784)
+                                      (string  . 851)
+                                      (vector  . 948)
+                                      (zerop   . 978)
+                                      (:compile-toplevel . 1024)
+                                      (:around . 1054))
      for pos = (gethash sym +symbols-table+)
      do
        (unless (eql pos expected-pos)
