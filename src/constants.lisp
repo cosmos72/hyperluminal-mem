@@ -162,20 +162,19 @@
 ;; They are read from and written to the store, so they are part of the ABI   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defconstant +mem-unallocated+          0)
-(defconstant +mem-sym/unbound+          1 "persistent representation of unbound slot")
-(defconstant +mem-sym/nil+              2 "persistent representation of NIL")
-(defconstant +mem-sym/t+                3 "persistent representation of T")
+(defconstant +mem-unallocated+          0 "unallocated memory")
 
-(defconstant +mem-syms/first+           +mem-sym/nil+ "first value available for symbols")
-
-(defconstant +mem-pkg/keyword+          1 "persistent representation of the package KEYWORD")
-(defconstant +mem-pkg/common-lisp+      2 "persistent representation of the package COMMON-LISP")
-(defconstant +mem-pkg/common-lisp-user+ 3 "persistent representation of the package COMMON-LISP-USER")
+(defconstant +mem-sym/nil+              0 "persistent representation of NIL")
+(defconstant +mem-sym/t+                1 "persistent representation of T")
+(defconstant +mem-sym/unbound+          2 "persistent representation of unbound slot")
 
 
 (defconstant +mem-tag/int+              -1 "unboxed mem-int. It is a special case")
-(defconstant +mem-tag/symbol+            0 "unboxed reference to symbol or keyword")
+
+(defconstant +mem-tag/ref+               0 "unboxed reference to symbol, keyword, package, class...")
+(defconstant +mem-tag/symbol+            +mem-tag/ref+ "alias for +MEM-TAG/REF+")
+(defconstant +mem-tag/package+           +mem-tag/ref+ "alias for +MEM-TAG/REF+")
+
 (defconstant +mem-tag/character+         1 "unboxed character")
 (defconstant +mem-tag/sfloat+            2 "unboxed single-float")
 (defconstant +mem-tag/dfloat+            3 "unboxed double-float")
@@ -199,14 +198,12 @@
 (defconstant +mem-box/string+           17 "box is a string, i.e. a (vector character)")
 (defconstant +mem-box/base-string+      18 "box is a base-string, i.e. a (vector base-char)")
 (defconstant +mem-box/bit-vector+       19 "box is a bit-vector, i.e. a (vector bit)")
+(defconstant +mem-box/symbol+           20 "object is a symbol or keyword")
 
 (defconstant +mem-box/first+            +mem-box/bignum+)
-(defconstant +mem-box/last+             +mem-box/bit-vector+)
+(defconstant +mem-box/last+             +mem-box/symbol+)
 
-(defconstant +mem-obj/package+          20 "object is a package")
-(defconstant +mem-obj/symbol+           21 "object is a symbol or keyword")
-
-(defconstant +mem-obj/first+            +mem-obj/symbol+ "first type tag available for objects or structs")
+(defconstant +mem-obj/first+            21 "first type tag available for objects or structs")
 (defconstant +mem-obj/last+             +mem-tag/mask+)
 
 (defconstant +mem-obj-user/first+       27 "first type tag available for user-defined objects or structs")
@@ -221,10 +218,14 @@
       ;; hash-table is repeated twice to match
       ;; +mem-box/hash-table-eq+ and +mem-box/hash-table-equal+ 
       pathname hash-table hash-table list
-      array vector string base-string bit-vector))
+      array vector string base-string bit-vector symbol))
 
 
 (deftype mem-box-type ()
   "Valid range for boxed-type tags"
   `(integer ,+mem-box/first+ ,+mem-box/last+))
+
+(deftype mem-obj-type ()
+  "Valid range for object-type tags"
+  `(integer ,+mem-obj/first+ ,+mem-obj/last+))
 

@@ -121,6 +121,8 @@
                           (bit       +mem-box/bit-vector+)
                           (otherwise +mem-box/vector+))))
       
+      (symbol       +mem-box/symbol+) ;; it would be the last one... out of order for speed.
+
       (hash-table   (ecase (hash-table-test value)
                       (eq +mem-box/hash-table-eq+)
                       (eql +mem-box/hash-table-eq+)
@@ -258,6 +260,7 @@ Return the value and the number of words actually read as multiple values."
     (box-type-error ptr index boxed-type))
 
   (%%mread-box ptr index end-index boxed-type))
+
 
 (defun %mread-box (ptr index end-index)
   "Read a boxed value from the memory starting at (PTR+INDEX).

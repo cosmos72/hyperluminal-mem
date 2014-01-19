@@ -250,21 +250,19 @@ Return BOXED-TYPE and N-WORDS as multiple values"
   (declare (type maddress ptr)
            (type mem-size index))
 
-  (multiple-value-bind (boxed-type allocated-words/4) (mget-fulltag-and-value ptr index)
-
+  (bind-fulltag-and-value (boxed-type allocated-words/4) (ptr index)
     (values
      boxed-type
      (box-pointer->size allocated-words/4))))
 
 
 (defun mread-box/box-header (ptr index)
-  "Read from mmap area the header common to all boxed values. Return BOX
-and BOXED-TYPE as multiple values"
+  "Read from mmap area the header common to all boxed values.
+Return BOX and BOXED-TYPE as multiple values"
   (declare (type maddress ptr)
            (type mem-size index))
 
-  (multiple-value-bind (boxed-type allocated-words/4) (mget-fulltag-and-value ptr index)
-
+  (bind-fulltag-and-value (boxed-type allocated-words/4) (ptr index)
     (values
      (make-box index (box-pointer->size allocated-words/4))
      boxed-type)))

@@ -43,8 +43,7 @@
                              (:file "mem"            :depends-on ("lang"))
                              (:file "constants"      :depends-on ("mem"))
                              (:file "symbols"        :depends-on ("constants"))
-                             (:file "keywords"       :depends-on ("symbols"))
-                             (:file "unboxed"        :depends-on ("constants" "keywords"))
+                             (:file "unboxed"        :depends-on ("symbols"))
                              (:file "box"            :depends-on ("unboxed"))
                              (:file "box-bignum"     :depends-on ("box"))
                              (:file "box-ratio"      :depends-on ("box-bignum"))
@@ -57,6 +56,7 @@
                              (:file "box-vector"     :depends-on ("box-array"))
                              (:file "box-string"     :depends-on ("box-vector"))
                              (:file "box-bit-vector" :depends-on ("box-vector"))
+                             (:file "box-symbol"     :depends-on ("box-string"))
                              (:file "boxed"          :depends-on ("box-bignum"
                                                                   "box-ratio"
                                                                   "box-float"
@@ -67,9 +67,9 @@
                                                                   "box-array"
                                                                   "box-vector"
                                                                   "box-string"
-                                                                  "box-bit-vector"))
-                             (:file "obj-symbol"     :depends-on ("boxed"))
-                             (:file "store"          :depends-on ("obj-symbol"))))))
+                                                                  "box-bit-vector"
+                                                                  "box-symbol"))
+                             (:file "store"          :depends-on ("boxed"))))))
 
 
 (asdf:defsystem :hyperluminal-db.test

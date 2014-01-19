@@ -22,7 +22,7 @@
 
 (eval-always
 
- (defun collect-symbols (package-designator &optional expected-n-symbols &key start-with)
+ (defun collect-symbols (package-designator &key expected-n-symbols start-with)
    "Return a sorted vector containing all external symbols of a package."
    (declare (type (or null fixnum) expected-n-symbols))
 
@@ -58,25 +58,29 @@
                            (sort syms (lambda (sym1 sym2)
                                         (string< (symbol-name sym1) (symbol-name sym2)))))))))
 
- (defun symbols-to-table (symbols &optional (first-key 0))
-   (declare (type vector symbols)
+
+ (defun symbols-vector-to-table (refs &key (first-key 0))
+   (declare (type vector refs)
             (type fixnum first-key))
-   (let* ((n-syms (length symbols))
-          (htable (make-hash-table :test 'eql :size n-syms)))
-     (dotimes (i n-syms)
-       (let ((sym (svref symbols i)))
-         (setf (gethash sym htable) (the fixnum (+ i first-key)))))
+   (let* ((n-refs (length refs))
+          (htable (make-hash-table :test 'eql :size n-refs)))
+     (dotimes (i n-refs)
+       (let ((ref (svref refs i)))
+         (unless (eql 0 ref)
+           (setf (gethash ref htable) (the fixnum (+ i first-key))))))
      htable)))
     
 
 
 ;; sorted vector of all external symbols in package COMMON-LISP
-;;(define-constant-once +cl-symbols-vector+ (collect-symbols '#:common-lisp 978 :start-with '(nil t)))
+#-(and)
+(define-constant-once +symbols-vector+
+    (collect-symbols '#:common-lisp :expected-n-symbols 978 :start-with '(nil t)))
 
 
-;; copied from the value of the previous definition - no way I would write this manually!
-(define-constant-once +cl-symbols-vector+ #(
- nil t &allow-other-keys &aux &body &environment &key &optional &rest &whole
+(define-constant-once +symbols-vector+ #(
+ nil t #.(load-time-value stmx::+unbound-tvar+ t)
+ &allow-other-keys &aux &body &environment &key &optional &rest &whole
  * ** *** *break-on-signals* *compile-file-pathname* *compile-file-truename*
  *compile-print* *compile-verbose* *debug-io* *debugger-hook*
  *default-pathname-defaults* *error-output* *features* *gensym-counter*
@@ -252,27 +256,60 @@
  with-open-stream with-output-to-string with-package-iterator
  with-simple-restart with-slots with-standard-io-syntax write write-byte
  write-char write-line write-sequence write-string write-to-string y-or-n-p
- yes-or-no-p zerop))
+ yes-or-no-p zerop
 
-(defconstant +mem-syms-cl/first+ +mem-syms/first+ "first value used for COMMON-LISP symbols")
-(defconstant +mem-syms-cl/last+ (+ +mem-syms/first+ (length +cl-symbols-vector+) -1) "last value used for COMMON-LISP symbols")
+ 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 
-(define-constant-once +cl-symbols-table+  (symbols-to-table +cl-symbols-vector+ +mem-syms-cl/first+))
+ :compile-toplevel :load-toplevel :execute ;; eval-when options
+ :inherited :external :internal ;; intern options
+ :element-type :initial-element :initial-contents :adjustable :fill-pointer :displaced-to :displaced-index-offset ;; make-array options
+ :test :size :rehash-size :rehash-threshold ;; make-hash-table options
+ :case :common :local ;; pathname-* functions options
+ :wild :newest :unspecific :oldest :previous :installed ;; used inside pathname components
+ :before :after :around ;; defmethod options
+))
 
 
 
-(eval-when (:load-toplevel :execute)
-  (unless (= (length +cl-symbols-vector+) 978)
-    (error "HYPERLUMINAL-DB: unexpected contents of vector ~S, cannot compile!
-vector length is ~S, it must be ~S instead"
-           '+cl-symbols-vector+ (length +cl-symbols-table+) 978))
+(define-constant-once +symbols-table+  (symbols-vector-to-table +symbols-vector+))
 
-  (loop for (sym . expected-pos) in `((nil . ,+mem-sym/nil+)
-                                      (t   . ,+mem-sym/t+))
-     for pos = (gethash sym +cl-symbols-table+)
+(defconstant +mem-pkg/keyword+       1008 "persistent representation of the package KEYWORD")
+(defconstant +mem-pkg/common-lisp+   1009 "persistent representation of the package COMMON-LISP")
+(defconstant +mem-pkg/common-lisp-user+ 1010 "persistent representation of the package COMMON-LISP-USER")
+
+
+(defconstant +mem-syms/first+           0 "first value used by predefined symbols")
+
+(defconstant +mem-syms/last+ (+ +mem-syms/first+ (length +symbols-vector+) -1) "last value used for predefined symbols")
+
+
+(defconstant +mem-syms-user/first+  2048 "first value available for user-defined symbols")
+
+
+
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+
+  (loop for (sym . expected-pos) in '((nil    . #.+mem-sym/nil+)
+                                      (t      . #.+mem-sym/t+)
+                                      (&whole .  10)
+                                      (and    .  85)
+                                      (car    . 181)
+                                      (cons   . 256)
+                                      (do     . 318)
+                                      (if     . 442)
+                                      (map    . 564)
+                                      (nth    . 632)
+                                      (setf   . 784)
+                                      (string . 851)
+                                      (vector . 948)
+                                      (zerop  . 978))
+     for pos = (gethash sym +symbols-table+)
      do
        (unless (eql pos expected-pos)
          (error "HYPERLUMINAL-DB: unexpected contents of hash table ~S, cannot compile!
 symbol ~S is associated to value ~S, it must be associated to value ~S instead"
-                '+cl-symbols-table+ sym pos expected-pos))))
+                '+symbols-table+ sym pos expected-pos))))
 
