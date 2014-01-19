@@ -254,8 +254,12 @@
  write-char write-line write-sequence write-string write-to-string y-or-n-p
  yes-or-no-p zerop))
 
+(defconstant +mem-syms-cl/first+ +mem-syms/first+ "first value used for COMMON-LISP symbols")
+(defconstant +mem-syms-cl/last+ (+ +mem-syms/first+ (length +cl-symbols-vector+) -1) "last value used for COMMON-LISP symbols")
 
-(define-constant-once +cl-symbols-table+  (symbols-to-table +cl-symbols-vector+ +mem-syms/first+))
+(define-constant-once +cl-symbols-table+  (symbols-to-table +cl-symbols-vector+ +mem-syms-cl/first+))
+
+
 
 (eval-when (:load-toplevel :execute)
   (unless (= (length +cl-symbols-vector+) 978)
@@ -272,7 +276,3 @@ vector length is ~S, it must be ~S instead"
 symbol ~S is associated to value ~S, it must be associated to value ~S instead"
                 '+cl-symbols-table+ sym pos expected-pos))))
 
-(defconstant +mem-syms-cl/first+ +mem-syms/first+ "first value used for COMMON-LISP symbols")
-(defconstant +mem-syms-cl/last+ (+ +mem-syms/first+ (length +cl-symbols-vector+) -1) "last value used for COMMON-LISP symbols")
-
-(defconstant +mem-syms-user/first+ 1024 "first value available for user-defined symbols")
