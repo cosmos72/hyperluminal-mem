@@ -363,6 +363,11 @@ but only ~S word~P available at that location"
          (mem-overrun-error ,ptr_ (1- ,index_) ,end-index_ (1+ ,n-words_))))))
 
 
+;; kind of forward declaration for (detect-n-words) defined in boxed.lisp
+(declaim (ftype (function (t) (values mem-size &optional))
+		detect-n-words)
+	 (notinline detect-n-words))
+
 ;; kind of forward declaration for (mwrite) defined in boxed.lisp
 (declaim (ftype (function (maddress mem-size mem-size t)
                           (values mem-size &optional))

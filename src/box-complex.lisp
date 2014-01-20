@@ -153,7 +153,7 @@ it requires ~S words, maximum supported is ~S words"
 
   
 (defun mwrite-box/complex-rational (ptr index end-index value)
-  "Reuse the memory starting at (PTR+INDEX) and write complex-rational VALUE into it.
+  "Write complex-rational VALUE into the memory starting at (PTR+INDEX).
 Assumes BOX header is already written.
 
 ABI: Writes real part, then imaginary part."

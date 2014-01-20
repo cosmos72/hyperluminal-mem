@@ -303,7 +303,7 @@ to DETECT-BOX-N-WORDS.
 Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
   (if (is-unboxed? value)
       1
-      (detect-box-n-words value)))
+      (the mem-size (detect-box-n-words value))))
 
 
 (defun detect-n-words-rounded-up (value)
@@ -314,7 +314,7 @@ Also rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
   (if (is-unboxed? value)
       1
-      (detect-box-n-words-rounded-up value)))
+      (the mem-size (detect-box-n-words-rounded-up value))))
 
 
 ;; (declaim (ftype (...) mwrite)) is in box.lisp

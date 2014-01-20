@@ -26,40 +26,44 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun %ratio-words (n)
-  "Return the number of words needed to store ratio N in mmap memory."
-  (declare (type ratio n))
+(defun box-words/ratio (value)
+  "Return the number of words needed to store a BOX containing ratio VALUE in mmap memory.
+Does not count the space needed by BOX header."
+  (declare (type ratio value))
 
-  (error "TODO"))
+  (let ((n-words (+ (detect-n-words (numerator value))
+                    (detect-n-words (denominator value)))))
+    (unless (<= n-words +mem-box/max-payload-words+)
+      (error "HYPERLUMINAL-DB: ratio too large for object store,
+it requires ~S words, maximum supported is ~S words"
+             (1+ n-words) +mem-box/max-words+))
+    (the mem-size n-words)))
 
 
-(defun box-words/ratio (n)
-  "Return the number of words needed to store a BOX containing ratio N in mmap memory."
-  (declare (type integer n))
-  (the mem-size (mem-size+ 1 +mem-box/header-words+ (%ratio-words n))))
-  
+(defun mwrite-box/ratio (ptr index end-index value)
+  "Write ratio VALUE into the memory starting at (PTR+INDEX).
+Assumes BOX header is already written.
 
-
-(defun mwrite-box/ratio (ptr index end-index n)
-  "Reuse the memory block starting at (PTR+INDEX) and write ratio N into it.
-
-ABI: ratio is stored as box prefix, followed by numerator and denominator."
+ABI: Writes numerator, then denominator."
   (declare (type maddress ptr)
            (type mem-size index end-index)
-           (type integer n))
+           (type ratio value))
 
-  (error "TODO"))
+  (let ((mwrite #'mwrite))
+    (setf index (funcall mwrite ptr index end-index (numerator value)))
+    (funcall mwrite ptr index end-index (denominator value))))
 
 
 
 (defun mread-box/ratio (ptr index end-index)
-  "Read a ratio from the boxed memory starting at (PTR+INDEX).
-Return the ratio"
+  "Read a ratio from the memory starting at (PTR+INDEX) and return it.
+Assumes BOX header is already read."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
-  (error "TODO"))
-
-
-  
-
+  (let ((mread #'mread))
+    (multiple-value-bind (numerator index) (funcall mread ptr index end-index)
+      (multiple-value-bind (denominator index) (funcall mread ptr index end-index)
+        (values
+         (/ (the integer numerator) (the integer denominator))
+         index)))))

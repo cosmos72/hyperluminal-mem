@@ -47,14 +47,14 @@
 (deftype mem-size    () '(unsigned-byte #.(- +mem-word/bits+ (integer-length (1- +msizeof-word+)))))
 
 
-(deftype mem-unboxed-except-symbol () 
-  "Union of all types (except symbol) that can be stored as unboxed in memory store"
+(deftype mem-unboxed-except-ratio-symbol () 
+  "Union of all types (except ratio and symbol) that can be stored as unboxed in memory store"
   '(or mem-int character boolean
     #?+hldb/sfloat/inline single-float
     #?+hldb/dfloat/inline double-float))
 
-(deftype mem-unboxed () 
-  "Union of all types that can be stored as unboxed in memory store"
+(deftype mem-unboxed-except-ratio () 
+  "Union of all types (except ratio) that can be stored as unboxed in memory store"
   '(or mem-int character boolean symbol
     #?+hldb/sfloat/inline single-float
     #?+hldb/dfloat/inline double-float))
@@ -178,6 +178,8 @@
   t)
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (declaim (inline mset-int))
 (defun mset-int (ptr index value)
   (declare (type maddress ptr)
@@ -223,7 +225,7 @@ ignoring any sign bit"
 
 
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (declaim (inline mset-character mget-character))
 
@@ -243,6 +245,57 @@ ignoring any sign bit"
 
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(declaim (inline mset-ratio mget-unsigned-ratio mget-negative-ratio))
+
+(defun mset-ratio (ptr index tag numerator denominator)
+  (declare (type maddress ptr)
+           (type mem-size index)
+           (type mem-tag tag)
+           (type (integer 0 #.+mem-ratio/numerator/bits+) numerator)
+           (type (integer 1 #.(1+ +mem-ratio/denominator/bits+)) denominator))
+             
+  (mset-fulltag-and-value ptr index tag
+                          (logior (ash numerator +mem-ratio/denominator/bits+)
+                                  (1- denominator))))
+
+
+(defun mget-unsigned-ratio (ptr index)
+  (declare (type maddress ptr)
+           (type mem-size index))
+
+  (let* ((value (%to-value (mget-word ptr index)))
+         (numerator   (ash value #.(- +mem-ratio/denominator/bits+)))
+         (denominator (1+ (logand value      +mem-ratio/denominator/bits+))))
+    (/ numerator denominator)))
+
+
+
+(defun mset-negative-ratio (ptr index numerator denominator)
+  (declare (type maddress ptr)
+           (type mem-size index)
+           (type (integer #.(lognot +mem-ratio/numerator/bits+) -1) numerator)
+           (type (integer 1 #.(1+ +mem-ratio/denominator/bits+)) denominator))
+             
+  (mset-fulltag-and-value ptr index +mem-tag/neg-ratio+
+                          (logior (ash (logand (lognot numerator) +mem-ratio/numerator/bits+)
+                                       +mem-ratio/denominator/bits+)
+                                  (1- denominator))))
+
+
+(defun mget-negative-ratio (ptr index)
+  (declare (type maddress ptr)
+           (type mem-size index))
+
+  (let* ((value (%to-value (mget-word ptr index)))
+         (numerator   (lognot (ash value #.(- +mem-ratio/denominator/bits+))))
+         (denominator (1+ (logand value       +mem-ratio/denominator/bits+))))
+    (/ numerator denominator)))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (declaim (inline mset-symbol-ref mget-symbol-ref))
 
@@ -312,10 +365,19 @@ ignoring any sign bit"
 
 (defun is-unboxed? (value)
   "Return T if VALUE can be written to mmap memory as an unboxed value."
-  (if (or (typep value 'mem-unboxed-except-symbol)
-          (eq value nil)
-          (eq value t)
+  (if (or (typep value 'mem-unboxed-except-ratio-symbol)
+          ;; (eq value nil) ;; redundant
+          ;; (eq value t) ;; redundant
           (eq value +unbound-tvar+)
+          
+          (and (typep value 'ratio)
+               (let ((numerator (numerator value))
+                     (denominator (denominator value)))
+                 (and (typep numerator 'mem-int)
+                      (typep denominator 'mem-int)
+                      (<= #.(lognot +mem-ratio/numerator/mask+) numerator +mem-ratio/numerator/mask+)
+                      (<= 1 denominator #.(1+ +mem-ratio/denominator/mask+)))))
+          
           (gethash value +symbols-table+))
       t
       nil))
@@ -360,6 +422,25 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
       ;; value is +unbound-tvar+ ?
       ((eq value +unbound-tvar+) (setf val +mem-sym/unbound+))
 
+      ;; value is a ratio?
+      ((typep value 'ratio)
+       (let ((numerator (numerator value))
+             (denominator (denominator value)))
+
+         (unless (and (typep numerator 'mem-int)
+                      (typep denominator 'mem-int)
+                      (<= #.(lognot +mem-ratio/numerator/mask+) numerator +mem-ratio/numerator/mask+)
+                      (<= 1 denominator #.(1+ +mem-ratio/denominator/mask+)))
+           (return-from mset-unboxed nil))
+
+         (if (>= numerator 0)
+             (setf tag +mem-tag/ratio+)
+             (setf tag +mem-tag/neg-ratio+
+                   numerator (lognot numerator)))
+         (setf val (logior (ash (the (integer 0 #.+mem-ratio/numerator/mask+) numerator)
+                                +mem-ratio/denominator/bits+)
+                           (1- denominator)))))
+             
       ;; value is a single-float?
       #?+hldb/sfloat/inline
       ((typep value 'single-float)
@@ -422,6 +503,16 @@ as multiple values."
 
             (#.+mem-tag/character+ ;; found a character
              (code-char (logand value +character/mask+)))
+
+            (#.+mem-tag/ratio+ ;; found an unsigned ratio
+             (let ((numerator (ash value #.(- +mem-ratio/denominator/bits+)))
+                   (denominator (1+ (logand value +mem-ratio/denominator/mask+))))
+               (/ numerator denominator)))
+
+            (#.+mem-tag/neg-ratio+ ;; found a negative ratio
+             (let ((numerator (lognot (ash value #.(- +mem-ratio/denominator/bits+))))
+                   (denominator (1+ (logand value +mem-ratio/denominator/mask+))))
+               (/ numerator denominator)))
 
             #?+hldb/sfloat/inline
             (#.+mem-tag/sfloat+ ;; found a single-float

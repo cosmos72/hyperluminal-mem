@@ -44,6 +44,7 @@
 
 (defconstant +pagesize+ (osicat-posix:getpagesize))
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; type tags and pointers ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -72,6 +73,7 @@
 (defconstant +mem-size/mask+         (1- (ash 1 +mem-size/bits+)))
 (defconstant +most-positive-size+    +mem-size/mask+)
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;    integers, i.e. mem-int    ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -92,32 +94,18 @@
 (defconstant +most-positive-int+     (ash +mem-int/mask+ -1))
 (defconstant +most-negative-int+     (lognot +most-positive-int+))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;        boxed values          ;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defconstant +mem-box/min-words+    4 "boxed values are allocated
-    in multiples of 4 CPU-words. This value must be a power of two.")
-(defconstant +mem-box/max-words+    (* (1+ +most-positive-pointer+) +mem-box/min-words+))
-(defconstant +mem-box/header-words+ 1 "boxed values have a 1 CPU-word header")
-
-(defconstant +mem-box/min-payload-words+ (- +mem-box/min-words+ +mem-box/header-words+))
-(defconstant +mem-box/max-payload-words+ (- +mem-box/max-words+ +mem-box/header-words+))
-
-
-(eval-always
- (set-feature 'hldb/box/header-words +mem-box/header-words+)
- (set-feature 'hldb/box/min-words    +mem-box/min-words+))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;   bignums, i.e. mem-bignum   ;;;;
+;;;;    ratios, i.e. mem-ratio    ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defconstant +mem-bignum/max-words+ (min +most-positive-int+
-					 ;; -1 for length header
-                                         (1- +mem-box/max-payload-words+))
-  "Maximum number of CPU words in a mem-bignum.")
+(defconstant +mem-ratio/bits+             +mem-pointer/bits+)
+(defconstant +mem-ratio/denominator/bits+ (ash +mem-ratio/bits+ -1))
+(defconstant +mem-ratio/denominator/mask+ (1- (ash 1 +mem-ratio/denominator/bits+)))
+(defconstant +mem-ratio/numerator/bits+   (- +mem-pointer/bits+ +mem-ratio/denominator/bits+))
+(defconstant +mem-ratio/numerator/mask+   (1- (ash 1 +mem-ratio/numerator/bits+)))
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; single-float and double-foat ;;;;
@@ -149,6 +137,34 @@
  (set-feature 'hldb/dfloat/inline +mem-dfloat/inline?+))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;        boxed values          ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defconstant +mem-box/min-words+    4 "boxed values are allocated
+    in multiples of 4 CPU-words. This value must be a power of two.")
+(defconstant +mem-box/max-words+    (* (1+ +most-positive-pointer+) +mem-box/min-words+))
+(defconstant +mem-box/header-words+ 1 "boxed values have a 1 CPU-word header")
+
+(defconstant +mem-box/min-payload-words+ (- +mem-box/min-words+ +mem-box/header-words+))
+(defconstant +mem-box/max-payload-words+ (- +mem-box/max-words+ +mem-box/header-words+))
+
+
+(eval-always
+ (set-feature 'hldb/box/header-words +mem-box/header-words+)
+ (set-feature 'hldb/box/min-words    +mem-box/min-words+))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;   bignums, i.e. mem-bignum   ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defconstant +mem-bignum/max-words+ (min +most-positive-int+
+					 ;; -1 for length header
+                                         (1- +mem-box/max-payload-words+))
+  "Maximum number of CPU words in a mem-bignum.")
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;      user-defined types      ;;;;
@@ -169,41 +185,43 @@
 (defconstant +mem-sym/unbound+          2 "persistent representation of unbound slot")
 
 
-(defconstant +mem-tag/int+              -1 "unboxed mem-int. It is a special case")
+(defconstant +mem-tag/int+              -1 "unboxed mem-int i.e. small integer. Special case")
 
 (defconstant +mem-tag/ref+               0 "unboxed reference to symbol, keyword, package, class...")
 (defconstant +mem-tag/symbol+            +mem-tag/ref+ "alias for +MEM-TAG/REF+")
 (defconstant +mem-tag/package+           +mem-tag/ref+ "alias for +MEM-TAG/REF+")
 
 (defconstant +mem-tag/character+         1 "unboxed character")
-(defconstant +mem-tag/sfloat+            2 "unboxed single-float")
-(defconstant +mem-tag/dfloat+            3 "unboxed double-float")
-(defconstant +mem-tag/box+               4 "boxed value")
+(defconstant +mem-tag/ratio+             2 "unboxed, unsigned small ratio")
+(defconstant +mem-tag/neg-ratio+         3 "unboxed, negative small ratio")
+(defconstant +mem-tag/sfloat+            4 "unboxed single-float")
+(defconstant +mem-tag/dfloat+            5 "unboxed double-float")
+(defconstant +mem-tag/box+               6 "boxed value")
 
 (defconstant +mem-box/unallocated+       0 "box is unallocated")
 
-(defconstant +mem-box/bignum+            4 "box is a bignum") ;; intentionally eql +mem-tag/box+
-(defconstant +mem-box/ratio+             5 "box is a ratio")
-(defconstant +mem-box/sfloat+            6 "box is a single-float")
-(defconstant +mem-box/dfloat+            7 "box is a double-float")
-(defconstant +mem-box/complex-sfloat+    8 "box is a complex of single-floats")
-(defconstant +mem-box/complex-dfloat+    9 "box is a complex of double-floats")
-(defconstant +mem-box/complex-rational+ 10 "box is a complex of rationals")
-(defconstant +mem-box/pathname+         11 "box is a pathname")
-(defconstant +mem-box/hash-table-eq+    12 "box is a hash-table with 'eq or 'eql test")
-(defconstant +mem-box/hash-table-equal+ 13 "box is a hash-table with 'equal or 'equalp test")
-(defconstant +mem-box/list+             14 "box is a cons or list")
-(defconstant +mem-box/array+            15 "box is a N-dimensional array")
-(defconstant +mem-box/vector+           16 "box is a 1-dimensional array, i.e. a vector")
-(defconstant +mem-box/string+           17 "box is a string, i.e. a (vector character)")
-(defconstant +mem-box/base-string+      18 "box is a base-string, i.e. a (vector base-char)")
-(defconstant +mem-box/bit-vector+       19 "box is a bit-vector, i.e. a (vector bit)")
-(defconstant +mem-box/symbol+           20 "object is a symbol or keyword")
+(defconstant +mem-box/bignum+            6 "box is a bignum") ;; intentionally eql +mem-tag/box+
+(defconstant +mem-box/ratio+             7 "box is a ratio")
+(defconstant +mem-box/sfloat+            8 "box is a single-float")
+(defconstant +mem-box/dfloat+            9 "box is a double-float")
+(defconstant +mem-box/complex-sfloat+   10 "box is a complex of single-floats")
+(defconstant +mem-box/complex-dfloat+   11 "box is a complex of double-floats")
+(defconstant +mem-box/complex-rational+ 12 "box is a complex of rationals")
+(defconstant +mem-box/pathname+         13 "box is a pathname")
+(defconstant +mem-box/hash-table-eq+    14 "box is a hash-table with 'eq or 'eql test")
+(defconstant +mem-box/hash-table-equal+ 15 "box is a hash-table with 'equal or 'equalp test")
+(defconstant +mem-box/list+             16 "box is a cons or list")
+(defconstant +mem-box/array+            17 "box is a N-dimensional array")
+(defconstant +mem-box/vector+           18 "box is a 1-dimensional array, i.e. a vector")
+(defconstant +mem-box/string+           19 "box is a string, i.e. a (vector character)")
+(defconstant +mem-box/base-string+      20 "box is a base-string, i.e. a (vector base-char)")
+(defconstant +mem-box/bit-vector+       21 "box is a bit-vector, i.e. a (vector bit)")
+(defconstant +mem-box/symbol+           22 "object is a symbol or keyword")
 
 (defconstant +mem-box/first+            +mem-box/bignum+)
 (defconstant +mem-box/last+             +mem-box/symbol+)
 
-(defconstant +mem-obj/first+            21 "first type tag available for objects or structs")
+(defconstant +mem-obj/first+            23 "first type tag available for objects or structs")
 (defconstant +mem-obj/last+             +mem-tag/mask+)
 
 (defconstant +mem-obj-user/first+       27 "first type tag available for user-defined objects or structs")
