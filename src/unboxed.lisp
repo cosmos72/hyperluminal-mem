@@ -247,52 +247,49 @@ ignoring any sign bit"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(declaim (inline mset-ratio mget-unsigned-ratio mget-negative-ratio))
+(declaim (inline %mset-ratio mset-ratio mget-ratio))
 
-(defun mset-ratio (ptr index tag numerator denominator)
+(defun %mset-ratio (ptr index tag numerator denominator)
   (declare (type maddress ptr)
            (type mem-size index)
            (type mem-tag tag)
-           (type (integer 0 #.+mem-ratio/numerator/bits+) numerator)
-           (type (integer 1 #.(1+ +mem-ratio/denominator/bits+)) denominator))
+           (type (integer 0 #.+mem-ratio/numerator/mask+) numerator)
+           (type (integer 1 #.(1+ +mem-ratio/denominator/mask+)) denominator))
              
   (mset-fulltag-and-value ptr index tag
                           (logior (ash numerator +mem-ratio/denominator/bits+)
                                   (1- denominator))))
 
 
-(defun mget-unsigned-ratio (ptr index)
-  (declare (type maddress ptr)
-           (type mem-size index))
-
-  (let* ((value (%to-value (mget-word ptr index)))
-         (numerator   (ash value #.(- +mem-ratio/denominator/bits+)))
-         (denominator (1+ (logand value      +mem-ratio/denominator/bits+))))
-    (/ numerator denominator)))
-
-
-
-(defun mset-negative-ratio (ptr index numerator denominator)
+(defun mset-ratio (ptr index ratio)
   (declare (type maddress ptr)
            (type mem-size index)
-           (type (integer #.(lognot +mem-ratio/numerator/bits+) -1) numerator)
-           (type (integer 1 #.(1+ +mem-ratio/denominator/bits+)) denominator))
-             
-  (mset-fulltag-and-value ptr index +mem-tag/neg-ratio+
-                          (logior (ash (logand (lognot numerator) +mem-ratio/numerator/bits+)
-                                       +mem-ratio/denominator/bits+)
-                                  (1- denominator))))
+           (type ratio ratio))
+
+  (let ((numerator (numerator ratio))
+        (denominator (denominator ratio))
+        (tag +mem-tag/ratio+))
+
+    (declare (type (integer #.(lognot +mem-ratio/numerator/mask+) #.+mem-ratio/numerator/bits+)
+                   numerator)
+             (type (integer 1 #.(1+ +mem-ratio/denominator/mask+)) denominator))
+
+    (when (< numerator 0)
+      (setf numerator (lognot numerator)
+            tag +mem-tag/neg-ratio+))
+    (%mset-ratio ptr index tag numerator denominator)))
 
 
-(defun mget-negative-ratio (ptr index)
+(defun mget-ratio (ptr index)
   (declare (type maddress ptr)
            (type mem-size index))
 
-  (let* ((value (%to-value (mget-word ptr index)))
-         (numerator   (lognot (ash value #.(- +mem-ratio/denominator/bits+))))
-         (denominator (1+ (logand value       +mem-ratio/denominator/bits+))))
-    (/ numerator denominator)))
-
+  (bind-fulltag-and-value (fulltag value) (ptr index)
+    (let* ((numerator   (ash value   #.(- +mem-ratio/denominator/bits+)))
+           (denominator (1+ (logand value +mem-ratio/denominator/mask+))))
+      (when (= fulltag +mem-tag/neg-ratio+)
+        (setf numerator (lognot numerator)))
+      (/ numerator denominator))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
