@@ -25,43 +25,15 @@
 ;;;;    boxed vector                                                       ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+    
+
 
 (defun box-words/vector (vector)
   "Return the number of words needed to store VECTOR in mmap memory,
 not including BOX header."
   (declare (type (and vector (not (or string base-string bit-vector))) vector))
 
-  (let ((len (length vector)))
-    (unless (<= len +most-positive-int+)
-      (error "HYPERLUMINAL-DB: vector too large for object store.
-it contains ~S elements, maximum supported is ~S elements"
-	     len +most-positive-int+)))
-
-  ;; -1 to store vector length
-  (let ((words-left (1- +mem-box/max-payload-words+)))
-
-    (declare (type mem-size words-left))
-    ;; count downward: easier to check for overflows
-
-    (macrolet
-	((compute-n-words (vector words-left)
-	   (with-gensyms (e e-len detect-n-words)
-	     `(let ((,detect-n-words #'detect-n-words))
-		(loop for ,e across ,vector
-		   for ,e-len = (the mem-size (funcall ,detect-n-words ,e))
-		   do
-		     (unless (>= ,words-left ,e-len)
-		       (error "HYPERLUMINAL-DB: vector too large for object store,
-it requires more space than the maximum supported ~S words"
-			      +mem-box/max-payload-words+))
-		     (decf-mem-size ,words-left ,e-len))))))
-
-      (if (typep vector 'simple-vector)
-	  ;; optimize for simple-vector
-	  (compute-n-words vector words-left)
-	  (compute-n-words vector words-left)))
-
-    (mem-size- +mem-box/max-payload-words+ words-left)))
+  (box-words/array vector))
 
 
 (defun mwrite-box/vector (ptr index end-index vector)
@@ -76,8 +48,6 @@ at (PTR+INDEX)."
 
   (let ((mwrite #'mwrite))
 
-    (log.trace ptr index vector)
-
     (check-mem-overrun ptr index end-index 1)
 
     (mset-int ptr index (the mem-int (length vector)))
@@ -85,7 +55,6 @@ at (PTR+INDEX)."
 
     (if (typep vector 'simple-vector)
 	(loop for e across vector do
-             (log:debug index end-index e)
              (setf index (the mem-size (funcall mwrite ptr index end-index e))))
 	(loop for e across vector do
              (setf index (the mem-size (funcall mwrite ptr index end-index e)))))
@@ -94,12 +63,12 @@ at (PTR+INDEX)."
 
 
 (defun mread-box/vector (ptr index end-index)
-  "Read a vector from the boxed memory starting at (PTR+INDEX) and return it.
+  "Read a vector from the memory starting at (PTR+INDEX) and return it.
 Also returns number of words actually read as additional value.
 
 Assumes BOX header was already read."
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index end-index))
   
   (check-mem-length ptr index end-index 1)
 
