@@ -334,16 +334,6 @@ but only ~S word~P available at that location"
          (mem-length-error ,ptr_ ,index_ ,end-index_ ,n-words_)))))
 
 
-(defmacro check-mem-length (ptr index end-index n-words)
-  (with-gensyms (ptr_ index_ end-index_ n-words_)
-    `(let ((,ptr_       ,ptr)
-           (,index_     ,index)
-           (,end-index_ ,end-index)
-           (,n-words_   ,n-words))
-       (unless (<= ,n-words_ (mem-size- ,end-index_ ,index_))
-         (mem-length-error ,ptr_ (1- ,index_) ,end-index_ (1+ ,n-words_))))))
-
-
 (defmacro check-mem-overrun (ptr index end-index n-words)
   (with-gensyms (ptr_ index_ end-index_ n-words_)
     `(let ((,ptr_       ,ptr)
@@ -353,14 +343,6 @@ but only ~S word~P available at that location"
        (unless (<= ,n-words_ (mem-size- ,end-index_ ,index_))
          (mem-overrun-error ,ptr_ ,index_ ,end-index_ ,n-words_)))))
 
-(defmacro check-mem-overrun (ptr index end-index n-words)
-  (with-gensyms (ptr_ index_ end-index_ n-words_)
-    `(let ((,ptr_       ,ptr)
-           (,index_     ,index)
-           (,end-index_ ,end-index)
-           (,n-words_   ,n-words))
-       (unless (<= ,n-words_ (mem-size- ,end-index_ ,index_))
-         (mem-overrun-error ,ptr_ (1- ,index_) ,end-index_ (1+ ,n-words_))))))
 
 
 ;; kind of forward declaration for (detect-n-words) defined in boxed.lisp

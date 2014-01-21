@@ -195,8 +195,8 @@
 (defconstant +mem-tag/package+           +mem-tag/ref+ "alias for +MEM-TAG/REF+")
 
 (defconstant +mem-tag/character+         1 "unboxed character")
-(defconstant +mem-tag/ratio+             2 "unboxed, unsigned small ratio")
-(defconstant +mem-tag/neg-ratio+         3 "unboxed, negative small ratio")
+(defconstant +mem-tag/ratio+             2 "unboxed, unsigned ratio. must be even.")
+(defconstant +mem-tag/neg-ratio+         3 "unboxed, negative ratio. must be (1+ +mem-tag/ratio+)")
 (defconstant +mem-tag/sfloat+            4 "unboxed single-float")
 (defconstant +mem-tag/dfloat+            5 "unboxed double-float")
 (defconstant +mem-tag/box+               6 "boxed value")

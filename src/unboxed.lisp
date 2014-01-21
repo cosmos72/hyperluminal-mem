@@ -247,49 +247,46 @@ ignoring any sign bit"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(declaim (inline %mset-ratio mset-ratio mget-ratio))
+(declaim (inline mset-ratio mget-ratio))
 
-(defun %mset-ratio (ptr index tag numerator denominator)
-  (declare (type maddress ptr)
-           (type mem-size index)
-           (type mem-tag tag)
-           (type (integer 0 #.+mem-ratio/numerator/mask+) numerator)
-           (type (integer 1 #.(1+ +mem-ratio/denominator/mask+)) denominator))
-             
-  (mset-fulltag-and-value ptr index tag
-                          (logior (ash numerator +mem-ratio/denominator/bits+)
-                                  (1- denominator))))
-
-
+(defmacro %ratio-to-word (numerator denominator)
+  `(logior #.(ash +mem-tag/ratio+ +mem-fulltag/shift+)
+           ;; keep one extra bit from numerator - captures its sign!
+           (ash (logand ,numerator #.(1+ (* 2 +mem-ratio/numerator/mask+)))
+                +mem-ratio/denominator/bits+)
+           (1- ,denominator)))
+     
+  
 (defun mset-ratio (ptr index ratio)
   (declare (type maddress ptr)
            (type mem-size index)
            (type ratio ratio))
 
   (let ((numerator (numerator ratio))
-        (denominator (denominator ratio))
-        (tag +mem-tag/ratio+))
+        (denominator (denominator ratio)))
 
     (declare (type (integer #.(lognot +mem-ratio/numerator/mask+) #.+mem-ratio/numerator/bits+)
                    numerator)
              (type (integer 1 #.(1+ +mem-ratio/denominator/mask+)) denominator))
 
-    (when (< numerator 0)
-      (setf numerator (lognot numerator)
-            tag +mem-tag/neg-ratio+))
-    (%mset-ratio ptr index tag numerator denominator)))
+    (mset-word ptr index (%ratio-to-word numerator denominator))
+    t))
+
+
+(defmacro %word-to-ratio (word)
+  (with-gensyms (word_ denominator fulltag-and-numerator numerator sign-bit)
+    `(let* ((,word_ ,word)
+            (,denominator (1+ (logand ,word_ +mem-ratio/denominator/mask+)))
+            (,fulltag-and-numerator (ash ,word_ #.(- +mem-ratio/denominator/bits+)))
+            (,numerator   (logand ,fulltag-and-numerator +mem-ratio/numerator/mask+))
+            (,sign-bit    (logand ,fulltag-and-numerator #.(1+ +mem-ratio/numerator/mask+))))
+       (/ (- ,numerator ,sign-bit) ,denominator))))
 
 
 (defun mget-ratio (ptr index)
   (declare (type maddress ptr)
            (type mem-size index))
-
-  (bind-fulltag-and-value (fulltag value) (ptr index)
-    (let* ((numerator   (ash value   #.(- +mem-ratio/denominator/bits+)))
-           (denominator (1+ (logand value +mem-ratio/denominator/mask+))))
-      (when (= fulltag +mem-tag/neg-ratio+)
-        (setf numerator (lognot numerator)))
-      (/ numerator denominator))))
+  (%word-to-ratio (mget-word ptr index)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -424,19 +421,16 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
        (let ((numerator (numerator value))
              (denominator (denominator value)))
 
-         (unless (and (typep numerator 'mem-int)
-                      (typep denominator 'mem-int)
-                      (<= #.(lognot +mem-ratio/numerator/mask+) numerator +mem-ratio/numerator/mask+)
-                      (<= 1 denominator #.(1+ +mem-ratio/denominator/mask+)))
-           (return-from mset-unboxed nil))
+         (when (and (typep numerator 'mem-int)
+                    (typep denominator 'mem-int)
+                    (<= #.(lognot +mem-ratio/numerator/mask+) numerator +mem-ratio/numerator/mask+)
+                    (<= 1 denominator #.(1+ +mem-ratio/denominator/mask+)))
 
-         (if (>= numerator 0)
-             (setf tag +mem-tag/ratio+)
-             (setf tag +mem-tag/neg-ratio+
-                   numerator (lognot numerator)))
-         (setf val (logior (ash (the (integer 0 #.+mem-ratio/numerator/mask+) numerator)
-                                +mem-ratio/denominator/bits+)
-                           (1- denominator)))))
+           (mset-word ptr index (%ratio-to-word numerator denominator))
+           (return-from mset-unboxed t))
+         
+         (return-from mset-unboxed nil)))
+
              
       ;; value is a single-float?
       #?+hldb/sfloat/inline
@@ -501,15 +495,8 @@ as multiple values."
             (#.+mem-tag/character+ ;; found a character
              (code-char (logand value +character/mask+)))
 
-            (#.+mem-tag/ratio+ ;; found an unsigned ratio
-             (let ((numerator (ash value #.(- +mem-ratio/denominator/bits+)))
-                   (denominator (1+ (logand value +mem-ratio/denominator/mask+))))
-               (/ numerator denominator)))
-
-            (#.+mem-tag/neg-ratio+ ;; found a negative ratio
-             (let ((numerator (lognot (ash value #.(- +mem-ratio/denominator/bits+))))
-                   (denominator (1+ (logand value +mem-ratio/denominator/mask+))))
-               (/ numerator denominator)))
+            ((#.+mem-tag/ratio+ #.+mem-tag/neg-ratio+) ;; found a ratio
+             (%word-to-ratio word))
 
             #?+hldb/sfloat/inline
             (#.+mem-tag/sfloat+ ;; found a single-float
