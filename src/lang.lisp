@@ -123,6 +123,7 @@ Otherwise keep its current value."
 
     ;; search for :hyperluminal-db/word-size/<INTEGER> in *features*
     (let ((size (or (find-hldb-option/integer 'word-size)
+                    ;; default is pointer size
                     (cffi-sys:%foreign-type-size :pointer)))
           (types (loop for type in '(:unsigned-char :unsigned-short :unsigned-int
                                      :unsigned-long :unsigned-long-long)
