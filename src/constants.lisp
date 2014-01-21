@@ -116,18 +116,15 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
 
-  (unless (zerop (logand +mem-box/min-words+ (1- +mem-box/min-words+)))
-    (error "+mem-box/min-words+ is ~S, instead it must be a power of two!" +mem-box/min-words+))
-
   (defun %mem-float/inline? (type)
     (declare (type (member :float :double :sfloat :dfloat type)))
     (let ((size (msizeof type)))
-      (<= (* size +mem-byte/bits+) +mem-pointer/bits+))))
+      (<= (* size +mem-byte/bits+) +mem-pointer/bits+)))
 
-(defmacro mem-float/inline? (type)
-  (if (keywordp type)
-      (%mem-float/inline? type)
-      `(%mem-float/inline? ,type)))
+  (defmacro mem-float/inline? (type)
+    (if (keywordp type)
+        (%mem-float/inline? type)
+        `(%mem-float/inline? ,type))))
 
 (defconstant +mem-sfloat/inline?+ (mem-float/inline? :sfloat))
 (defconstant +mem-dfloat/inline?+ (mem-float/inline? :dfloat))
@@ -151,8 +148,14 @@
 
 
 (eval-always
+
+ (unless (zerop (logand +mem-box/min-words+ (1- +mem-box/min-words+)))
+   (error "+mem-box/min-words+ is ~S, instead it must be a power of two!" +mem-box/min-words+))
+
  (set-feature 'hldb/box/header-words +mem-box/header-words+)
  (set-feature 'hldb/box/min-words    +mem-box/min-words+))
+
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
