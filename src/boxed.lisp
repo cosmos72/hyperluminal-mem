@@ -269,12 +269,16 @@ Return the value and the number of words actually read as multiple values."
            (type mem-size index))
   
   (multiple-value-bind (boxed-type n-words) (mread-box/header ptr index)
-    (check-box-type ptr index boxed-type)
-    (check-mem-length ptr index end-index n-words)
+    ;; each BOX consumes at least header space + 1 word for payload.
+    (let ((min-words #.(1+ +mem-box/header-words+)))
 
-    (let ((end-index (mem-size+ index n-words)))
-      
-      (%%mread-box ptr index end-index boxed-type))))
+      (setf n-words (max n-words min-words))
+      (check-box-type ptr index boxed-type)
+      (check-mem-length ptr index end-index n-words)
+
+      (let ((end-index (mem-size+ index n-words)))
+        
+        (%%mread-box ptr index end-index boxed-type)))))
 
 
 

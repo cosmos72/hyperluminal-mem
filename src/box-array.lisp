@@ -124,12 +124,11 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
-  (check-mem-length ptr index end-index 1)
-
   (let ((rank (mget-int ptr index))
         (len 1))
     (declare (type mem-int rank len))
 
+    (check-array-rank ptr index 'array rank)
     (check-mem-length ptr index end-index rank)
 
     (let* ((dimensions

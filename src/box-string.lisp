@@ -119,6 +119,7 @@ Assumes BOX header was already read."
   (let* ((n-chars (mget-int ptr index))
          (n-words (mem-size+1 (ceiling n-chars +msizeof-word+))))
 
+    (check-array-length ptr index 'base-string n-chars)
     (check-mem-length ptr index end-index n-words)
 
     (let ((string (make-string n-chars :element-type 'base-char)))
@@ -287,6 +288,7 @@ Assumes BOX header was already read."
   (let* ((n-chars (mget-int/value ptr index))
          (n-words (mem-size+1 (ceiling n-chars +characters-per-word+))))
     
+    (check-array-length ptr index 'base-string n-chars)
     (check-mem-length ptr index end-index n-words)
 
     (let ((string (make-string n-chars :element-type 'character)))

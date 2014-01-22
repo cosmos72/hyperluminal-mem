@@ -72,15 +72,17 @@ Assumes BOX header was already read."
   
   (check-mem-length ptr index end-index 1)
 
-  (let* ((len        (mget-int ptr index))
-	 (vector     (the simple-vector (make-array len))))
+  (let* ((len (mget-int ptr index)))
+	 
+    (check-array-length ptr index 'vector len)
 
     (incf-mem-size index)
 
-    (let ((mread #'mread))
+    (let ((mread #'mread)
+          (vector     (the simple-vector (make-array len))))
       (loop for i from 0 below len
 	 do (multiple-value-bind (e e-index) (funcall mread ptr index end-index)
 	      (setf (svref vector i) e
-                    index (the mem-size e-index)))))
+                    index (the mem-size e-index))))
 
-    (values vector index)))
+      (values vector index))))

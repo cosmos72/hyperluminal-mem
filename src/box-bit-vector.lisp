@@ -158,13 +158,9 @@ Assumes BOX header was already read."
            (type mem-size index))
   
   (let* ((n-bits (mget-int ptr index))
-         (max-bits #.(min array-dimension-limit most-positive-fixnum))
          (n-words (mem-size+1 (ceiling n-bits +mem-word/bits+))))
 
-    (unless (<= 0 n-bits max-bits)
-      (error "the bit-vector at address (+ ~S ~S) declares to contain ~S bits,
-which is outside the supported length range 0...~S" ptr index n-bits max-bits))
-
+    (check-array-length ptr index 'bit-vector n-bits)
     (check-mem-length ptr index end-index n-words)
 
     (let ((vector (make-array n-bits :element-type 'bit)))

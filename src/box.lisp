@@ -314,6 +314,20 @@ but only ~S word~P available at that location"
 but only ~S word~P available at that location"
            n-words n-words ptr index available-words available-words)))
 
+(defun array-rank-error (ptr index array-type rank max-rank)
+  (declare (type symbol array-type)
+           (type integer index rank max-rank))
+  (error "the ~S at address (+ ~S ~S) declares to have
+~S dimensions, which is outside the supported rank range 0...~S"
+         array-type ptr index rank max-rank))
+
+(defun array-length-error (ptr index array-type length max-length)
+  (declare (type symbol array-type)
+           (type integer index length max-length))
+  (error "the ~S at address (+ ~S ~S) declares to contain
+~S elements, which is outside the supported length range 0...~S"
+         array-type ptr index length max-length))
+
 
 (defmacro check-box-type (ptr index boxed-type)
   (with-gensyms (ptr_ index_ boxed-type_)
@@ -343,6 +357,21 @@ but only ~S word~P available at that location"
        (unless (<= ,n-words_ (mem-size- ,end-index_ ,index_))
          (mem-overrun-error ,ptr_ ,index_ ,end-index_ ,n-words_)))))
 
+
+(defmacro check-array-rank (ptr index array-type rank)
+  (with-gensyms (r max-rank)
+    `(let ((,r ,rank)
+           (,max-rank #.(min array-rank-limit most-positive-fixnum)))
+       (unless (<= 0 ,r ,max-rank)
+         (array-rank-error ,ptr ,index ,array-type ,r ,max-rank)))))
+
+
+(defmacro check-array-length (ptr index array-type length)
+  (with-gensyms (len max-len)
+    `(let ((,len    ,length)
+           (,max-len #.(min array-dimension-limit most-positive-fixnum)))
+       (unless (<= 0 ,len ,max-len)
+         (array-length-error ,ptr ,index ,array-type ,len ,max-len)))))
 
 
 ;; kind of forward declaration for (detect-n-words) defined in boxed.lisp
