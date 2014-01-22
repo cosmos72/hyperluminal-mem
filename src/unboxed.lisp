@@ -33,6 +33,9 @@
 (deftype mem-int     () '(  signed-byte #.+mem-int/bits+))
 (deftype mem-uint    () '(unsigned-byte #.+mem-int/value-bits+))
 
+;; only used internally
+(deftype mem-byte    () '(unsigned-byte #.+mem-byte/bits+))
+
 (deftype mem-fulltag () '(unsigned-byte #.+mem-fulltag/bits+))
 (deftype mem-tag     () '(unsigned-byte #.+mem-tag/bits+))
 

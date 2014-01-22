@@ -39,7 +39,7 @@ not including BOX header words."
 (declaim (inline %mwrite-base-string))
 
 (defun %mwrite-base-string (ptr index string n-chars)
-  "Write the first N-CHARS single-byte characters of STRING into the memory starting at (PTR+INDEX). Return the number of words actually written."
+  "Write the first N-CHARS single-byte characters of STRING into the memory starting at (PTR+INDEX). Return T."
   (declare (type maddress ptr)
            (type mem-size index)
            (type base-string string)
@@ -48,23 +48,24 @@ not including BOX header words."
   (let ((offset (the mem-word (* index +msizeof-word+))))
 
     (macrolet ((loop-write (char-func ptr offset string n-chars)
-                  `(loop for i from 0 below ,n-chars do
-                        (%mset-t (the (unsigned-byte #.+mem-byte/bits+)
-                                   (char-code
-                                    (,char-func ,string i)))
-                                 :byte ,ptr (the mem-word (+ ,offset i))))))
+                  (with-gensym i
+                    `(loop for ,i from 0 below ,n-chars do
+                          (%mset-t (the (unsigned-byte #.+mem-byte/bits+)
+                                     (char-code
+                                      (,char-func ,string ,i)))
+                                   :byte ,ptr (the mem-word (+ ,offset ,i)))))))
     
       (if (typep string 'simple-string)
           (loop-write schar ptr offset string n-chars)
           (loop-write char ptr offset string n-chars))))
   
-  (mem-size+ +mem-box/header-words+ (box-words/base-string string)))
+  t)
 
 
 
 (defun mwrite-box/base-string (ptr index end-index string)
-  "Reuse the memory block starting at (+ PTR INDEX)
-and write STRING into it. Assumes BOX header is already written.
+  "Write STRING into the memory starting at (+ PTR INDEX)
+and return the number of words written. Assumes BOX header is already written.
 
 ABI: writes characters count as mem-int, followed by array of characters each occupying one byte"
   (declare (type maddress ptr)

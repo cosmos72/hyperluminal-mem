@@ -356,16 +356,14 @@ Return multiple values:
 
 
 (defun !mwrite (ptr index value)
-  "Used only for debugging. Returns number of written words."
+  "Used only for debugging."
   (declare (type maddress ptr)
            (type mem-size index))
 
-  (let ((new-index (mwrite ptr index +mem-box/max-words+ value)))
-    (- new-index index)))
+  (mwrite ptr index +mem-box/max-words+ value))
 
 (defun !mread (ptr index)
-  "Used only for debugging. Returns value and number of read words."
+  "Used only for debugging."
   (declare (type maddress ptr)
            (type mem-size index))
-  (multiple-value-bind (value end-index) (mread ptr index +mem-box/max-words+)
-    (values value (- end-index index))))
+  (mread ptr index +mem-box/max-words+))

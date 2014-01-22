@@ -246,7 +246,7 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
  ;; we need at least a 32-bit architecture to store a useful amount of data
  (when (< +mem-word/bits+ 32)
    (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
-    size of CPU word is ~S bits, expecting at least 32 bits" +mem-word/bits+))
+size of CPU word is ~S bits, expecting at least 32 bits" +mem-word/bits+))
 
  (set-feature 'hldb/base-char/fits-byte +base-char/fits-byte?+)
  (set-feature 'hldb/base-char/eql/character (= +most-positive-base-char+ +most-positive-character+))
@@ -254,7 +254,7 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
  ;; we support up to 21 bits for characters 
  (when (> +character/bits+ 21)
    (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
-    each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+)))
+each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+)))
 
 
 
@@ -421,6 +421,9 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
 
 (defun !hex (n)
   (format t "#x~x" n))
+
+(defun !bin (n)
+  (format t "#b~b" n))
 
 (defun !readable (n &optional (stream t))
   "Print N in human-readable format."
