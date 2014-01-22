@@ -144,8 +144,8 @@ ABI: writes element count as mem-int, followed by sequence of bits"
     (mset-int ptr index n-bits)
 
     (if (typep vector 'simple-bit-vector)
-        (%%mwrite-bit-vector ptr index vector n-bits)
-        (%%mwrite-bit-vector ptr index vector n-bits))
+        (%mwrite-bit-vector ptr index vector n-bits)
+        (%mwrite-bit-vector ptr index vector n-bits))
 
     (mem-size+1 index)))
 
