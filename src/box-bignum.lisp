@@ -143,7 +143,7 @@ followed by an array of words containing N in two's complement."
          ;; read last word as negative
          (bits  +mem-word/bits+)
          (limit (the fixnum (* bits n-words)))
-         (word  (mget-word ptr (mem-size+ n-words 1 index))))
+         (word  (mget-word ptr (mem-size+ n-words index))))
 
     (the integer (logior n (ash (logior word #.(- -1 +mem-word/mask+)) limit)))))
 
@@ -198,7 +198,7 @@ Assumes the BOX header was read already."
 
     (values
      (%mread-bignum-recurse ptr index n-words sign)
-     index)))
+     (mem-size+ index n-words))))
 
 
 
