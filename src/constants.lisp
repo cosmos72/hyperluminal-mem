@@ -216,15 +216,19 @@
 (defconstant +mem-box/list+             16 "box is a cons or list")
 (defconstant +mem-box/array+            17 "box is a N-dimensional array")
 (defconstant +mem-box/vector+           18 "box is a 1-dimensional array, i.e. a vector")
-(defconstant +mem-box/string+           19 "box is a string, i.e. a (vector character)")
-(defconstant +mem-box/base-string+      20 "box is a base-string, i.e. a (vector base-char)")
-(defconstant +mem-box/bit-vector+       21 "box is a bit-vector, i.e. a (vector bit)")
-(defconstant +mem-box/symbol+           22 "object is a symbol or keyword")
+
+(defconstant +mem-box/string-utf-21+    19 "box is a string, i.e. a (vector character)")
+(defconstant +mem-box/string-utf-8+     20 "box is a string, i.e. a (vector character)")
+(defconstant +mem-box/string+           +mem-box/string-utf-8+ "default string format is UTF-8")
+
+(defconstant +mem-box/base-string+      21 "box is a base-string, i.e. a (vector base-char)")
+(defconstant +mem-box/bit-vector+       22 "box is a bit-vector, i.e. a (vector bit)")
+(defconstant +mem-box/symbol+           23 "object is a symbol or keyword")
 
 (defconstant +mem-box/first+            +mem-box/bignum+)
 (defconstant +mem-box/last+             +mem-box/symbol+)
 
-(defconstant +mem-obj/first+            23 "first type tag available for objects or structs")
+(defconstant +mem-obj/first+            24 "first type tag available for objects or structs")
 (defconstant +mem-obj/last+             +mem-tag/mask+)
 
 (defconstant +mem-obj-user/first+       27 "first type tag available for user-defined objects or structs")
@@ -239,7 +243,7 @@
       ;; hash-table is repeated twice to match
       ;; +mem-box/hash-table-eq+ and +mem-box/hash-table-equal+ 
       pathname hash-table hash-table list
-      array vector string base-string bit-vector symbol))
+      array vector string-utf-21 string-utf-8 base-string bit-vector symbol))
 
 
 (deftype mem-box-type ()

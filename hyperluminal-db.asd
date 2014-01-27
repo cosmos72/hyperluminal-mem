@@ -22,7 +22,7 @@
 
 (asdf:defsystem :hyperluminal-db
   :name "HYPERLUMINAL-DB"
-  :version "0.0.1"
+  :version "0.0.2"
   :license "GPLv3"
   :author "Massimiliano Ghilardi"
   :description "Persistent, transactional object store"
@@ -54,9 +54,11 @@
                              (:file "box-list"       :depends-on ("box"))
                              (:file "box-array"      :depends-on ("box"))
                              (:file "box-vector"     :depends-on ("box-array"))
-                             (:file "box-string"     :depends-on ("box-vector"))
+                             (:file "box-string-utf-21" :depends-on ("box-vector"))
+                             (:file "box-string-utf-8"  :depends-on ("box-vector"))
+                             (:file "box-string-base"   :depends-on ("box-vector"))
                              (:file "box-bit-vector" :depends-on ("box-vector"))
-                             (:file "box-symbol"     :depends-on ("box-string"))
+                             (:file "box-symbol"     :depends-on ("box"))
                              (:file "mvar"           :depends-on ("box"))
                              (:file "boxed"          :depends-on ("box-bignum"
                                                                   "box-ratio"
@@ -67,7 +69,9 @@
                                                                   "box-list"
                                                                   "box-array"
                                                                   "box-vector"
-                                                                  "box-string"
+                                                                  "box-string-utf-21"
+                                                                  "box-string-utf-8"
+                                                                  "box-string-base"
                                                                   "box-bit-vector"
                                                                   "box-symbol"
                                                                   "mvar"))
@@ -76,7 +80,7 @@
 
 (asdf:defsystem :hyperluminal-db.test
   :name "HYPERLUMINAL-DB.TEST"
-  :version "0.0.1"
+  :version "0.0.2"
   :author "Massimiliano Ghilardi"
   :license "GPLv3"
   :description "test suite for hyperluminal-db"

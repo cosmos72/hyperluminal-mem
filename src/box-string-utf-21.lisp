@@ -27,7 +27,7 @@
 (enable-#?-syntax)
 
 
-(defun box-words/string-21 (string)
+(defun box-words/string-utf-21 (string)
   "Return the number of words needed to store STRING in memory, not including BOX header."
   (declare (type string string))
   ;; 1-word length prefix, and round up required bytes to a whole word
@@ -35,7 +35,7 @@
 
 
 
-(defmacro %bulk-pack-string-21 (char-func string pos)
+(defmacro %bulk-pack-string-utf-21 (char-func string pos)
   `(logior
     ,@(loop for i from 0 below +characters-per-word+
          collect `(the mem-word
@@ -43,7 +43,7 @@
                          (* ,i +character/bits+))))))
 
 
-(defmacro %tail-pack-string-21 (char-func string pos n-chars)
+(defmacro %tail-pack-string-utf-21 (char-func string pos n-chars)
   (with-gensyms (word i)
     `(let ((,word 0))
        (declare (type mem-word ,word))
@@ -55,20 +55,20 @@
                                     (the fixnum (* ,i +character/bits+)))))))
        ,word)))
 
-(defmacro %%mwrite-string-21 (char-func ptr index string bulk-n-words tail-n-chars)
+(defmacro %%mwrite-string-utf-21 (char-func ptr index string bulk-n-words tail-n-chars)
   (with-gensyms (char-i word-i)
     `(loop
         for ,char-i from 0 by +characters-per-word+
         for ,word-i from 0 below ,bulk-n-words
         do (mset-word ,ptr (mem-size+ ,index ,word-i)
-                      (%bulk-pack-string-21 ,char-func ,string ,char-i))
+                      (%bulk-pack-string-utf-21 ,char-func ,string ,char-i))
         finally
           (unless (zerop ,tail-n-chars)
             (mset-word ,ptr (mem-size+ ,index ,bulk-n-words)
-                       (%tail-pack-string-21 ,char-func ,string ,char-i ,tail-n-chars))))))
+                       (%tail-pack-string-utf-21 ,char-func ,string ,char-i ,tail-n-chars))))))
 
 
-(defun %mwrite-string-21 (ptr index string n-chars)
+(defun %mwrite-string-utf-21 (ptr index string n-chars)
   "Write characters from string STRING to the memory starting at (PTR+INDEX).
 Return the number of words actually written.
 
@@ -82,17 +82,17 @@ ABI: characters will be stored by packing as many as possible into words."
 
       (typecase string
         (simple-base-string
-         (%%mwrite-string-21 schar ptr index string bulk-n-words tail-n-chars))
+         (%%mwrite-string-utf-21 schar ptr index string bulk-n-words tail-n-chars))
         (simple-string
-         (%%mwrite-string-21 schar ptr index string bulk-n-words tail-n-chars))
+         (%%mwrite-string-utf-21 schar ptr index string bulk-n-words tail-n-chars))
         (otherwise
-         (%%mwrite-string-21 char ptr index string bulk-n-words tail-n-chars)))
+         (%%mwrite-string-utf-21 char ptr index string bulk-n-words tail-n-chars)))
       t))
 
 
 
 
-(defun mwrite-box/string-21 (ptr index end-index string)
+(defun mwrite-box/string-utf-21 (ptr index end-index string)
   "write STRING into the memory starting at (+ PTR INDEX).
 Assumes BOX header is already written.
 
@@ -108,13 +108,13 @@ ABI: writes string length as mem-int, followed by packed array of characters
     (check-mem-overrun ptr index end-index n-words)
 
     (mset-int ptr index n-chars)
-    (%mwrite-string-21 ptr (mem-size+1 index) string n-chars)
+    (%mwrite-string-utf-21 ptr (mem-size+1 index) string n-chars)
 
     (mem-size+ index n-words)))
 
 
 
-(defmacro %bulk-unpack-string-21 (word string pos)
+(defmacro %bulk-unpack-string-utf-21 (word string pos)
   "Unpack characters from WORD and stores them in STRING.
 Note: increments POS!"
   `(progn
@@ -125,19 +125,19 @@ Note: increments POS!"
                          ,pos  (the ufixnum (1+ ,pos))))))
 
 
-(defun %mread-string-21 (ptr index result-string-21 n-chars)
+(defun %mread-string-utf-21 (ptr index result n-chars)
   "Read N-CHAR packed characters from the memory starting at (PTR+INDEX)
 and write them into RESULT-STRING.
-Return RESULT-STRING-21 and number of words actually read as multiple values."
+Return RESULT and number of words actually read as multiple values."
   (declare (type maddress ptr)
            (type mem-size index)
            (type (and simple-string #?-hldb/base-char/eql/character (not base-string))
-                 result-string-21)
+                 result)
            (type ufixnum n-chars))
 
   (multiple-value-bind (bulk-n-words tail-n-chars) (truncate n-chars +characters-per-word+)
 
-    (let ((char-i 0) ;; incremented by (%bulk-unpack-string-21)
+    (let ((char-i 0) ;; incremented by (%bulk-unpack-string-utf-21)
           (bulk-end (mem-size+ index bulk-n-words)))
 
       (declare (type ufixnum char-i)
@@ -146,24 +146,24 @@ Return RESULT-STRING-21 and number of words actually read as multiple values."
       (loop while (< index bulk-end)
          do
            (let ((word (mget-word ptr index)))
-             (%bulk-unpack-string-21 word result-string-21 char-i) ;; increments char-i
+             (%bulk-unpack-string-utf-21 word result char-i) ;; increments char-i
              (incf (the mem-size index))))
 
       (unless (zerop tail-n-chars)
         (let ((word (mget-word ptr bulk-end)))
           (loop while (< char-i n-chars)
-             do (setf (schar result-string-21 char-i) (code-char (logand +character/mask+ word))
+             do (setf (schar result char-i) (code-char (logand +character/mask+ word))
                       word   (the mem-word (ash word #.(- +character/bits+)))
                       char-i (the fixnum (1+ char-i))))))))
 
   (values
-   result-string-21
+   result
    (mem-size+ +mem-box/header-words+
-	      (box-words/string-21 result-string-21))))
+	      (box-words/string-utf-21 result))))
 
 
 
-(defun mread-box/string-21 (ptr index end-index)
+(defun mread-box/string-utf-21 (ptr index end-index)
   "Read a string from the memory starting at (PTR+INDEX) and return it.
 Also return number of words actually read as addition value.
 
@@ -179,6 +179,6 @@ Assumes BOX header was already read."
 
     (let ((string (make-string n-chars :element-type 'character)))
 
-      (%mread-string-21 ptr (mem-size+1 index) string n-chars)
+      (%mread-string-utf-21 ptr (mem-size+1 index) string n-chars)
 
       (values string (mem-size+ index n-words)))))
