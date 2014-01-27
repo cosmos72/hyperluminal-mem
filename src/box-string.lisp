@@ -134,7 +134,7 @@ Assumes BOX header was already read."
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;    boxed    STRING                                                      ;;;;
+;;;;    boxed    STRING. uses UTF-8 to reduce memory usage                   ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (declaim (inline box-words/string))
@@ -142,66 +142,147 @@ Assumes BOX header was already read."
 (defun box-words/string (string)
   "Return the number of words needed to store STRING in memory, not including BOX header."
   (declare (type string string))
-  ;; 1-word length prefix, and round up required bytes to a whole word
-  (mem-size+1 (ceiling (length string) +characters-per-word+)))
+  (let ((n-bytes 0))
+    (declare (type ufixnum n-bytes))
+
+    (macrolet
+        ((%count-utf-8-bytes ()
+           `(loop for ch across string
+               for code = (char-code ch) do
+                 (incf (the fixnum n-bytes)
+                       (cond
+                         ((<= code #x7F) 1)
+                         ((<= code #x7FF) 2)
+                         ((<= code #xFFFF) 3)
+                         (t 4))))))
+      (if (typep string 'simple-string)
+          (%count-utf-8-bytes)
+          (%count-utf-8-bytes)))
+
+    ;; +1 to store N-CHARS prefix
+    (values (mem-size+1 (ceiling n-bytes +msizeof-word+)))))
 
 
-
-(defmacro %bulk-pack-string (char-func string pos)
-  `(logior
-    ,@(loop for i from 0 below +characters-per-word+
-         collect `(the mem-word
-                    (ash (char-code (,char-func ,string (+ ,i ,pos)))
-                         (* ,i +character/bits+))))))
+(declaim (inline %character->utf-8-word %utf-8-word->character %mwrite-string))
 
 
-(defmacro %tail-pack-string (char-func string pos n-chars)
-  (with-gensyms (word i)
-    `(let ((,word 0))
-       (declare (type mem-word ,word))
+(defun %character->utf-8-word (ch)
+  (declare (type character ch))
 
-       (dotimes (,i ,n-chars)
-         (setf ,word (logior ,word
-                             (the mem-word
-                               (ash (char-code (the character (,char-func ,string (+ ,i ,pos))))
-                                    (the fixnum (* ,i +character/bits+)))))))
-       ,word)))
+  (let ((code (char-code ch))
+        (word 0)
+        (bits 0))
+    (cond
+      ((<= code #x7F) (setf word code
+                            bits 8))
+      ((<= code #x7FF) (setf word (logior #x80C0
+                                          (ash (logand code #x03F)  8)
+                                          (ash (logand code #x7C0) -6))
+                             bits 16))
+      ((<= code #xFFFF) (setf word (logior #x8080E0
+                                           (ash (logand code #x003F)  16)
+                                           (ash (logand code #x0FC0)   2)
+                                           (ash (logand code #xF000) -12))
+                              bits 24))
+      (t                 (setf word (logior #x808080F0
+                                            (ash (logand code #x00003F)  24)
+                                            (ash (logand code #x000FC0)  10)
+                                            (ash (logand code #x03F000) -4)
+                                            (ash (logand code #x1C0000) -18))
+                               bits 32)))
+    (values word bits)))
 
-(defmacro %%mwrite-string (char-func ptr index string bulk-n-words tail-n-chars)
-  (with-gensyms (char-i word-i)
-    `(loop
-        for ,char-i from 0 by +characters-per-word+
-        for ,word-i from 0 below ,bulk-n-words
-        do (mset-word ,ptr (mem-size+ ,index ,word-i)
-                      (%bulk-pack-string ,char-func ,string ,char-i))
-        finally
-          (unless (zerop ,tail-n-chars)
-            (mset-word ,ptr (mem-size+ ,index ,bulk-n-words)
-                       (%tail-pack-string ,char-func ,string ,char-i ,tail-n-chars))))))
 
-(declaim (inline %mwrite-string))
+(defun invalid-utf8-error (byte)
+  (declare (type (unsigned-byte 8) byte))
+  (error "invalid byte. UTF-8 sequence cannot start with #x~X" byte))
 
-(defun %mwrite-string (ptr index string n-chars)
+
+(defun %utf-8-word->character (word)
+  (declare (type mem-word word))
+
+  (let ((code 0)
+        (bits 0)
+        (byte0 (logand #xFF word)))
+
+    (cond
+      ((<= byte0 #x7F) (setf code byte0
+                             bits 8))
+      
+      ((<= byte0 #xDF)
+       (setf code (logior (ash (logand #x3F00 word) -8)
+                          (ash (logand #x001F word)  6))
+             bits 16))
+
+      ((<= byte0 #xEF)
+       (setf code (logior (ash (logand #x3F0000 word) -16)
+                          (ash (logand #x003F00 word)  -2)
+                          (ash (logand #x00000F word)  12))
+             bits 24))
+
+      ((<= byte0 #xF7)
+       (setf code (logior (ash (logand #x3F000000 word) -24)
+                          (ash (logand #x003F0000 word) -10)
+                          (ash (logand #x00003F00 word)   4)
+                          (ash (logand #x00000007 word)  18))
+             bits 32))
+
+      (t
+       (invalid-utf8-error byte0)))
+
+    (values (code-char (logand code +character/mask+)) bits)))
+                   
+
+
+(defun %mwrite-string (ptr index end-index string n-chars)
   "Write characters from string STRING to the memory starting at (PTR+INDEX).
 Return the number of words actually written.
 
-ABI: characters will be stored by packing as many as possible into words."
+ABI: characters will be stored using UTF-8 encoding."
   (declare (type maddress ptr)
-           (type mem-size index)
+           (type mem-size index end-index)
            (type string string)
            (type ufixnum n-chars))
 
-  (multiple-value-bind (bulk-n-words tail-n-chars) (truncate n-chars +characters-per-word+)
+  (let ((word 0)
+        (word-bits 0)
+        (word-bits-left +mem-word/bits+))
+    (declare (type (integer 0 #.(1- +mem-word/bits+)) word-bits)
+             (type (integer 1 #.+mem-word/bits+) word-bits-left))
 
-      (typecase string
-        (simple-base-string
-         (%%mwrite-string schar ptr index string bulk-n-words tail-n-chars))
-        (simple-string
-         (%%mwrite-string schar ptr index string bulk-n-words tail-n-chars))
-        (otherwise
-         (%%mwrite-string char ptr index string bulk-n-words tail-n-chars)))
-      t))
+    (macrolet
+        ((%mwrite-utf-8-words (char-func)
+           `(dotimes (i n-chars)
+              (let ((ch (,char-func string i)))
+                (multiple-value-bind (next next-bits) (%character->utf-8-word ch)
 
+                  (declare (type mem-word word next)
+                           (type (integer 0 32) next-bits))
+
+                  (setf word (logior word (logand +mem-word/mask+ (ash next word-bits)))
+                        word-bits-left (- +mem-word/bits+ word-bits))
+              
+                  (when (>= next-bits word-bits-left)
+                    (check-mem-overrun ptr index end-index 1)
+                    (mset-word ptr index word)
+                    (setf index     (mem-size+1 index)
+                          word      (ash next (- word-bits-left))
+                          word-bits (- next-bits word-bits-left)
+                          next      0
+                          next-bits 0))
+
+                  (incf word-bits next-bits))))))
+
+      (if (typep string 'simple-string)
+          (%mwrite-utf-8-words schar)
+          (%mwrite-utf-8-words  char)))
+
+    (unless (zerop word-bits)
+      (check-mem-overrun ptr index end-index 1)
+      (mset-word ptr index word)
+      (incf-mem-size index)))
+  
+  index)
 
 
 
@@ -209,90 +290,83 @@ ABI: characters will be stored by packing as many as possible into words."
   "write STRING into the memory starting at (+ PTR INDEX).
 Assumes BOX header is already written.
 
-ABI: writes string length as mem-int, followed by packed array of characters
-\(each character occupies 21 bits)"
+ABI: writes string length as mem-int, followed by packed array of UTF-8 encoded characters"
   (declare (type maddress ptr)
            (type mem-size index)
            (type string string))
 
   (let* ((n-chars (length string))
-         (n-words (mem-size+1 (ceiling n-chars +characters-per-word+))))
+         (min-n-words (mem-size+1 (ceiling n-chars +msizeof-word+))))
     
-    (check-mem-overrun ptr index end-index n-words)
+    (check-mem-overrun ptr index end-index min-n-words)
 
     (mset-int ptr index n-chars)
-    (%mwrite-string ptr (mem-size+1 index) string n-chars)
-
-    (mem-size+ index n-words)))
+    (%mwrite-string ptr (mem-size+1 index) end-index string n-chars)))
 
 
 
-(defmacro %bulk-unpack-string (word string pos)
-  "Unpack characters from WORD and stores them in STRING.
-Note: increments POS!"
-  `(progn
-     ,@(loop for i from 0 below +characters-per-word+
-          collect `(setf (schar ,string ,pos) (code-char (logand +character/mask+ ,word))
-                         ,@(unless (= (1+ i)  +characters-per-word+)
-                                   `(word (the mem-word (ash ,word #.(- +character/bits+)))))
-                         ,pos  (the ufixnum (1+ ,pos))))))
 
 
-(declaim (inline %mread-string))
-
-(defun %mread-string (ptr index result-string n-chars)
-  "Read N-CHAR packed characters from the memory starting at (PTR+INDEX)
-and write them into RESULT-STRING.
-Return RESULT-STRING and number of words actually read as multiple values."
+(defun %mread-string (ptr index end-index result n-chars)
   (declare (type maddress ptr)
-           (type mem-size index)
-           (type (and simple-string #?-hldb/base-char/eql/character (not base-string)) result-string)
+           (type mem-size index end-index)
+           (type (and simple-string #?-hldb/base-char/eql/character (not base-string))
+                 result)
            (type ufixnum n-chars))
 
-  (multiple-value-bind (bulk-n-words tail-n-chars) (truncate n-chars +characters-per-word+)
+  (let ((word 0)
+        (word-bits 0)
+        (word-bits-left 0)
+        (next 0)
+        (next-bits 0))
+    (declare (type mem-word word next)
+             (type (integer 0 #.+mem-word/bits+) word-bits word-bits-left next-bits))
 
-    (let ((char-i 0) ;; incremented by (%bulk-unpack-string)
-          (bulk-end (mem-size+ index bulk-n-words)))
-
-      (declare (type ufixnum char-i)
-               (type mem-size bulk-end))
-
-      (loop while (< index bulk-end)
+    (dotimes (i n-chars)
+      (loop while (< word-bits 32) ;; UTF-8 needs at most 32 bits to encode a character
          do
-           (let ((word (mget-word ptr index)))
-             (%bulk-unpack-string word result-string char-i) ;; increments char-i
-             (incf (the mem-size index))))
+           (when (and (zerop next-bits)
+                      (< index end-index))
+             (setf next (mget-word ptr index)
+                   next-bits +mem-word/bits+)
+             (incf-mem-size index))
 
-      (unless (zerop tail-n-chars)
-        (let ((word (mget-word ptr bulk-end)))
-          (loop while (< char-i n-chars)
-             do (setf (schar result-string char-i) (code-char (logand +character/mask+ word))
-                      word   (the mem-word (ash word #.(- +character/bits+)))
-                      char-i (the fixnum (1+ char-i))))))))
+           (setf word-bits-left (- +mem-word/bits+ word-bits)
+                 word      (logior word (logand +mem-word/mask+ (ash next word-bits)))
+                 word-bits (min +mem-word/bits+ (+ next-bits word-bits))
+                 next      (ash next (- word-bits-left))
+                 next-bits (max 0 (- next-bits word-bits-left)))
 
-  (values
-   result-string
-   (mem-size+ +mem-box/header-words+
-	      (box-words/string result-string))))
+           (unless (< index end-index)
+             (return)))
 
+      (multiple-value-bind (ch ch-bits) (%utf-8-word->character word)
+              
+        (setf (schar result i) ch
+              word      (ash word (- ch-bits))
+              word-bits (max 0 (- word-bits ch-bits)))))
 
+    (when (>= (+ word-bits next-bits) +mem-word/bits+)
+      ;; problem... we read one word too much
+      (decf-mem-size index))
+
+    (values result index)))
+  
 
 (defun mread-box/string (ptr index end-index)
   "Read a string from the memory starting at (PTR+INDEX) and return it.
-Also return number of words actually read as addition value.
+Also return as additional value INDEX pointing to immediately after words read.
 
 Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
   (let* ((n-chars (mget-int/value ptr index))
-         (n-words (mem-size+1 (ceiling n-chars +characters-per-word+))))
+         (min-n-words (mem-size+1 (ceiling n-chars +msizeof-word+))))
     
-    (check-array-length ptr index 'base-string n-chars)
-    (check-mem-length ptr index end-index n-words)
+    (check-array-length ptr index 'string n-chars)
+    (check-mem-length ptr index end-index min-n-words)
 
-    (let ((string (make-string n-chars :element-type 'character)))
+    (let ((result (make-string n-chars :element-type 'character)))
 
-      (%mread-string ptr (mem-size+1 index) string n-chars)
-
-      (values string (mem-size+ index n-words)))))
+      (%mread-string ptr (mem-size+1 index) end-index result n-chars))))

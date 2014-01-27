@@ -276,9 +276,9 @@ Return the value and the number of words actually read as multiple values."
       (check-box-type ptr index boxed-type)
       (check-mem-length ptr index end-index n-words)
 
-      (let ((end-index (mem-size+ index n-words)))
+      (setf end-index (min end-index (mem-size+ index n-words)))
         
-        (%%mread-box ptr index end-index boxed-type)))))
+      (%%mread-box ptr index end-index boxed-type))))
 
 
 

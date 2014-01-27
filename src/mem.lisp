@@ -248,13 +248,22 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
    (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
 size of CPU word is ~S bits, expecting at least 32 bits" +mem-word/bits+))
 
- (set-feature 'hldb/base-char/fits-byte +base-char/fits-byte?+)
- (set-feature 'hldb/base-char/eql/character (= +most-positive-base-char+ +most-positive-character+))
-
  ;; we support up to 21 bits for characters 
  (when (> +character/bits+ 21)
    (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
-each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+)))
+each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
+
+ (set-feature 'hldb/base-char/fits-byte +base-char/fits-byte?+)
+ (set-feature 'hldb/base-char/eql/character (= +most-positive-base-char+ +most-positive-character+))
+
+ #+sbcl
+ ;; used on SBCL to access the internal representation of Lisp objects
+ (defconstant +lisp-object-header-length+ (msizeof :pointer))
+
+ #+sbcl
+ ;; used on SBCL to access the internal representation of Lisp objects
+ (defconstant +lisp-object-address-mask+ (* -2 +lisp-object-header-length+)))
+
 
 
 
@@ -409,6 +418,16 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+)))
   (declare (type maddress dst src)
            (type ufixnum n-bytes))
   (osicat-posix:memcpy dst src n-bytes))
+
+
+(declaim (inline memcpy-words))
+
+(defun memcpy-words (dst dst-index src src-index n-words)
+  (declare (type maddress dst src)
+           (type ufixnum dst-index src-index n-words))
+  (loop for i from 0 below n-words
+     do (mset-word dst (the ufixnum (+ dst-index i))
+                   (mget-word src (the ufixnum (+ src-index i))))))
   
            
 (declaim (notinline !malloc !free))
