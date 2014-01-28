@@ -31,12 +31,15 @@
 not including BOX header."
   (declare (type pathname path))
 
-  (let ((n-words (+ (detect-n-words (pathname-host path))
-                    (detect-n-words (pathname-device path))
-                    (detect-n-words (pathname-directory path))
-                    (detect-n-words (pathname-name path))
-                    (detect-n-words (pathname-type path))
-                    (detect-n-words (pathname-version path)))))
+  (let* ((host (pathname-host path :case :common))
+         (default-host (pathname-host *default-pathname-defaults* :case :common))
+
+         (n-words (+ (detect-n-words (if (eq host default-host) nil host))
+                     (detect-n-words (pathname-device path :case :common))
+                     (detect-n-words (pathname-directory path :case :common))
+                     (detect-n-words (pathname-name path :case :common))
+                     (detect-n-words (pathname-type path :case :common))
+                     (detect-n-words (pathname-version path)))))
     (unless (<= n-words +mem-box/max-payload-words+)
       (error "HYPERLUMINAL-DB: pathname too large for object store,
 it requires ~S words, maximum supported is ~S words"

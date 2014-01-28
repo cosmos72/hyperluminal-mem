@@ -190,7 +190,7 @@ ABI: writes string length as mem-int, followed by packed array of UTF-8 encoded 
     (check-mem-overrun ptr index end-index min-n-words)
 
     (mset-int ptr index n-chars)
-    (%mwrite-string ptr (mem-size+1 index) end-index string n-chars)))
+    (%mwrite-string-utf-8 ptr (mem-size+1 index) end-index string n-chars)))
 
 
 
