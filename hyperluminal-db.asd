@@ -45,35 +45,35 @@
                              (:file "symbols"        :depends-on ("constants"))
                              (:file "unboxed"        :depends-on ("symbols"))
                              (:file "box"            :depends-on ("unboxed"))
-                             (:file "box-bignum"     :depends-on ("box"))
-                             (:file "box-ratio"      :depends-on ("box-bignum"))
-                             (:file "box-float"      :depends-on ("box"))
-                             (:file "box-complex"    :depends-on ("box-float" "box-ratio"))
-                             (:file "box-pathname"   :depends-on ("box"))
-                             (:file "box-hash-table" :depends-on ("box"))
-                             (:file "box-list"       :depends-on ("box"))
-                             (:file "box-array"      :depends-on ("box"))
-                             (:file "box-vector"     :depends-on ("box-array"))
-                             (:file "box-string-utf-21" :depends-on ("box-vector"))
-                             (:file "box-string-utf-8"  :depends-on ("box-vector"))
-                             (:file "box-string-base"   :depends-on ("box-vector"))
-                             (:file "box-bit-vector" :depends-on ("box-vector"))
-                             (:file "box-symbol"     :depends-on ("box"))
+                             (:file "box/bignum"     :depends-on ("box"))
+                             (:file "box/ratio"      :depends-on ("box/bignum"))
+                             (:file "box/float"      :depends-on ("box"))
+                             (:file "box/complex"    :depends-on ("box/float" "box/ratio"))
+                             (:file "box/pathname"   :depends-on ("box"))
+                             (:file "box/hash-table" :depends-on ("box"))
+                             (:file "box/list"       :depends-on ("box"))
+                             (:file "box/array"      :depends-on ("box"))
+                             (:file "box/vector"     :depends-on ("box/array"))
+                             (:file "box/string-utf-21" :depends-on ("box/vector"))
+                             (:file "box/string-utf-8"  :depends-on ("box/vector"))
+                             (:file "box/string-base"   :depends-on ("box/vector"))
+                             (:file "box/bit-vector" :depends-on ("box/vector"))
+                             (:file "box/symbol"     :depends-on ("box"))
                              (:file "mvar"           :depends-on ("box"))
-                             (:file "boxed"          :depends-on ("box-bignum"
-                                                                  "box-ratio"
-                                                                  "box-float"
-                                                                  "box-complex"
-                                                                  "box-pathname"
-                                                                  "box-hash-table"
-                                                                  "box-list"
-                                                                  "box-array"
-                                                                  "box-vector"
-                                                                  "box-string-utf-21"
-                                                                  "box-string-utf-8"
-                                                                  "box-string-base"
-                                                                  "box-bit-vector"
-                                                                  "box-symbol"
+                             (:file "boxed"          :depends-on ("box/bignum"
+                                                                  "box/ratio"
+                                                                  "box/float"
+                                                                  "box/complex"
+                                                                  "box/pathname"
+                                                                  "box/hash-table"
+                                                                  "box/list"
+                                                                  "box/array"
+                                                                  "box/vector"
+                                                                  "box/string-utf-21"
+                                                                  "box/string-utf-8"
+                                                                  "box/string-base"
+                                                                  "box/bit-vector"
+                                                                  "box/symbol"
                                                                   "mvar"))
                              (:file "store"          :depends-on ("mvar" "boxed"))))))
 

@@ -40,7 +40,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(declaim (type vector +box-words-funcs+ +mwrite-box-funcs+  +mread-box-funcs+))
+(declaim (type vector +mdetect-box-size-funcs+ +mwrite-box-funcs+ +mread-box-funcs+))
 
 (defmacro define-global-constant (name value &optional documentation)
   `(#+(and) defparameter #-(and) define-constant-once
@@ -48,7 +48,7 @@
       ,@(when documentation `(,documentation))))
 
 
-(define-global-constant +box-words-funcs+
+(define-global-constant +mdetect-box-size-funcs+
     (let* ((syms +mem-boxed-type-syms+)
            (array (make-array (length syms))))
 
@@ -154,7 +154,7 @@ Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
   (log.trace value boxed-type)
 
   (mem-size+ +mem-box/header-words+
-	     (call-box-func +box-words-funcs+ boxed-type value)))
+	     (call-box-func +mdetect-box-size-funcs+ boxed-type value)))
 
 
 (declaim (inline mdetect-box-size-rounded-up))
