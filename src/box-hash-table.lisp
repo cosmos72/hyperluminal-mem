@@ -43,10 +43,10 @@ it contains ~S entries, maximum supported is ~S entries"
     (declare (type mem-size words-left))
     ;; count downward: easier to check for overflows
 
-    (let ((detect-n-words #'detect-n-words))
+    (let ((mdetect-size #'mdetect-size))
       (loop for k being the hash-keys in htable using (hash-value v)
-         for k-len = (the mem-size (funcall detect-n-words k))
-         for v-len = (the mem-size (funcall detect-n-words v))
+         for k-len = (the mem-size (funcall mdetect-size k))
+         for v-len = (the mem-size (funcall mdetect-size v))
          do
            (unless (and (>= words-left k-len)
                         (progn

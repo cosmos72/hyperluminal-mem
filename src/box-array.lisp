@@ -34,7 +34,7 @@ not including BOX header."
   (let* ((rank (array-rank array))
          (words-left (- +mem-box/max-payload-words+ rank))
          (len (array-total-size array))
-         (detect-n-words #'detect-n-words))
+         (mdetect-size #'mdetect-size))
 
     (declare (type mem-size words-left))
 
@@ -58,7 +58,7 @@ it contains ~S elements, maximum supported is ~S elements"
 	   (with-gensyms (i e e-len)
 	     `(loop for ,i from 0 below ,len
                  for ,e = (,func-aref ,array ,i)
-                 for ,e-len = (the mem-size (funcall detect-n-words ,e))
+                 for ,e-len = (the mem-size (funcall mdetect-size ,e))
                  do
                    (unless (>= ,words-left ,e-len)
                      (error "HYPERLUMINAL-DB: array too large for object store,

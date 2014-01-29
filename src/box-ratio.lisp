@@ -31,8 +31,8 @@
 Does not count the space needed by BOX header."
   (declare (type ratio value))
 
-  (let ((n-words (+ (detect-n-words (numerator value))
-                    (detect-n-words (denominator value)))))
+  (let ((n-words (+ (mdetect-size (numerator value))
+                    (mdetect-size (denominator value)))))
     (unless (<= n-words +mem-box/max-payload-words+)
       (error "HYPERLUMINAL-DB: ratio too large for object store,
 it requires ~S words, maximum supported is ~S words"

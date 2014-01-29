@@ -142,8 +142,8 @@ Assumes BOX header was already read."
 Does not count the space needed by BOX header."
   (declare (type complex-rational value))
 
-  (let ((n-words (+ (detect-n-words (realpart value))
-                    (detect-n-words (imagpart value)))))
+  (let ((n-words (+ (mdetect-size (realpart value))
+                    (mdetect-size (imagpart value)))))
     (unless (<= n-words +mem-box/max-payload-words+)
       (error "HYPERLUMINAL-DB: complex-rational too large for object store,
 it requires ~S words, maximum supported is ~S words"

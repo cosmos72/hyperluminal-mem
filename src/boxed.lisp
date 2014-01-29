@@ -93,9 +93,9 @@
      (funcall (get-box-func ,funcs ,boxed-type) ,@args)))
 
 
-(declaim (notinline detect-box-type))
+(declaim (notinline mdetect-box-type))
 
-(defun detect-box-type (value)
+(defun mdetect-box-type (value)
   "Detect the boxed-type of VALUE. Returns one of the constants +mem-box/...+"
 
   (the mem-box-type
@@ -132,9 +132,9 @@
       (pathname     +mem-box/pathname+))))
 
 
-(declaim (inline round-up-n-words))
+(declaim (inline round-up-size))
 
-(defun round-up-n-words (n-words)
+(defun round-up-size (n-words)
   "Round up N-WORDS to a multiple of +MEM-BOX/MIN-WORDS+"
   (declare (type mem-size n-words))
 
@@ -142,9 +142,9 @@
 	  #.(lognot (1- +mem-box/min-words+))))
 
 
-(declaim (inline detect-box-n-words))
+(declaim (inline mdetect-box-size))
 
-(defun detect-box-n-words (value &optional (boxed-type (detect-box-type value)))
+(defun mdetect-box-size (value &optional (boxed-type (mdetect-box-type value)))
   "Return the number of words needed to store boxed VALUE in memory,
 also including BOX header.
 Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
@@ -157,17 +157,17 @@ Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 	     (call-box-func +box-words-funcs+ boxed-type value)))
 
 
-(declaim (inline detect-box-n-words-rounded-up))
+(declaim (inline mdetect-box-size-rounded-up))
 
-(defun detect-box-n-words-rounded-up (value &optional
-				      (boxed-type (detect-box-type value)))
+(defun mdetect-box-size-rounded-up (value &optional
+				      (boxed-type (mdetect-box-type value)))
   "Return the number of words needed to store boxed VALUE in memory,
 also including BOX header.
 Rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
   (declare (type mem-box-type boxed-type))
 
-  (round-up-n-words (detect-box-n-words value boxed-type)))
+  (round-up-size (mdetect-box-size value boxed-type)))
 
 
 
@@ -199,7 +199,7 @@ Either this is a bug in hyperluminal-db, or some object
 was concurrently modified while being written"
              actual-words actual-words ptr index (mem-size- end-index index)))
 
-    (mwrite-box/header ptr index boxed-type (round-up-n-words actual-words))
+    (mwrite-box/header ptr index boxed-type (round-up-size actual-words))
     new-index))
 
 
@@ -210,8 +210,8 @@ Return the written box."
   (declare (type maddress ptr)
            (type (or null box) box))
 
-  (let* ((boxed-type (detect-box-type    value))
-         (n-words    (detect-box-n-words-rounded-up value boxed-type))
+  (let* ((boxed-type (mdetect-box-type    value))
+         (n-words    (mdetect-box-size-rounded-up value boxed-type))
          (allocated-n-words (if box (box-n-words box) 0)))
     
     (if (and (<= n-words allocated-n-words)
@@ -300,17 +300,17 @@ Return the boxed value."
 ;;;; mid-level functions accepting both boxed and unboxed values             ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun detect-n-words (value)
+(defun mdetect-size (value)
   "Compute and return the number of CPU words needed to store VALUE.
 If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
 to DETECT-BOX-N-WORDS.
 Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
   (if (is-unboxed? value)
       1
-      (the mem-size (detect-box-n-words value))))
+      (the mem-size (mdetect-box-size value))))
 
 
-(defun detect-n-words-rounded-up (value)
+(defun mdetect-size-rounded-up (value)
   "Compute and return the number of CPU words needed to store VALUE.
 If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
 to DETECT-BOX-N-WORDS.
@@ -318,7 +318,7 @@ Also rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
   (if (is-unboxed? value)
       1
-      (the mem-size (detect-box-n-words-rounded-up value))))
+      (the mem-size (mdetect-box-size-rounded-up value))))
 
 
 ;; (declaim (ftype (...) mwrite)) is in box.lisp
@@ -337,7 +337,7 @@ WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
   (if (mset-unboxed ptr index value)
       (mem-size+1 index)
       ;; TODO: handle symbols and pointers!
-      (%mwrite-box ptr index end-index value (detect-box-type value))))
+      (%mwrite-box ptr index end-index value (mdetect-box-type value))))
 
 
 ;; (declaim (ftype (...) mread)) is in box.lisp

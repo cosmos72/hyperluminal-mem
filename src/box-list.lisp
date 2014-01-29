@@ -31,14 +31,14 @@
   (declare (type list list))
 
   ;; -1 to store list length
-  (let ((detect-n-words #'detect-n-words)
+  (let ((mdetect-size #'mdetect-size)
 	(words-left (1- +mem-box/max-payload-words+)))
     (declare (type mem-size words-left))
     
     ;; count downward: easier to check for overflows
     (labels
 	((new-words-left (words-left e)
-	   (let ((e-len (the mem-size (funcall detect-n-words e))))
+	   (let ((e-len (the mem-size (funcall mdetect-size e))))
 	     (unless (>= words-left e-len)
 	       (error "HYPERLUMINAL-DB: list too large for object store,
 it requires more space than the maximum supported ~S words"

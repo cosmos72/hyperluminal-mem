@@ -33,7 +33,7 @@
           (eq pkg +package-common-lisp+)
           (eq pkg +package-common-lisp-user+))
       1
-      (detect-box-n-words (package-name pkg))))
+      (mdetect-box-size (package-name pkg))))
 
 
 (declaim (inline %mwrite-package %mread-package))
@@ -93,7 +93,7 @@ Does not count the space needed by BOX header."
 
   (let* ((pkg (symbol-package sym))
          (pkg-words (%package-words pkg))
-         (sym-words (detect-box-n-words (symbol-name sym)))
+         (sym-words (mdetect-box-size (symbol-name sym)))
          (words (mem-size+ pkg-words sym-words)))
 
     (unless (<= words +mem-box/max-payload-words+)
