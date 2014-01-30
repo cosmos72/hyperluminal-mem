@@ -60,6 +60,7 @@
                              (:file "box/bit-vector" :depends-on ("box/vector"))
                              (:file "box/symbol"     :depends-on ("box"))
                              (:file "mvar"           :depends-on ("box"))
+                             (:file "object"         :depends-on ("mvar"))
                              (:file "boxed"          :depends-on ("box/bignum"
                                                                   "box/ratio"
                                                                   "box/float"
@@ -74,8 +75,8 @@
                                                                   "box/string-base"
                                                                   "box/bit-vector"
                                                                   "box/symbol"
-                                                                  "mvar"))
-                             (:file "store"          :depends-on ("mvar" "boxed"))))))
+                                                                  "object"))
+                             (:file "store"          :depends-on ("object" "boxed"))))))
 
 
 (asdf:defsystem :hyperluminal-db.test

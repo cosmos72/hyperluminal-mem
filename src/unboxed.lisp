@@ -118,7 +118,6 @@
 (defmacro decf-mem-size (place &optional (delta 1))
   `(decf (the mem-size ,place) (the mem-size ,delta)))
 
-
     
   
 

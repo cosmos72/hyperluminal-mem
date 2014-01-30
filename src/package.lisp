@@ -43,9 +43,19 @@
   (:import-from #:stmx
                 #:+unbound-tvar+)
 
+  (:import-from #:stmx.util
+                
+                #:fixnum< #:fixnum>
+                
+                #:tmap #:rbmap #:gmap #:gmap-pred #:gmap-count #:set-gmap #:do-gmap
+
+                #:thash-table #:ghash-table #:ghash-table-test #:ghash-table-hash
+                #:ghash-table-count #:set-ghash #:do-ghash)
+                
+
   (:export #:+null-pointer+ #:+bad-fd+
            #:open-store #:close-store
            #:mget-unboxed #:mset-unboxed
-           #:mread #:mwrite))
+           #:mdetect-size #:mwrite #:mread))
 
 
