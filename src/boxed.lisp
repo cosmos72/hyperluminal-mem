@@ -98,8 +98,8 @@
 (defun mdetect-box-type (value)
   "Detect the boxed-type of VALUE. Returns one of the constants +mem-box/...+"
 
-  (the mem-box-type
-    (etypecase value
+  (the (or null mem-box-type)
+    (typecase value
       (integer      +mem-box/bignum+)
       (ratio        +mem-box/ratio+)
 
@@ -174,10 +174,10 @@ Rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
 (declaim (ftype (function (maddress mem-size mem-size t mem-box-type)
 			  (values mem-size &optional))
-		 %mwrite-box)
-	 (inline %mwrite-box))
+		 mwrite-box)
+	 (inline mwrite-box))
 
-(defun %mwrite-box (ptr index end-index value boxed-type)
+(defun mwrite-box (ptr index end-index value boxed-type)
   "Write a boxed value into the mmap memory starting at (PTR+INDEX).
 Also writes BOX header. Returns INDEX pointing to immediately after written value."
   (declare (type maddress ptr)
@@ -204,7 +204,7 @@ was concurrently modified while being written"
 
 
 
-(defun mwrite-box (ptr value &optional box)
+(defun mwrite-box/box (ptr value &optional box)
   "Write a boxed value into the object store, (re)allocating space if needed.
 Return the written box."
   (declare (type maddress ptr)
@@ -226,14 +226,14 @@ Return the written box."
 
     (setf (box-value box) value)
     (let ((index (box-index box)))
-      (%mwrite-box ptr index (mem-size+ index n-words) value boxed-type))
+      (mwrite-box ptr index (mem-size+ index n-words) value boxed-type))
     box))
 
 
 
-(declaim (inline %%mread-box %mread-box))
+(declaim (inline %mread-box mread-box))
 
-(defun %%mread-box (ptr index end-index boxed-type)
+(defun %mread-box (ptr index end-index boxed-type)
   "Read a boxed value from the memory starting at (PTR+INDEX) and return it.
 Return the number of words actually read as additional value.
 Skips over BOX header."
@@ -248,21 +248,19 @@ Skips over BOX header."
          
 
 
-(defun %mread-box2 (ptr index end-index boxed-type)
+(defun mread-box2 (ptr index end-index boxed-type)
   "Read a boxed value from the memory starting at (PTR+INDEX).
 Return the value and the number of words actually read as multiple values."
   (declare (type maddress ptr)
            (type mem-size index)
            (type mem-fulltag boxed-type))
 
-  ;; validate BOXED-TYPE
-  (unless (typep boxed-type 'mem-box-type)
-    (box-type-error ptr index boxed-type))
+  (check-box-type ptr index boxed-type)
 
-  (%%mread-box ptr index end-index boxed-type))
+  (%mread-box ptr index end-index boxed-type))
 
 
-(defun %mread-box (ptr index end-index)
+(defun mread-box (ptr index end-index)
   "Read a boxed value from the memory starting at (PTR+INDEX).
 Return the value and the number of words actually read as multiple values."
   (declare (type maddress ptr)
@@ -278,13 +276,13 @@ Return the value and the number of words actually read as multiple values."
 
       (setf end-index (min end-index (mem-size+ index n-words)))
         
-      (%%mread-box ptr index end-index boxed-type))))
+      (%mread-box ptr index end-index boxed-type))))
 
 
 
 
 
-(defun mread-box (ptr index box)
+(defun mread-box/box (ptr index box)
   "Read a boxed value from the memory starting at (PTR+INDEX).
 Return the boxed value."
   (declare (type maddress ptr)
@@ -305,9 +303,13 @@ Return the boxed value."
 If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
 to DETECT-BOX-N-WORDS.
 Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
-  (if (is-unboxed? value)
-      1
-      (the mem-size (mdetect-box-size value))))
+
+  (the mem-size
+    (if (is-unboxed? value)
+        1
+        (if-bind box-type (mdetect-box-type value)
+            (mdetect-box-size value box-type)
+            (mdetect-obj-size value #'mdetect-size 0)))))
 
 
 (defun mdetect-size-rounded-up (value)
@@ -316,16 +318,14 @@ If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
 to DETECT-BOX-N-WORDS.
 Also rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
-  (if (is-unboxed? value)
-      1
-      (the mem-size (mdetect-box-size-rounded-up value))))
+  (round-up-size (mdetect-size value)))
 
 
 ;; (declaim (ftype (...) mwrite)) is in box.lisp
 
 ;; FIXME: move VALUE parameter to first place for uniformity with MWRITE-OBJECT
 (defun mwrite (ptr index end-index value)
-  "Write a value (either boxed or unboxed) into the memory starting at (PTR+INDEX).
+  "Write a value (boxed, unboxed or object) into the memory starting at (PTR+INDEX).
 Return the INDEX pointing to immediately after the value just written.
 
 WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
@@ -337,14 +337,15 @@ WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
 
   (if (mset-unboxed ptr index value)
       (mem-size+1 index)
-      ;; TODO: handle symbols and pointers!
-      (%mwrite-box ptr index end-index value (mdetect-box-type value))))
+      (if-bind box-type (mdetect-box-type value)
+          (mwrite-box ptr index end-index value box-type)
+          (mwrite-obj value #'mwrite ptr index end-index))))
 
 
 ;; (declaim (ftype (...) mread)) is in box.lisp
 
 (defun mread (ptr index end-index)
-  "Read a value (either boxed or unboxed) from the memory starting at (PTR+INDEX).
+  "Read a value (boxed, unboxed or object) from the memory starting at (PTR+INDEX).
 Return multiple values:
 1) the value 
 2) the INDEX pointing to immediately after the value just read"
@@ -354,10 +355,15 @@ Return multiple values:
   (check-mem-length ptr index end-index 1)
 
   (multiple-value-bind (value boxed-type) (mget-unboxed ptr index)
-    (if boxed-type
-        ;; TODO: handle symbols and pointers!
-        (%mread-box2 ptr index end-index boxed-type)
-        (values value (mem-size+1 index)))))
+    (unless boxed-type
+      (return-from mread (values value (mem-size+1 index))))
+
+    (let* ((n-words (box-pointer->size value))
+           (end-box (mem-size+ index n-words))
+           (end-index (min end-index end-box)))
+      (if (<= boxed-type +mem-box/last+)
+          (mread-box2 ptr index end-index boxed-type)
+          (mread-obj #'mread ptr index end-index)))))
 
 
 (defun !mwrite (ptr index value)

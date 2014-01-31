@@ -26,17 +26,29 @@
 
 (defgeneric mdetect-object-size (object mdetect-size-func index)
   (:documentation
-   "Compute and return the number of memory words needed to serialize OBJECT"))
+   "Compute and return the number of memory words needed to serialize OBJECT,
+not including its header"))
 
 (defgeneric mwrite-object (object mwrite-func ptr index end-index)
   (:documentation
    "Serialize OBJECT by writing it into the memory starting at (+ PTR INDEX).
+Assumes OBJECT header was already written.
 The available memory ends immediately before (+ PTR END-INDEX)."))
 
 (defgeneric mread-object (type mread-func ptr index end-index)
   (:documentation
    "Deserialize an object of type TYPE by reading it from the memory starting at (+ PTR INDEX).
+Assumes OBJECT header was already read.
 The available memory ends immediately before (+ PTR END-INDEX)."))
+
+
+
+
+
+
+
+
+
 
 
 
@@ -54,7 +66,7 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
          ,@(loop for v in more-values
               collect `(call-mdetect-size1 ,v)))
 
-      `(call-mdetect-size1 (,value))))
+      `(call-mdetect-size1 ,value)))
   
 
 
@@ -91,3 +103,72 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
            ,@body))
       `(with-mread1 (,var)
          ,@body)))
+
+
+
+
+
+
+
+
+
+
+(defun mdetect-obj-size (object mdetect-size-func index)
+  "Compute and return the number of memory words needed to serialize OBJECT,
+including its header"
+  (declare (type function mdetect-size-func)
+           (type mem-size index))
+
+  (incf index +mem-box/header-words+)
+  (call-mdetect-size (type-of object))
+
+  (the (values mem-size &optional)
+    (mdetect-object-size object mdetect-size-func index)))
+
+
+(defun mwrite-obj (object mwrite-func ptr index end-index)
+  "Serialize OBJECT by writing it into the memory starting at (+ PTR INDEX).
+Also serializes OBJECT header.
+The available memory ends immediately before (+ PTR END-INDEX)."
+  (declare (type function mwrite-func)
+           (type mem-size index end-index))
+
+  ;; write OBJECT payload
+  (let* ((index1 (funcall mwrite-func ptr
+                          (mem-size+ +mem-box/header-words+ index)
+                          end-index (type-of object)))
+
+         (index2 (mwrite-object object mwrite-func ptr index1 end-index))
+         (actual-words (mem-size- index2 index)))
+         
+    (when (> index2 end-index)
+      (error "HYPERLUMINAL-DB internal error!
+wrote ~S word~P at address (+ ~S ~S),
+but only ~S words were available at that location.
+Either this is a bug in hyperluminal-db, or some object
+was concurrently modified while being written"
+             actual-words actual-words ptr index (mem-size- end-index index)))
+
+    (mwrite-box/header ptr index +mem-obj/first+ (round-up-size actual-words))
+    index2))
+
+
+(defun mread-obj (mread-func ptr index end-index)
+  "Deserialize an object of type TYPE by reading it from the memory starting at (+ PTR INDEX).
+Also deserializes OBJECT header.
+The available memory ends immediately before (+ PTR END-INDEX)."
+  (declare (type function mread-func)
+           (type mem-size index end-index))
+  
+  ;; skip BOX header
+  (incf index +mem-box/header-words+)
+
+  ;; read OBJECT type
+  (with-mread (type)
+    ;; TODO validate type against a set of trusted types
+    (check-type type symbol)
+
+    (the (values t mem-size &optional)
+      (mread-object type mread-func ptr index end-index))))
+
+    

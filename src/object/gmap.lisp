@@ -20,7 +20,8 @@
 (in-package :hyperluminal-db)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;   read and write RBMAPs i.e. binary trees implemented in STMX library   ;;;;
+;;;;   read and write sorted map STMX.UTIL:RBMAP                             ;;;;
+;;;;   and its transactional version STMX.UTIL:TMAP                          ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -52,9 +53,51 @@
            (type mem-size index end-index))
 
   (with-mread (size)
-    (check-type size mem-size)
+    (check-type size mem-uint)
     (dotimes (i size)
       (with-mread (key value)
         (set-gmap m key value))))
   
   (values m index))
+
+
+
+;; we currently do NOT allow deserializing arbitrary functions as RBMAP predicates:
+;; it would allow a malicious remote user to execute arbitrary code!
+(define-constant-once +gmap-trusted-pred-list+ '(< fixnum< char< string<))
+
+(defun mread-object/gmap (type mread-func ptr index end-index)
+  (declare (type symbol type)
+           (type function mread-func)
+           (type mem-size index end-index))
+
+  (with-mread (pred)
+    (unless (member pred +gmap-trusted-pred-list+)
+      (error "HYPERLUMINAL-DB: refusing to use untrusted ~S ~S value ~S,
+expecting one of the trusted values ~S" type :pred pred +gmap-trusted-pred-list+))
+               
+    (mread-object (new type :pred pred) mread-func ptr index end-index)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;   read RBMAP                                                            ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defmethod mread-object ((type (eql 'rbmap)) mread-func ptr index end-index)
+  (declare (type function mread-func)
+           (type mem-size index end-index))
+
+  (mread-object/gmap type mread-func ptr index end-index))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;   read TMAP                                                             ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmethod mread-object ((type (eql 'tmap)) mread-func ptr index end-index)
+  (declare (type function mread-func)
+           (type mem-size index end-index))
+
+  (mread-object/gmap type mread-func ptr index end-index))
+
