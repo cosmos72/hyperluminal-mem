@@ -26,8 +26,9 @@
 
 (define-constant-once +short-magic+ #.(if +mem/little-endian+ "hldb" "bdlh"))
 
-(define-constant-once +long-magic+ (coerce '(#\h #\y #\p #\e #\r #\l #\u #\m #\i #\n #\a #\l #\- #\d #\b #.(code-char 0))
-                                           'string))
+(define-constant-once +short-magic-cross-endian+ #.(if +mem/little-endian+ "bdlh" "hldb"))
+
+
 (defun mwrite-magic (ptr)
   (declare (type maddress ptr))
   (loop for i from 0 below 4 do
@@ -49,21 +50,24 @@
       (return-from mread-magic nil))
 
     (unless (equal magic +short-magic+)
-      (error "HYPERLUMINAL-DB: unsupported file format. expecting magic string (~{~S ~}), found (~{~S ~})"
+      (when (equal magic +short-magic-cross-endian+)
+        (error "HYPERLUMINAL-DB: unsupported file format. expecting magic string \"~{~A~}\", found \"~{~A~}\". file was created on a system with opposite endianity"
+               (coerce +short-magic+ 'list)
+               (coerce magic 'list)))
+
+      (error "HYPERLUMINAL-DB: unsupported file format. expecting magic string \"~{~A~}\", found \"~{~A~}\""
              (coerce +short-magic+ 'list)
              (coerce magic 'list))))
 
-  (loop for i from 4 below 8
-     for pair in '((bits-per-tag   . #.+mem-tag/bits+)
-                   (sizeof-word    . #.+msizeof-word+)
-                   (sizeof-single-float . #.+msizeof-sfloat+)
-                   (sizeof-double-float . #.+msizeof-dfloat+))
-     for name = (first pair)
-     for value = (rest pair)
-     for ch = (mget-byte ptr i)
-     unless (eql ch value) do
+  ;; check for sizeof-word mismatches first, they are easier to understand by users
+  (loop for (i name value) in '((5 sizeof-word         #.+msizeof-word+)
+                                (4 bits-per-tag        #.+mem-tag/bits+)
+                                (6 sizeof-single-float #.+msizeof-sfloat+)
+                                (7 sizeof-double-float #.+msizeof-dfloat+))
+     for store-value = (mget-byte ptr i)
+     unless (eql value store-value) do
        (error "HYPERLUMINAL-DB: unsupported file format. expecting ~S = ~S, found ~S"
-              name value ch))
+              name value store-value))
   t)
   
 
