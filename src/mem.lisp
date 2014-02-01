@@ -319,6 +319,17 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmacro mget-byte (ptr byte-index)
+  "Used only by MREAD-MAGIC."
+  `(%mget-t :byte ,ptr ,byte-index))
+
+(defmacro mset-byte (ptr byte-index value)
+  "Used only by MWRITE-MAGIC."
+  `(%mset-t ,value :byte ,ptr ,byte-index))
+
+(defsetf mget-byte mset-byte)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -19,20 +19,48 @@
 
 (in-package :hyperluminal-db)
 
+(eval-always
+  (defun string-to-code-vector (s)
+    (declare (type string s))
+    (let* ((n (length s))
+           (v (make-array n)))
+      (loop for i from 0 below n do
+           (setf (svref v i) (char-code (char s i))))
+      v)))
 
-(define-constant-once +zero-magic+ #.(make-string 4 :initial-element (code-char 0)))
+(define-global *endian-magic*
+    (string-to-code-vector (if +mem/little-endian+ "hldb" "HLDB")))
 
-(define-constant-once +magic+ #.(if +mem/little-endian+ "hldb" "bdlh"))
+(define-global *x-endian-magic*
+    (string-to-code-vector (if +mem/little-endian+ "HLDB" "hldb")))
 
-(define-constant-once +magic-x-endian+ #.(if +mem/little-endian+ "bdlh" "hldb"))
+(define-global *magic-write-list*
+    '((4  file-major-version  #.(first  *hldb-file-version*))
+      (5  file-minor-version  #.(second *hldb-file-version*))
+      (6  file-patch-version  #.(third  *hldb-file-version*))
+      (7  bits-per-tag        #.+mem-tag/bits+)
+      (8  sizeof-word         #.+msizeof-word+)
+      (9  sizeof-single-float #.+msizeof-sfloat+)
+      (10 sizeof-double-float #.+msizeof-dfloat+)
+      (11 unused              0)
+      (12 unused              0)
+      (13 unused              0)
+      (14 unused              0)
+      (15 unused              0)))
 
-(define-constant-once +full-magic+
-    (concatenate 'string +magic+
-                 (mapcar #'code-char *hldb-file-version*)
-                 (mapcar #'code-char '(#.+mem-tag/bits+
-                                       #.+msizeof-word+
-                                       #.+msizeof-sfloat+
-                                       #.+msizeof-dfloat+))))
+
+(define-global *magic-read-list*
+    (remove-if (lambda (x) (member (second x) '(file-minor-version file-patch-version unused)))
+               *magic-write-list*)
+  "When opening an HLDB file, we do not check FILE-MINOR-VERSION and FILE-PATCH-VERSION:
+they are allowed to differ between file and compiled library")
+
+
+(define-global *magic*
+    (concatenate 'vector *endian-magic*
+                 (mapcar #'third *magic-write-list*)))
+
+(define-global *zero-magic* (make-array (length *magic*) :initial-element 0))
 
 (defun mfree-head-index (index)
   "Given index to end-of-magic, return index of free areas head"
@@ -42,43 +70,56 @@
 
 
 (defun mwrite-magic (ptr total-n-words)
-  (declare (type maddress ptr))
+  (declare (type maddress ptr)
+           (type mem-size total-n-words))
 
-  (mfree-head-index
-   (%mwrite-string-utf-8 ptr 0 total-n-words +full-magic+ (length +full-magic+))))
+  (let* ((n-bytes (length *magic*))
+         (n-words (ceiling n-bytes +msizeof-word+)))
+    (check-mem-overrun ptr 0 total-n-words n-words)
+
+    (loop for i from 0 below n-bytes do
+         (setf (mget-byte ptr i) (svref *magic* i)))
+    (mfree-head-index n-words)))
 
 
 (defun mread-magic (ptr total-n-words)
-  (declare (type maddress ptr))
-  (let* ((full-magic (make-string (length +full-magic+)))
-         (index (nth-value
-                 1 (%mread-string-utf-8 ptr 0 total-n-words full-magic (length full-magic))))
-         (magic (subseq full-magic 0 4)))
+  (declare (type maddress ptr)
+           (type mem-size total-n-words))
 
-    (when (equal magic +zero-magic+)
+  (let* ((n-bytes (length *magic*))
+         (n-words (ceiling n-bytes +msizeof-word+))
+         (magic (make-array n-bytes)))
+
+    (check-mem-length ptr 0 total-n-words n-words)
+
+    (loop for i from 0 below n-bytes do
+         (setf (svref magic i) (mget-byte ptr i)))
+
+    (when (equalp magic *zero-magic*)
       (return-from mread-magic nil))
 
-    (unless (equal magic +magic+)
-      (when (equal magic +magic-x-endian+)
-        (error "HYPERLUMINAL-DB: unsupported file format. expecting magic sequence (~{~A ~}), found (~{~A ~}). file was created on a system with opposite endianity"
-               (coerce +magic+ 'list)
-               (coerce magic 'list)))
+    (let1 endian-magic (subseq magic 0 (length *endian-magic*))
 
-      (error "HYPERLUMINAL-DB: unsupported file format. expecting magic sequence (~{~A ~}), found (~{~A ~})"
-             (coerce +magic+ 'list)
-             (coerce magic 'list)))
+      (unless (equalp endian-magic *endian-magic*)
 
-    (loop for (i name value) in '((4  file-major-version  #.(first  *hldb-file-version*))
-                                  (8  sizeof-word         #.+msizeof-word+)
-                                  (7  bits-per-tag        #.+mem-tag/bits+)
-                                  (9  sizeof-single-float #.+msizeof-sfloat+)
-                                  (10 sizeof-double-float #.+msizeof-dfloat+))
-       for magic-value = (char-code (schar full-magic i))
-       unless (eql value magic-value) do
+        (let ((list   (mapcar #'code-char (coerce endian-magic 'list)))
+              (n-list (mapcar #'code-char (coerce *endian-magic* 'list))))
+
+          (error "HYPERLUMINAL-DB: unsupported file format.
+expecting magic sequence (~{~S~^ ~}), found (~{~S~^ ~})~A"
+                 n-list list
+                 (if (equalp endian-magic *x-endian-magic*)
+                     "
+file was created on a system with opposite endianity"
+                     "")))))
+
+    (loop for (i name expected) in *magic-read-list*
+       for value = (svref magic i)
+       unless (eql value expected) do
          (error "HYPERLUMINAL-DB: unsupported file format. expecting ~S = ~S, found ~S"
-                name value magic-value))
+                name expected value))
 
-    (mfree-head-index index)))
+    (mfree-head-index n-words)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
