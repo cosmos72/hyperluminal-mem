@@ -173,10 +173,9 @@
            (type mem-fulltag fulltag)
            (type mem-pointer value))
 
-  (setf (mget-word ptr index)
-        (logior
-         (ash fulltag +mem-fulltag/shift+)
-         (ash value   +mem-pointer/shift+)))
+  (mset-word ptr index (logior
+                        (ash fulltag +mem-fulltag/shift+)
+                        (ash value   +mem-pointer/shift+)))
   t)
 
 
@@ -184,6 +183,7 @@
 
 (declaim (inline mset-int))
 (defun mset-int (ptr index value)
+  "Write mem-int VALUE into the memory at (PTR+INDEX)"
   (declare (type maddress ptr)
            (type mem-size index)
            (type mem-int value))
@@ -215,6 +215,9 @@
            (type mem-size index))
 
   (%to-int (mget-word ptr index)))
+
+
+(defsetf mget-int mset-int)
 
 
 (defun mget-int/value (ptr index)
