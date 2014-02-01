@@ -307,15 +307,30 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmacro mget-byte (ptr byte-index)
+(defmacro %mget-byte (ptr byte-index)
+  "Only used by store.lisp to read file magic."
   `(%mget-t :byte ,ptr ,byte-index))
 
-(defmacro mset-byte (ptr byte-index value)
+(defmacro %mset-byte (ptr byte-index value)
+  "Only used by store.lisp to write file magic."
   `(%mset-t ,value :byte ,ptr ,byte-index))
 
-(defsetf mget-byte mset-byte)
+(defsetf %mget-byte %mset-byte)
 
 
+(declaim (inline %mget-byte2 %mset-byte-2))
+
+(defun %mget-byte2 (ptr byte-index)
+  "Only used by store.lisp to read file magic."
+  (logior (%mget-byte ptr byte-index)
+          (ash (%mget-byte ptr (1+ byte-index)) +mem-byte/bits+)))
+
+(defun %mset-byte2 (ptr byte-index value)
+  "Only used by store.lisp to write file magic."
+  (%mset-byte ptr byte-index (logand value +mem-byte/mask+))
+  (%mset-byte ptr (1+ byte-index) (ash value (- +mem-byte/bits+))))
+
+(defsetf %mget-byte2 %mset-byte2)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

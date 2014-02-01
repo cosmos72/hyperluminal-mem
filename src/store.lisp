@@ -22,68 +22,23 @@
 
 
 
-(define-constant-once +zero-magic+ #.(make-string 4 :initial-element (code-char 0)))
-
-(define-constant-once +short-magic+ #.(if +mem/little-endian+ "hldb" "bdlh"))
-
-(define-constant-once +short-magic-cross-endian+ #.(if +mem/little-endian+ "bdlh" "hldb"))
-
-
-(defun mwrite-magic (ptr)
-  (declare (type maddress ptr))
-  (loop for i from 0 below 4 do
-       (mset-byte ptr i (char-code (char +short-magic+ i))))
-  (mset-byte ptr 4 +mem-tag/bits+)
-  (mset-byte ptr 5 +msizeof-word+)
-  (mset-byte ptr 6 +msizeof-sfloat+)
-  (mset-byte ptr 7 +msizeof-dfloat+)
-  nil)
-
-
-(defun mread-magic (ptr)
-  (declare (type maddress ptr))
-  (let ((magic (make-string 4)))
-    (loop for i from 0 below 4 do
-       (setf (char magic i) (code-char (mget-byte ptr i))))
-
-    (when (equal magic +zero-magic+)
-      (return-from mread-magic nil))
-
-    (unless (equal magic +short-magic+)
-      (when (equal magic +short-magic-cross-endian+)
-        (error "HYPERLUMINAL-DB: unsupported file format. expecting magic string \"~{~A~}\", found \"~{~A~}\". file was created on a system with opposite endianity"
-               (coerce +short-magic+ 'list)
-               (coerce magic 'list)))
-
-      (error "HYPERLUMINAL-DB: unsupported file format. expecting magic string \"~{~A~}\", found \"~{~A~}\""
-             (coerce +short-magic+ 'list)
-             (coerce magic 'list))))
-
-  ;; check for sizeof-word mismatches first, they are easier to understand by users
-  (loop for (i name value) in '((5 sizeof-word         #.+msizeof-word+)
-                                (4 bits-per-tag        #.+mem-tag/bits+)
-                                (6 sizeof-single-float #.+msizeof-sfloat+)
-                                (7 sizeof-double-float #.+msizeof-dfloat+))
-     for store-value = (mget-byte ptr i)
-     unless (eql value store-value) do
-       (error "HYPERLUMINAL-DB: unsupported file format. expecting ~S = ~S, found ~S"
-              name value store-value))
-  t)
+                                                
   
 
 (defun get-abi ()
-  '((:file-version   . 1)
-    (:bits-per-byte  . #.+mem-byte/bits+)
-    (:bits-per-tag   . #.+mem-tag/bits+)
-    (:bits-per-pointer . #.+mem-pointer/bits+)
-    (:bits-per-word  . #.+mem-word/bits+)
+  '((:hldb-version      . #.*hldb-version*)
+    (:hldb-file-version . #.*hldb-file-version*)
+    (:bits-per-byte     . #.+mem-byte/bits+)
+    (:bits-per-tag      . #.+mem-tag/bits+)
+    (:bits-per-pointer  . #.+mem-pointer/bits+)
+    (:bits-per-word     . #.+mem-word/bits+)
     (:bits-per-base-char  . #.+base-char/bits+)
     (:bits-per-character  . #.+character/bits+)
-    (:sizeof-byte    . #.+msizeof-byte+)
-    (:sizeof-word    . #.+msizeof-word+)
+    (:sizeof-byte         . #.+msizeof-byte+)
+    (:sizeof-word         . #.+msizeof-word+)
     (:sizeof-single-float . #.+msizeof-sfloat+)
     (:sizeof-double-float . #.+msizeof-dfloat+)
-    (:little-endian  . #.+mem/little-endian+)))
+    (:little-endian       . #.+mem/little-endian+)))
 
 
 
@@ -186,8 +141,8 @@ and write them back to file"
   (declare (type maddress ptr)
            (type mem-size total-n-words))
   
-  (mwrite-magic ptr)
-  (let ((free-list (init-free-list ptr total-n-words)))
+  (let* ((index (mwrite-magic ptr total-n-words))
+         (free-list (init-free-list ptr index total-n-words)))
     (mwrite-free-list ptr free-list)
     (msync ptr total-n-words)
     free-list))
@@ -209,8 +164,8 @@ and write them back to file"
            (progn
              (setf ptr (mmap fd words)
                    *p* ptr)
-             (if (mread-magic ptr)
-                 (mread-free-list ptr)
+             (if-bind index (mread-magic ptr words)
+                 (mread-free-list ptr index)
                  (init-store ptr words)))
 
         (unless ptr

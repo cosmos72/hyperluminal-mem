@@ -40,12 +40,14 @@
                (:module :src
                 :components ((:file "package")
                              (:file "lang"           :depends-on ("package"))
+                             (:file "version"        :depends-on ("lang"))
                              (:file "mem"            :depends-on ("lang"))
                              (:file "constants"      :depends-on ("mem"))
                              (:file "symbols"        :depends-on ("constants"))
                              (:file "unboxed"        :depends-on ("symbols"))
+                             (:file "box"            :depends-on ("version" "unboxed"))
+                             (:file "alloc"          :depends-on ("box"))
 
-                             (:file "box"            :depends-on ("unboxed"))
                              (:file "box/bignum"     :depends-on ("box"))
                              (:file "box/ratio"      :depends-on ("box/bignum"))
                              (:file "box/float"      :depends-on ("box"))
@@ -65,7 +67,8 @@
                              (:file "object"         :depends-on ("mvar"))
                              (:file "object/gmap"    :depends-on ("object"))
 
-                             (:file "boxed"          :depends-on ("object"
+                             (:file "boxed"          :depends-on ("box"
+                                                                  "alloc"
                                                                   "box/bignum"
                                                                   "box/ratio"
                                                                   "box/float"
@@ -79,9 +82,10 @@
                                                                   "box/string-utf-8"
                                                                   "box/string-base"
                                                                   "box/bit-vector"
-                                                                  "box/symbol"))
+                                                                  "box/symbol"
+                                                                  "object"))
 
-                             (:file "store"          :depends-on ("boxed"))))))
+                             (:file "store"          :depends-on ("version" "boxed"))))))
 
 
 (asdf:defsystem :hyperluminal-db.test

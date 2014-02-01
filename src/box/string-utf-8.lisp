@@ -52,34 +52,41 @@
     (values (mem-size+1 (ceiling n-bytes +msizeof-word+)))))
 
 
+(declaim (inline %unsigned->utf-8-word %utf-8-word->unsigned))
+
 (declaim (inline %character->utf-8-word %utf-8-word->character %mwrite-string))
+
+
+(defun %unsigned->utf-8-word (n)
+  (declare (type (unsigned-byte #.+character/bits+) n))
+
+  (let ((word 0)
+        (bits 0))
+    (cond
+      ((<= n #x7F) (setf word n
+                         bits 8))
+      ((<= n #x7FF) (setf word (logior #x80C0
+                                       (ash (logand n #x03F)  8)
+                                       (ash (logand n #x7C0) -6))
+                          bits 16))
+      ((<= n #xFFFF) (setf word (logior #x8080E0
+                                        (ash (logand n #x003F)  16)
+                                        (ash (logand n #x0FC0)   2)
+                                        (ash (logand n #xF000) -12))
+                           bits 24))
+      (t             (setf word (logior #x808080F0
+                                        (ash (logand n #x00003F)  24)
+                                        (ash (logand n #x000FC0)  10)
+                                        (ash (logand n #x03F000) -4)
+                                        (ash (logand n #x1C0000) -18))
+                           bits 32)))
+    (values word bits)))
 
 
 (defun %character->utf-8-word (ch)
   (declare (type character ch))
 
-  (let ((code (char-code ch))
-        (word 0)
-        (bits 0))
-    (cond
-      ((<= code #x7F) (setf word code
-                            bits 8))
-      ((<= code #x7FF) (setf word (logior #x80C0
-                                          (ash (logand code #x03F)  8)
-                                          (ash (logand code #x7C0) -6))
-                             bits 16))
-      ((<= code #xFFFF) (setf word (logior #x8080E0
-                                           (ash (logand code #x003F)  16)
-                                           (ash (logand code #x0FC0)   2)
-                                           (ash (logand code #xF000) -12))
-                              bits 24))
-      (t                 (setf word (logior #x808080F0
-                                            (ash (logand code #x00003F)  24)
-                                            (ash (logand code #x000FC0)  10)
-                                            (ash (logand code #x03F000) -4)
-                                            (ash (logand code #x1C0000) -18))
-                               bits 32)))
-    (values word bits)))
+  (%unsigned->utf-8-word (char-code ch)))
 
 
 (defun invalid-utf8-error (byte)
@@ -120,7 +127,48 @@
        (invalid-utf8-error byte0)))
 
     (values (code-char (logand code +character/mask+)) bits)))
+
+
+(defun %utf-8-word->unsigned (word)
+  (declare (type mem-word word))
+
+  (let ((n 0)
+        (bits 0)
+        (byte0 (logand #xFF word)))
+
+    (cond
+      ((<= byte0 #x7F) (setf n byte0
+                             bits 8))
+      
+      ((<= byte0 #xDF)
+       (setf n (logior (ash (logand #x3F00 word) -8)
+                       (ash (logand #x001F word)  6))
+             bits 16))
+
+      ((<= byte0 #xEF)
+       (setf n (logior (ash (logand #x3F0000 word) -16)
+                       (ash (logand #x003F00 word)  -2)
+                       (ash (logand #x00000F word)  12))
+             bits 24))
+      
+      ((<= byte0 #xF7)
+       (setf n (logior (ash (logand #x3F000000 word) -24)
+                       (ash (logand #x003F0000 word) -10)
+                       (ash (logand #x00003F00 word)   4)
+                       (ash (logand #x00000007 word)  18))
+             bits 32))
+
+      (t
+       (invalid-utf8-error byte0)))
+
+    (values n bits)))
                    
+
+(defun %utf-8-word->character (word)
+  (declare (type mem-word word))
+
+  (multiple-value-bind (n bits) (%utf-8-word->unsigned word)
+    (values (code-char (logand n +character/mask+)) bits)))
 
 
 (defun %mwrite-string-utf-8 (ptr index end-index string n-chars)
