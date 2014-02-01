@@ -41,23 +41,29 @@ Hyperluminal-DB is designed and optimized for the following scenarios:
 
 ### Latest news, 1st February 2014
 
-Released version 0.1.0. The serialization library works and is in BETA status.
-The memory-mapped database - built on top of the serialization -
-is the early-implementation, not yet ready for general use.
+Released version 0.1.0.
+
+The serialization library works and is in BETA status.
+
+The memory-mapped database (built on top of the serialization library)
+is the early-implementation stage, not yet ready for general use.
 
 Supported systems
 -----------------
 Hyperluminal-DB is currently tested on the following Common Lisp implementations:
 
-* SBCL  version 1.1.14       (x86_64) on Debian GNU/Linux 7.0  (x86_64)
-* SBCL  version 1.0.57       (x86)    on Debian GNU/Linux 7.0  (x86)
-* CCL   version 1.9-r15769   (x86_64) on Debian GNU/Linux 7.0  (x86_64)
-* CCL   version 1.9-r15769M  (x86)    on Debian GNU/Linux 7.0  (x86_64)
-* CCL   version 1.9-dev-r15475M-trunk (LinuxARM32) on Raspbian GNU/Linux (armhf) Raspberry Pi
-* CMUCL version 20d Unicode  (x86)    on Debian GNU/Linux 7.0  (x86_64)
-* CMUCL version 20c Unicode  (x86)    on Debian GNU/Linux 7.0  (x86)
+* [SBCL](http://sbcl.org/)
+  * version 1.1.14       (x86_64) on Debian GNU/Linux 7.0  (x86_64)
+  * version 1.0.57       (x86)    on Debian GNU/Linux 7.0  (x86)
+* [CCL](http://ccl.clozure.com/)
+  * version 1.9-r15769   (x86_64) on Debian GNU/Linux 7.0  (x86_64)
+  * version 1.9-r15769M  (x86)    on Debian GNU/Linux 7.0  (x86_64)
+  * version 1.9-dev-r15475M-trunk (LinuxARM32) on Raspbian GNU/Linux (armhf) Raspberry Pi
+* [CMUCL](http://www.cons.org/cmucl/)
+  * version 20d Unicode  (x86)    on Debian GNU/Linux 7.0  (x86_64)
+  * version 20c Unicode  (x86)    on Debian GNU/Linux 7.0  (x86)
 
-CMUCL needs to be started with option "-fpu x87" to run Hyperluminal-DB reliably, see 
+CMUCL needs to be started with the option `-fpu x87` to run Hyperluminal-DB reliably, see 
 [STMX documentation](https://github.com/cosmos72/stmx/blob/master/doc/supported-systems.md)
 for details.
 
@@ -157,15 +163,11 @@ You are welcome to report any failure you get while running the test suites,
 please include in the report:
 - operating system name and version (example: Debian GNU/Linux x86_64 version 7.0)
 - Common Lisp implementation and version (example: SBCL 1.0.57.0.debian, x86_64)
-- EXACT output produced by the test suite
+- **exact** output produced by the test suite
   (remember to specify if the error is in STMX test suite or in Hyperluminal-DB test suite)
 - any other relevant information
 
 See "Contacts, help, discussion" below for the preferred method to send the report.
-
-
-  
-
 
 
 Implementation
@@ -197,12 +199,13 @@ data read and written during each transaction.
 
 Status
 ------
-As of February 2014, Hyperluminal-DB is being written by Massimiliano Ghilardi.
+As of February 2014, Hyperluminal-DB is being written by Massimiliano Ghilardi
+and it is considered by the author to be in BETA status.
 
 The serialization/deserialization library is in BETA status,
 i.e. usable but not yet polished nor thoroughly tested.
 
-The memory-mapped database (built on top of the serialization library)
+On the other hand, the memory-mapped database (built on top of the serialization library)
 is in the early-implementation stage, not yet ready for general use.
 
 
