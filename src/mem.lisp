@@ -429,12 +429,15 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
                    (mget-word src (the ufixnum (+ src-index i))))))
   
            
-(declaim (notinline !malloc !free))
+(declaim (inline malloc mfree))
 
-(defun !malloc (n-bytes)
+(defun malloc (n-bytes)
+  "Allocate N-BYTES of raw memory and return raw pointer to it.
+The obtained memory must be freed manually: call MFREE on it when no longer needed."
   (cffi-sys:%foreign-alloc n-bytes))
 
-(defun !free (ptr)
+(defun mfree (ptr)
+  "Deallocate a block of raw memory previously obtained with MALLOC."
   (cffi-sys:foreign-free ptr))
 
 (defun !hex (n)

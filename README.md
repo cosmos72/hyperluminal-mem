@@ -197,6 +197,120 @@ Quite clearly, the speed also strongly depends on the amount (and type) of
 data read and written during each transaction.
 
 
+Basic usage
+-----------
+
+Hyperluminal-DB offers the following Lisp types, macros and functions, also documented
+in the sources - remember `(describe 'some-symbol)` at REPL.
+
+- `MALLOC` allocates raw memory and returns a raw pointer to it.
+   Needed because almost all the functions below operate on raw memory.
+
+   It is actually a simple alias for the function `cffi-sys:%foreign-alloc`
+   and it is equivalent to the `malloc()` function found in C/C++ languages.
+
+   Definition:
+
+        (defun malloc (n-bytes)
+          (declare (type unsigned-byte n-bytes))
+
+          (the cffi-sys:foreign-pointer (cffi-sys:%foreign-alloc n-bytes)))
+
+   Remember that the memory returned by `malloc` must be deallocated manually:
+   call `mfree` on it when no longer needed.
+
+- `MALLOC-WORDS` allocates raw memory and returns it just like `malloc`.
+
+   It is usually more handy than `malloc` since almost all the functions below
+   count and expect memory lengths in words, not in bytes.
+
+   Definition:
+
+        (defun malloc-words (n-words)
+          (declare (type mem-size n-words))
+
+          (the cffi-sys:foreign-pointer #| ...implementation... |# ))
+
+
+- `MFREE` deallocates raw memory previously obtained with `malloc-words`, `malloc`
+   or `cffi-sys:%foreign-alloc`.
+
+- `MDETECT-SIZE` examines a Lisp value, and tells how many words of raw memory
+   are needed to serialize it.
+
+   It is useful to know how many bytes (or words) of raw memory must be allocated
+   in order to write a serialized value. It is defined as:
+
+        (defun mdetect-size (value)
+          (declare (type t value))
+
+          (the mem-size #| ...implementation... |#))
+   
+- `MWRITE` serializes a Lisp value, writing it into raw memory. It is defined as:
+  
+        (defun mwrite (ptr index end-index value)
+          (declare (type cffi-sys:foreign-pointer ptr)
+                   (type unsigned-byte index end-index)
+                   (type t value))
+
+            (the mem-size #| ...implementation... |#))
+
+   To use it, you need three things:
+   * a pointer to raw memory, obtained for example with one of the functions
+     `malloc-words`, `malloc` or `cffi-sys:%foreign-alloc` described above.
+   * the size (in words) of the raw memory. It must be passed as the `end-index` argument
+   * the offset (in words) where you want to write the serialized value.
+     It must be passed as the `index` argument
+   
+   `mwrite` returns an offset pointing immediately after the serialized value.
+   This allows to easily write consecutive serialized values into the raw memory.
+   
+   Any kind of raw memory is supported, thus it is also possible to call `mwrite`
+   on memory-mapped files. This is the mechanism that allows Hyperluminal-DB
+   to implement an object store backed by memory-mapped files.
+
+   `mwrite` supports the following standard Lisp types:
+   * integers - both fixnums and bignums
+   * ratios, as for example 2/3
+   * single-floats, double-floats and complexes
+   * characters - full Unicode range is supported
+   * symbols and keywords
+   * cons cells and their aggregates: lists, alists, plists, trees
+   * vectors and arrays of any dimensionality
+   * strings
+   * pathnames
+   * hash-tables
+  
+   It also supports the following types implemented by STMX:
+   * tmap and rbmap - sorted maps, both transactional and non-transactional versions
+
+   Finally, it can be easily extended to support arbitrary types,
+   see `MWRITE-OBJECT` for details.
+
+- `MREAD` deserializes a value, reading it from raw memory. It is defined as:
+  
+        (defun mread (ptr index end-index)
+          (declare (type maddress ptr)
+                   (type mem-size index end-index))
+
+            (the (values t mem-size)
+                 #| ...implementation... |#))
+
+   It returns two values: the value itself, and an offset pointing immediately after
+   the serialized value inside raw memory. This allows to easily read consecutive
+   serialized values from the raw memory.
+
+   `mread` supports the same types as `mwrite` and it can be extended similarly,
+   see `MREAD-OBJECT` for details.
+
+- `MDETECT-OBJECT-SIZE` to be documented...
+
+- `MWRITE-OBJECT` to be documented...
+
+- `MREAD-OBJECT` to be documented...
+
+
+
 Status
 ------
 As of February 2014, Hyperluminal-DB is being written by Massimiliano Ghilardi
