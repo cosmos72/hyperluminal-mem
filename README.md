@@ -41,12 +41,10 @@ Hyperluminal-DB is designed and optimized for the following scenarios:
 
 ### Latest news, 1st February 2014
 
-Released version 0.1.0.
-
-The serialization library works and is in BETA status.
+Released version 0.1.0. The serialization library works and is in BETA status.
 
 The memory-mapped database (built on top of the serialization library)
-is the early-implementation stage, not yet ready for general use.
+is in the early-implementation stage, not yet ready for general use.
 
 Supported systems
 -----------------
@@ -203,6 +201,9 @@ Basic usage
 Hyperluminal-DB offers the following Lisp types, macros and functions, also documented
 in the sources - remember `(describe 'some-symbol)` at REPL.
 
+- `MADDRESS` is the type of raw memory pointers.
+   It is currently an alias for `cffi-sys:foreign-pointer`
+
 - `MALLOC` allocates raw memory and returns a raw pointer to it.
    Needed because almost all the functions below operate on raw memory.
 
@@ -214,32 +215,40 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
         (defun malloc (n-bytes)
           (declare (type unsigned-byte n-bytes))
 
-          (the cffi-sys:foreign-pointer (cffi-sys:%foreign-alloc n-bytes)))
+          (the maddress (cffi-sys:%foreign-alloc n-bytes)))
 
    Remember that the memory returned by `malloc` must be deallocated manually:
    call `mfree` on it when no longer needed.
 
 - `MALLOC-WORDS` allocates raw memory and returns it just like `malloc`.
 
-   It is usually more handy than `malloc` since almost all the functions below
-   count and expect memory lengths in words, not in bytes.
+   It is usually more handy than `malloc` since almost all Hyperluminal-DB functions
+   count and expect memory length in words, not in bytes.
 
    Definition:
 
         (defun malloc-words (n-words)
           (declare (type mem-size n-words))
 
-          (the cffi-sys:foreign-pointer #| ...implementation... |# ))
+          (the maddress #| ...implementation... |# ))
 
 
 - `MFREE` deallocates raw memory previously obtained with `malloc-words`, `malloc`
-   or `cffi-sys:%foreign-alloc`.
+   or `cffi-sys:%foreign-alloc`. It is actually a simple alias for the function
+   `cffi-sys:foreign-free` and it is equivalent to the `free()` function found in C/C++ languages.
+
+   Definition:
+
+        (defun mfree (ptr)
+          (declare (type maddress ptr))
+
+          (cffi-sys:foreign-free ptr))
 
 - `MDETECT-SIZE` examines a Lisp value, and tells how many words of raw memory
    are needed to serialize it.
 
-   It is useful to know how many bytes (or words) of raw memory must be allocated
-   in order to write a serialized value. It is defined as:
+   It is useful to know how large a raw memory block must be
+   in order to write a serialized value into it. It is defined as:
 
         (defun mdetect-size (value)
           (declare (type t value))
@@ -249,16 +258,17 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
 - `MWRITE` serializes a Lisp value, writing it into raw memory. It is defined as:
   
         (defun mwrite (ptr index end-index value)
-          (declare (type cffi-sys:foreign-pointer ptr)
-                   (type unsigned-byte index end-index)
+          (declare (type maddress ptr)
+                   (type mem-size index end-index)
                    (type t value))
 
             (the mem-size #| ...implementation... |#))
 
-   To use it, you need three things:
+   To use it, you need three things beyong the value to serialize:
    * a pointer to raw memory, obtained for example with one of the functions
      `malloc-words`, `malloc` or `cffi-sys:%foreign-alloc` described above.
-   * the size (in words) of the raw memory. It must be passed as the `end-index` argument
+   * the available length (in words) of the raw memory.
+     It must be passed as the `end-index` argument
    * the offset (in words) where you want to write the serialized value.
      It must be passed as the `index` argument
    
