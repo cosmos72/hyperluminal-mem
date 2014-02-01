@@ -68,7 +68,7 @@
              (coerce +magic+ 'list)
              (coerce magic 'list)))
 
-    (loop for (i name value) in '((4  hldb-file-major-version   #.(first  *hldb-file-version*))
+    (loop for (i name value) in '((4  file-major-version  #.(first  *hldb-file-version*))
                                   (8  sizeof-word         #.+msizeof-word+)
                                   (7  bits-per-tag        #.+mem-tag/bits+)
                                   (9  sizeof-single-float #.+msizeof-sfloat+)

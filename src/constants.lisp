@@ -219,7 +219,7 @@
 
 (defconstant +mem-box/string-utf-21+    19 "box is a string, i.e. a (vector character)")
 (defconstant +mem-box/string-utf-8+     20 "box is a string, i.e. a (vector character)")
-(defconstant +mem-box/string+           +mem-box/string-utf-8+ "default string format is UTF-21")
+(defconstant +mem-box/string+           +mem-box/string-utf-21+ "default string format is UTF-21")
 
 (defconstant +mem-box/base-string+      21 "box is a base-string, i.e. a (vector base-char)")
 (defconstant +mem-box/bit-vector+       22 "box is a bit-vector, i.e. a (vector bit)")
