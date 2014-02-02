@@ -264,7 +264,9 @@
 
  0 0 0 0 0 0 0 0 0 0 0 0 0
  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
- 0 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0 0 0
+
+ #.(load-time-value stmx.util::+empty-tcell+ t)
 
  #.(load-time-value +package-common-lisp-user+ t) 
  #.(load-time-value +package-common-lisp+ t) 

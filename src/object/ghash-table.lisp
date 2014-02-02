@@ -26,32 +26,32 @@
 
 
 
-(defmethod mdetect-object-size ((h ghash-table) mdetect-size-func index)
+(defmethod mdetect-object-size ((obj ghash-table) mdetect-size-func index)
   (declare (type function mdetect-size-func)
            (type mem-size index))
 
-  (call-mdetect-size (ghash-table-test h)
-                     (ghash-table-hash h)
-                     (ghash-table-count h))
+  (call-mdetect-size (ghash-table-test obj)
+                     (ghash-table-hash obj)
+                     (ghash-table-count obj))
 
-  (do-ghash (key value) h
+  (do-ghash (key value) obj
     (call-mdetect-size key value))
   index)
 
 
-(defmethod mwrite-object ((h ghash-table) mwrite-func ptr index end-index)
+(defmethod mwrite-object ((obj ghash-table) mwrite-func ptr index end-index)
   (declare (type function mwrite-func)
            (type mem-size index end-index))
 
-  (call-mwrite (ghash-table-test h)
-               (ghash-table-hash h)
-               (ghash-table-count h))
-  (do-ghash (key value) h
+  (call-mwrite (ghash-table-test obj)
+               (ghash-table-hash obj)
+               (ghash-table-count obj))
+  (do-ghash (key value) obj
     (call-mwrite key value))
   index)
 
 
-(defmethod mread-object ((h ghash-table) mread-func ptr index end-index
+(defmethod mread-object ((obj ghash-table) mread-func ptr index end-index
                          &key size &allow-other-keys)
   "Warning: this method expects the caller to have already read the serialized
 :TEST, :HASH and :SIZE values and instantiated a GHASH-TABLE or a subclass"
@@ -60,9 +60,9 @@
 
   (dotimes (i size)
     (with-mread (key value)
-      (set-ghash h key value)))
+      (set-ghash obj key value)))
   
-  (values h index))
+  (values obj index))
 
 
 

@@ -26,28 +26,28 @@
 
 
 
-(defmethod mdetect-object-size ((m gmap) mdetect-size-func index)
+(defmethod mdetect-object-size ((obj gmap) mdetect-size-func index)
   (declare (type function mdetect-size-func)
            (type mem-size index))
 
-  (call-mdetect-size (gmap-pred m) (gmap-count m))
+  (call-mdetect-size (gmap-pred obj) (gmap-count obj))
 
-  (do-gmap (key value) m
+  (do-gmap (key value) obj
     (call-mdetect-size key value))
   index)
 
 
-(defmethod mwrite-object ((m gmap) mwrite-func ptr index end-index)
+(defmethod mwrite-object ((obj gmap) mwrite-func ptr index end-index)
   (declare (type function mwrite-func)
            (type mem-size index end-index))
 
-  (call-mwrite (gmap-pred m) (gmap-count m))
-  (do-gmap (key value) m
+  (call-mwrite (gmap-pred obj) (gmap-count obj))
+  (do-gmap (key value) obj
     (call-mwrite key value))
   index)
 
 
-(defmethod mread-object ((m gmap) mread-func ptr index end-index &key)
+(defmethod mread-object ((obj gmap) mread-func ptr index end-index &key)
   "Warning: this method expects the caller to have already read the serialized :PRED argument and instantiated a GMAP or a subclass"
   (declare (type function mread-func)
            (type mem-size index end-index))
@@ -56,9 +56,9 @@
     (check-type size mem-uint)
     (dotimes (i size)
       (with-mread (key value)
-        (set-gmap m key value))))
+        (set-gmap obj key value))))
   
-  (values m index))
+  (values obj index))
 
 
 

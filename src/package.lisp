@@ -46,7 +46,9 @@
   (:import-from #:stmx.util
                 
                 #:fixnum< #:fixnum> #:fixnum=
-                
+
+                #:tcell #:tcons #:tlist #:tstack #:tfifo
+
                 #:tmap #:rbmap #:gmap #:gmap-pred #:gmap-count #:set-gmap #:do-gmap
 
                 #:thash-table #:ghash-table #:ghash-table-test #:ghash-table-hash

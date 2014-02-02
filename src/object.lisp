@@ -83,7 +83,7 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
          ,@(loop for v in more-values
               collect `(call-mwrite1 ,v)))
 
-      `(call-mwrite1 (,value))))
+      `(call-mwrite1 ,value)))
 
 
 (defmacro with-mread1 ((value) &body body)
