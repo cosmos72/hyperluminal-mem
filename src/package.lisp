@@ -45,7 +45,7 @@
 
   (:import-from #:stmx.util
                 
-                #:fixnum< #:fixnum>
+                #:fixnum< #:fixnum> #:fixnum=
                 
                 #:tmap #:rbmap #:gmap #:gmap-pred #:gmap-count #:set-gmap #:do-gmap
 
