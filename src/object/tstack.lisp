@@ -29,14 +29,14 @@
   (declare (type function mdetect-size-func)
            (type mem-size index))
 
-  (call-mdetect-size (slot-value obj 'stmx.util::top)))
+  (call-mdetect-size (_ obj top)))
 
 
 (defmethod mwrite-object ((obj tstack) mwrite-func ptr index end-index)
   (declare (type function mwrite-func)
            (type mem-size index end-index))
 
-  (call-mwrite (slot-value obj 'stmx.util::top)))
+  (call-mwrite (_ obj top)))
 
 
 (defmethod mread-object ((type (eql 'tstack)) mread-func ptr index end-index &key)
@@ -45,6 +45,6 @@
 
   (with-mread (top)
     (let ((obj (tstack)))
-      (setf (slot-value obj 'stmx.util::top) top)
+      (setf (_ obj top) top)
       (values obj index))))
 

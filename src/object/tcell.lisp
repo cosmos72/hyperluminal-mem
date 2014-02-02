@@ -29,14 +29,14 @@
   (declare (type function mdetect-size-func)
            (type mem-size index))
 
-  (call-mdetect-size (slot-value c 'stmx.util::value)))
+  (call-mdetect-size (_ c value)))
 
 
 (defmethod mwrite-object ((c tcell) mwrite-func ptr index end-index)
   (declare (type function mwrite-func)
            (type mem-size index end-index))
 
-  (call-mwrite (slot-value c 'stmx.util::value)))
+  (call-mwrite (_ c value)))
 
 
 (defmethod mread-object ((type (eql 'tcell)) mread-func ptr index end-index &key)

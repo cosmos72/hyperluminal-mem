@@ -47,7 +47,7 @@
                 
                 #:fixnum< #:fixnum> #:fixnum=
 
-                #:tcell #:tcons #:tlist #:tstack #:tfifo
+                #:_ #:tcell #:tcons #:tlist #:tstack #:tfifo
 
                 #:tmap #:rbmap #:gmap #:gmap-pred #:gmap-count #:set-gmap #:do-gmap
 
