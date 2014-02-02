@@ -291,8 +291,12 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
    * pathnames
    * hash-tables
   
-   It also supports the following types implemented by STMX:
-   * tmap and rbmap - sorted maps, both transactional and non-transactional versions
+   It also supports the following types implemented by STMX (requires latest STMX from GitHub):
+   * tcell - simple transactional variable
+   * tstack - transactional first-in last-out stack
+   * tmap and rbmap - sorted maps, both transactional (tmap) or non-transactional (rbmap)
+   * thash-table and ghash-table - hash tables, both transactional (thash-table)
+     and non-transactional (ghash-table)
 
    Finally, it can be easily extended to support arbitrary types,
    see `MWRITE-OBJECT` for details.
