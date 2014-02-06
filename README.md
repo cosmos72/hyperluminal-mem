@@ -51,15 +51,18 @@ Supported systems
 Hyperluminal-DB is currently tested on the following Common Lisp implementations:
 
 * [SBCL](http://sbcl.org/)
-  * version 1.1.14       (x86_64) on Debian GNU/Linux 7.0  (x86_64)
-  * version 1.0.57       (x86)    on Debian GNU/Linux 7.0  (x86)
+  * version 1.1.14       (x86_64)  on Debian GNU/Linux 7.0  (x86_64)
+  * version 1.0.57       (x86)     on Debian GNU/Linux 7.0  (x86)
+  * version 1.1.14       (powerpc) on Debian GNU/Linux 7.3  (powerpc) inside Qemu
+
 * [CCL](http://ccl.clozure.com/)
-  * version 1.9-r15769   (x86_64) on Debian GNU/Linux 7.0  (x86_64)
-  * version 1.9-r15769M  (x86)    on Debian GNU/Linux 7.0  (x86_64)
+  * version 1.9-r15769   (x86_64)  on Debian GNU/Linux 7.0  (x86_64)
+  * version 1.9-r15769M  (x86)     on Debian GNU/Linux 7.0  (x86_64)
   * version 1.9-dev-r15475M-trunk (LinuxARM32) on Raspbian GNU/Linux (armhf) Raspberry Pi
+
 * [CMUCL](http://www.cons.org/cmucl/)
-  * version 20d Unicode  (x86)    on Debian GNU/Linux 7.0  (x86_64)
-  * version 20c Unicode  (x86)    on Debian GNU/Linux 7.0  (x86)
+  * version 20d Unicode  (x86)     on Debian GNU/Linux 7.0  (x86_64)
+  * version 20c Unicode  (x86)     on Debian GNU/Linux 7.0  (x86)
 
 CMUCL needs to be started with the option `-fpu x87` to run Hyperluminal-DB reliably, see 
 [STMX documentation](https://github.com/cosmos72/stmx/blob/master/doc/supported-systems.md)
