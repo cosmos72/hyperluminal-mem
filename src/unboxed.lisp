@@ -64,8 +64,8 @@
 
 
 
-(defun !mdump-words (stream ptr &optional (start-index 0) (end-index (1+ start-index)))
-  "mdump-words is only used for debugging. it assumes sizeof(byte) == 1"
+(defun !mdump (stream ptr &optional (start-index 0) (end-index (1+ start-index)))
+  "mdump is only used for debugging. it assumes sizeof(byte) == 1"
   (declare (type maddress ptr)
            (type mem-size start-index end-index))
   (loop
@@ -74,8 +74,8 @@
      while (<= end-byte (* +msizeof-word+ end-index))
      do
        (#.(if +mem/little-endian+
-              '!mdump-reverse
-              '!mdump-forward)
+              '!mdump-bytes-reverse
+              '!mdump-bytes)
           stream ptr start-byte end-byte)
        (format stream " ")))
 

@@ -67,6 +67,8 @@
                              (:file "object"         :depends-on ("mvar"))
                              (:file "object/gmap"    :depends-on ("object"))
                              (:file "object/ghash-table" :depends-on ("object"))
+                             (:file "object/tcell"   :depends-on ("object"))
+                             (:file "object/tstack"  :depends-on ("object"))
 
                              (:file "boxed"          :depends-on ("box"
                                                                   "alloc"

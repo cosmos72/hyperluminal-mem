@@ -337,23 +337,15 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun !mdump (stream ptr &optional (start-byte 0) (end-byte (1+ start-byte)))
-  "mdump is only used for debugging. it assumes sizeof(byte) == 1"
-  (declare (type maddress ptr)
-           (type fixnum start-byte end-byte))
-  (loop for offset from start-byte below end-byte do
-       (format stream "~2,'0X " (%mget-t :byte ptr offset))))
-
-(defun !mdump-forward (stream ptr &optional (start-byte 0) (end-byte (1+ start-byte)))
-  "mdump-forward is only used for debugging. it assumes sizeof(byte) == 1"
+(defun !mdump-bytes (stream ptr &optional (start-byte 0) (end-byte (1+ start-byte)))
+  "mdump-bytes is only used for debugging. it assumes sizeof(byte) == 1"
   (declare (type maddress ptr)
            (type fixnum start-byte end-byte))
   (loop for offset from start-byte below end-byte do
        (format stream "~2,'0X" (%mget-t :byte ptr offset))))
 
-
-(defun !mdump-reverse (stream ptr &optional (start-byte 0) (end-byte (1+ start-byte)))
-  "mdump-reverse is only used for debugging. it assumes sizeof(byte) == 1"
+(defun !mdump-bytes-reverse (stream ptr &optional (start-byte 0) (end-byte (1+ start-byte)))
+  "mdump-bytes-reverse is only used for debugging. it assumes sizeof(byte) == 1"
   (declare (type maddress ptr)
            (type fixnum start-byte end-byte))
   (loop for offset from end-byte above start-byte do
