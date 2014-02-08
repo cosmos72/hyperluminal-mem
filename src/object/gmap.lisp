@@ -26,14 +26,15 @@
 
 
 
-(defmethod mdetect-object-size ((obj gmap) mdetect-size-func index)
-  (declare (type function mdetect-size-func)
+(defmethod msize-object ((obj gmap) msize-func index)
+  (declare (type function msize-func)
            (type mem-size index))
 
-  (call-mdetect-size (gmap-pred obj) (gmap-count obj))
-
+  (setf index (call-msize (msize-func index)
+                          (gmap-pred obj)
+                          (gmap-count obj)))
   (do-gmap (key value) obj
-    (call-mdetect-size key value))
+    (setf index (call-msize (msize-func index) key value)))
   index)
 
 
@@ -41,9 +42,11 @@
   (declare (type function mwrite-func)
            (type mem-size index end-index))
 
-  (call-mwrite (gmap-pred obj) (gmap-count obj))
+  (setf index (call-mwrite (mwrite-func ptr index end-index)
+                           (gmap-pred obj)
+                           (gmap-count obj)))
   (do-gmap (key value) obj
-    (call-mwrite key value))
+    (setf index (call-mwrite (mwrite-func ptr index end-index) key value)))
   index)
 
 
@@ -52,13 +55,14 @@
   (declare (type function mread-func)
            (type mem-size index end-index))
 
-  (with-mread (size)
+  (multiple-bind-mread (index size) (mread-func ptr index end-index)
     (check-type size mem-uint)
     (dotimes (i size)
-      (with-mread (key value)
-        (set-gmap obj key value))))
+      (multiple-bind-mread (new-index key value) (mread-func ptr index end-index)
+        (set-gmap obj key value)
+        (setf index new-index)))
   
-  (values obj index))
+    (values obj index)))
 
 
 
@@ -71,7 +75,7 @@
            (type function mread-func)
            (type mem-size index end-index))
 
-  (with-mread (pred)
+  (multiple-bind-mread (index pred) (mread-func ptr index end-index)
     (unless (member pred +gmap-trusted-pred-list+)
       (error "HYPERLUMINAL-DB: refusing to use untrusted ~S ~S value ~S,
 expecting one of the trusted values ~S" type :pred pred +gmap-trusted-pred-list+))

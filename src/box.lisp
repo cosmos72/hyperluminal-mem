@@ -374,10 +374,10 @@ but only ~S word~P available at that location"
          (array-length-error ,ptr ,index ,array-type ,len ,max-len)))))
 
 
-;; kind of forward declaration for (mdetect-size) defined in boxed.lisp
+;; kind of forward declaration for (msize) defined in boxed.lisp
 (declaim (ftype (function (t &optional mem-size) (values mem-size &optional))
-		mdetect-size)
-	 (notinline mdetect-size))
+		msize)
+	 (notinline msize))
 
 ;; kind of forward declaration for (mwrite) defined in boxed.lisp
 (declaim (ftype (function (maddress mem-size mem-size t)

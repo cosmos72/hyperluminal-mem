@@ -24,7 +24,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defgeneric mdetect-object-size (object mdetect-size-func index)
+(defgeneric msize-object (object msize-func index)
   (:documentation
    "Compute and return the number of memory words needed to serialize OBJECT,
 not including its header"))
@@ -53,55 +53,55 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
 
 
 
-(defmacro call-mdetect-size1 (value)
-  "WARNING: this macro expands references to the hard-coded symbols MDETECT-SIZE-FUNC INDEX"
-  `(setf index (the mem-size (funcall mdetect-size-func ,value))))
+(defmacro call-msize1 ((msize-func index) value)
+  `(the (values mem-size &optional)
+     (funcall ,msize-func ,value ,index)))
 
-
-(defmacro call-mdetect-size (value &rest more-values)
-  "WARNING: this macro expands references to the hard-coded symbols MDETECT-SIZE-FUNC INDEX"
+(defmacro call-msize ((msize-func index) value &rest more-values)
+  "Warning: this macro expands multiple references to MSIZE-FUNC"
   (if more-values
-      `(progn
-         (call-mdetect-size1 ,value)
-         ,@(loop for v in more-values
-              collect `(call-mdetect-size1 ,v)))
-
-      `(call-mdetect-size1 ,value)))
+      (with-gensym new-index
+        `(let1 ,new-index (call-msize1 (,msize-func ,index) ,value)
+           (call-msize (,msize-func ,new-index) ,@more-values)))
+      `(call-msize1 (,msize-func ,index) ,value)))
   
 
 
-(defmacro call-mwrite1 (value)
-  "WARNING: this macro expands references to the hard-coded symbols MWRITE-FUNC PTR INDEX END-INDEX"
-  `(setf index (the mem-size (funcall mwrite-func ptr index end-index ,value))))
+(defmacro call-mwrite1 ((mwrite-func ptr index end-index) value)
+  `(the (values mem-size &optional)
+     (funcall ,mwrite-func ,ptr ,index ,end-index ,value)))
 
 
-(defmacro call-mwrite (value &rest more-values)
-  "WARNING: this macro expands references to the hard-coded symbols MWRITE-FUNC PTR INDEX END-INDEX"
+(defmacro call-mwrite ((mwrite-func ptr index end-index) value &rest more-values)
+  "Warning: this macro expands multiple references to MWRITE-FUNC PTR and END-INDEX"
   (if more-values
-      `(progn
-         (call-mwrite1 ,value)
-         ,@(loop for v in more-values
-              collect `(call-mwrite1 ,v)))
-
-      `(call-mwrite1 ,value)))
+      (with-gensym new-index
+        `(let1 ,new-index (call-mwrite1 (,mwrite-func ,ptr ,index ,end-index) ,value)
+           (call-mwrite (,mwrite-func ,ptr ,new-index ,end-index) ,@more-values)))
+      `(call-mwrite1 (,mwrite-func ,ptr ,index ,end-index) ,value)))
 
 
-(defmacro with-mread1 ((value) &body body)
-  "WARNING: this macro expands references to the hard-coded symbols MREAD-FUNC PTR INDEX END-INDEX"
-  (with-gensym new-index
-    `(multiple-value-bind (,value ,new-index)
-         (the (values t mem-size) (funcall mread-func ptr index end-index))
-       (setf index ,new-index)
-       ,@body)))
+
+(defmacro call-mread1 ((mread-func ptr index end-index))
+  `(the (values t mem-size &optional)
+     (funcall ,mread-func ,ptr ,index ,end-index)))
 
 
-(defmacro with-mread ((var &rest more-vars) &body body)
-  "WARNING: this macro expands references to the hard-coded symbols MREAD-FUNC PTR INDEX END-INDEX"
+(defmacro multiple-bind-mread1 ((new-index var) (mread-func ptr index end-index) &body body)
+  `(multiple-value-bind (,var ,new-index)
+       (call-mread1 (,mread-func ,ptr ,index ,end-index))
+     ,@body))
+
+
+(defmacro multiple-bind-mread ((new-index var &rest more-vars)
+                               (mread-func ptr index end-index) &body body)
+  "Warning: this macro expands multiple references to MREAD-FUNC PTR and END-INDEX"
   (if more-vars
-      `(with-mread1 (,var)
-         (with-mread ,more-vars
-           ,@body))
-      `(with-mread1 (,var)
+      (with-gensym tmp-index
+        `(multiple-bind-mread1 (,tmp-index ,var) (,mread-func ,ptr ,index ,end-index)
+           (multiple-bind-mread (,new-index ,@more-vars) (,mread-func ,ptr ,tmp-index ,end-index)
+               ,@body)))
+      `(multiple-bind-mread1 (,new-index ,var) (,mread-func ,ptr ,index ,end-index)
          ,@body)))
 
 
@@ -113,17 +113,17 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
 
 
 
-(defun mdetect-obj-size (object mdetect-size-func &optional (index 0))
+(defun msize-obj (object msize-func &optional (index 0))
   "Compute and return the number of memory words needed to serialize OBJECT,
 including its header"
-  (declare (type function mdetect-size-func)
+  (declare (type function msize-func)
            (type mem-size index))
 
   (incf index +mem-box/header-words+)
-  (call-mdetect-size (type-of object))
 
-  (the (values mem-size &optional)
-    (mdetect-object-size object mdetect-size-func index)))
+  (let1 index (call-msize (msize-func index) (type-of object))
+    (the (values mem-size &optional)
+      (msize-object object msize-func index))))
 
 
 (defun mwrite-obj (object mwrite-func ptr index end-index)
@@ -134,9 +134,9 @@ The available memory ends immediately before (+ PTR END-INDEX)."
            (type mem-size index end-index))
 
   ;; write OBJECT payload
-  (let* ((index1 (funcall mwrite-func ptr
-                          (mem-size+ +mem-box/header-words+ index)
-                          end-index (type-of object)))
+  (let* ((index1 (call-mwrite (mwrite-func ptr (mem-size+ +mem-box/header-words+ index)
+                                           end-index)
+                              (type-of object)))
 
          (index2 (mwrite-object object mwrite-func ptr index1 end-index))
          (actual-words (mem-size- index2 index)))
@@ -164,11 +164,11 @@ The available memory ends immediately before (+ PTR END-INDEX)."
   (incf index +mem-box/header-words+)
 
   ;; read OBJECT type
-  (with-mread (type)
+  (multiple-bind-mread (new-index type) (mread-func ptr index end-index)
     ;; TODO validate type against a set of trusted types
     (check-type type symbol)
 
     (the (values t mem-size &optional)
-      (mread-object type mread-func ptr index end-index))))
+      (mread-object type mread-func ptr new-index end-index))))
 
     

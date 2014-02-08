@@ -40,7 +40,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(declaim (type vector +mdetect-box-size-funcs+ +mwrite-box-funcs+ +mread-box-funcs+))
+(declaim (type vector +msize-box-funcs+ +mwrite-box-funcs+ +mread-box-funcs+))
 
 (defmacro define-global-constant (name value &optional documentation)
   `(#+(and) defparameter #-(and) define-constant-once
@@ -48,7 +48,7 @@
       ,@(when documentation `(,documentation))))
 
 
-(define-global-constant +mdetect-box-size-funcs+
+(define-global-constant +msize-box-funcs+
     (let* ((syms +mem-boxed-type-syms+)
            (array (make-array (length syms))))
 
@@ -142,9 +142,9 @@
 	  #.(lognot (1- +mem-box/min-words+))))
 
 
-(declaim (inline mdetect-box-size))
+(declaim (inline msize-box))
 
-(defun mdetect-box-size (value &optional (index 0) (boxed-type (mdetect-box-type value)))
+(defun msize-box (value &optional (index 0) (boxed-type (mdetect-box-type value)))
   "Return the number of words needed to store boxed VALUE in memory,
 also including BOX header.
 Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
@@ -154,21 +154,21 @@ Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
   (log.trace value boxed-type)
 
-  (call-box-func +mdetect-box-size-funcs+ boxed-type value
+  (call-box-func +msize-box-funcs+ boxed-type value
                  (mem-size+ +mem-box/header-words+ index)))
 
 
-(declaim (inline mdetect-box-size-rounded-up))
+(declaim (inline msize-box-rounded-up))
 
-(defun mdetect-box-size-rounded-up (value &optional
-				      (boxed-type (mdetect-box-type value)))
+(defun msize-box-rounded-up (value &optional
+                             (boxed-type (mdetect-box-type value)))
   "Return the number of words needed to store boxed VALUE in memory,
 also including BOX header.
 Rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
   (declare (type mem-box-type boxed-type))
 
-  (round-up-size (mdetect-box-size value boxed-type)))
+  (round-up-size (msize-box value boxed-type)))
 
 
 
@@ -211,8 +211,8 @@ Return the written box."
   (declare (type maddress ptr)
            (type (or null box) box))
 
-  (let* ((boxed-type (mdetect-box-type    value))
-         (n-words    (mdetect-box-size-rounded-up value boxed-type))
+  (let* ((boxed-type (mdetect-box-type     value))
+         (n-words    (msize-box-rounded-up value boxed-type))
          (allocated-n-words (if box (box-n-words box) 0)))
     
     (if (and (<= n-words allocated-n-words)
@@ -299,7 +299,7 @@ Return the boxed value."
 ;;;; mid-level functions accepting both boxed and unboxed values             ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun mdetect-size (value &optional (index 0))
+(defun msize (value &optional (index 0))
   "Compute and return the number of CPU words needed to store VALUE.
 If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
 to DETECT-BOX-N-WORDS.
@@ -308,17 +308,17 @@ Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
    (if (is-unboxed? value)
        (mem-size+1 index)
        (if-bind box-type (mdetect-box-type value)
-           (mdetect-box-size value index box-type)
-           (mdetect-obj-size value #'mdetect-size index))))
+           (msize-box value index box-type)
+           (msize-obj value #'msize index))))
 
 
-(defun mdetect-size-rounded-up (value)
+(defun msize-rounded-up (value)
   "Compute and return the number of CPU words needed to store VALUE.
 If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
 to DETECT-BOX-N-WORDS.
 Also rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
-  (round-up-size (mdetect-size value)))
+  (round-up-size (msize value)))
 
 
 ;; (declaim (ftype (...) mwrite)) is in box.lisp

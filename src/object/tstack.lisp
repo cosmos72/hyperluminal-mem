@@ -25,25 +25,25 @@
 
 
 
-(defmethod mdetect-object-size ((obj tstack) mdetect-size-func index)
-  (declare (type function mdetect-size-func)
+(defmethod msize-object ((obj tstack) msize-func index)
+  (declare (type function msize-func)
            (type mem-size index))
 
-  (call-mdetect-size (_ obj top)))
+  (call-msize (msize-func index) (_ obj top)))
 
 
 (defmethod mwrite-object ((obj tstack) mwrite-func ptr index end-index)
   (declare (type function mwrite-func)
            (type mem-size index end-index))
 
-  (call-mwrite (_ obj top)))
+  (call-mwrite (mwrite-func ptr index end-index) (_ obj top)))
 
 
 (defmethod mread-object ((type (eql 'tstack)) mread-func ptr index end-index &key)
   (declare (type function mread-func)
            (type mem-size index end-index))
 
-  (with-mread (top)
+  (multiple-bind-mread (index top) (mread-func ptr index end-index)
     (let ((obj (tstack)))
       (setf (_ obj top) top)
       (values obj index))))

@@ -26,16 +26,16 @@
 
 
 
-(defmethod mdetect-object-size ((obj ghash-table) mdetect-size-func index)
-  (declare (type function mdetect-size-func)
+(defmethod msize-object ((obj ghash-table) msize-func index)
+  (declare (type function msize-func)
            (type mem-size index))
 
-  (call-mdetect-size (ghash-table-test obj)
-                     (ghash-table-hash obj)
-                     (ghash-table-count obj))
-
+  (setf index (call-msize (msize-func index)
+                          (ghash-table-test obj)
+                          (ghash-table-hash obj)
+                          (ghash-table-count obj)))
   (do-ghash (key value) obj
-    (call-mdetect-size key value))
+    (setf index (call-msize (msize-func index) key value)))
   index)
 
 
@@ -43,11 +43,12 @@
   (declare (type function mwrite-func)
            (type mem-size index end-index))
 
-  (call-mwrite (ghash-table-test obj)
-               (ghash-table-hash obj)
-               (ghash-table-count obj))
+  (setf index (call-mwrite (mwrite-func ptr index end-index)
+                           (ghash-table-test obj)
+                           (ghash-table-hash obj)
+                           (ghash-table-count obj)))
   (do-ghash (key value) obj
-    (call-mwrite key value))
+    (setf index (call-mwrite (mwrite-func ptr index end-index) key value)))
   index)
 
 
@@ -56,11 +57,13 @@
   "Warning: this method expects the caller to have already read the serialized
 :TEST, :HASH and :SIZE values and instantiated a GHASH-TABLE or a subclass"
   (declare (type function mread-func)
-           (type mem-size index end-index))
+           (type mem-size index end-index)
+           (type mem-uint size))
 
   (dotimes (i size)
-    (with-mread (key value)
-      (set-ghash obj key value)))
+    (multiple-bind-mread (new-index key value) (mread-func ptr index end-index)
+      (set-ghash obj key value)
+      (setf index new-index)))
   
   (values obj index))
 
@@ -81,7 +84,7 @@
            (type function mread-func)
            (type mem-size index end-index))
 
-  (with-mread (test hash size)
+  (multiple-bind-mread (new-index test hash size) (mread-func ptr index end-index)
     (unless (member test +ghash-table-trusted-test-list+)
       (error "HYPERLUMINAL-DB: refusing to use untrusted ~S ~S value ~S,
 expecting one of the trusted values ~S" type :test test +ghash-table-trusted-test-list+))
@@ -92,7 +95,7 @@ expecting one of the trusted values ~S" type :hash hash +ghash-table-trusted-has
     (check-type size mem-uint)
 
     (mread-object (new type :test test :hash hash :initial-capacity size)
-                  mread-func ptr index end-index :size size)))
+                  mread-func ptr new-index end-index :size size)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

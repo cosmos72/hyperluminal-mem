@@ -30,7 +30,7 @@ Hyperluminal-DB is designed and optimized for the following scenarios:
   and on user's choice between 32 and 64 bit formats.
   Conversion between small and big endian file format is trivial.
 - optimized for 64 bit systems, where dataset is limited only by `mmap()`
-  maximum size (on Linux 3.x, the limit is about 128 terabytes). 
+  maximum size (on Linux 3.x, the limit is about 128 terabytes).
 - usable on 32 bit systems, either retaining 64 bit file format
   (with some performance loss), or using native 32 bit file format - fast,
   but has the following limitations:
@@ -250,16 +250,34 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
 
           (cffi-sys:foreign-free ptr))
 
-- `MDETECT-SIZE` examines a Lisp value, and tells how many words of raw memory
+- `MSIZE` examines a Lisp value, and tells how many words of raw memory
    are needed to serialize it.
 
    It is useful to know how large a raw memory block must be
    in order to write a serialized value into it. It is defined as:
 
-        (defun mdetect-size (value)
-          (declare (type t value))
+        (defun msize (value &optional (index 0))
+          (declare (type t value)
+                   (type mem-size index))
+          (the mem-size (+ index
+                           #| ...implementation... |#)))
 
-          (the mem-size #| ...implementation... |#))
+   The optional argument INDEX is useful to compute the total size of composite values,
+   as for example lists, arrays, hash-tables and objects: the value returned by `msize`
+   is increased by the value of `index`, so the following three code snippets are equivalent
+
+        (+ (msize "foo") (msize 'bar))
+
+        (let ((index (msize "foo")))
+          (msize 'bar index))
+
+        (msize 'bar (msize "foo"))
+
+   with the advantage that the second and third versions automatically check
+   for length overflows and can exploit tail-call optimizations.
+
+   It supports the same types as `MWRITE` below, and can be extended similarly
+   to support arbitrary types, see `MSIZE-OBJECT` for details.
    
 - `MWRITE` serializes a Lisp value, writing it into raw memory. It is defined as:
   
@@ -270,7 +288,7 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
 
             (the mem-size #| ...implementation... |#))
 
-   To use it, you need three things beyong the value to serialize:
+   To use it, you need three things beyond the value to serialize:
    * a pointer to raw memory, obtained for example with one of the functions
      `malloc-words`, `malloc` or `cffi-sys:%foreign-alloc` described above.
    * the available length (in words) of the raw memory.
@@ -282,7 +300,7 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
    This allows to easily write consecutive serialized values into the raw memory.
    
    Any kind of raw memory is supported, thus it is also possible to call `mwrite`
-   on memory-mapped files. This is the mechanism that allows Hyperluminal-DB
+   on memory-mapped files. This is actually the mechanism that allows Hyperluminal-DB
    to implement an object store backed by memory-mapped files.
 
    `mwrite` supports the following standard Lisp types:
@@ -292,7 +310,7 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
    * characters - full Unicode range is supported
    * symbols and keywords
    * cons cells and their aggregates: lists, alists, plists, trees
-   * vectors and arrays of any dimensionality
+   * vectors and arrays of any rank (i.e. any number of dimensions)
    * strings
    * pathnames
    * hash-tables
@@ -323,7 +341,7 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
    `mread` supports the same types as `mwrite` and it can be extended similarly,
    see `MREAD-OBJECT` for details.
 
-- `MDETECT-OBJECT-SIZE` to be documented...
+- `MSIZE-OBJECT` to be documented...
 
 - `MWRITE-OBJECT` to be documented...
 
