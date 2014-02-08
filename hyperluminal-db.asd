@@ -22,10 +22,10 @@
 
 (asdf:defsystem :hyperluminal-db
   :name "HYPERLUMINAL-DB"
-  :version "0.1.0"
+  :version "0.4.0"
   :license "GPLv3"
   :author "Massimiliano Ghilardi"
-  :description "Persistent, transactional object store"
+  :description "Persistent, transactional object store. Also includes a serialization library."
 
   :depends-on (:log4cl
                :cffi
@@ -37,7 +37,7 @@
 
   :components ((:static-file "hyperluminal-db.asd")
 
-               (:module :src
+               (:module :mem
                 :components ((:file "package")
                              (:file "lang"           :depends-on ("package"))
                              (:file "version"        :depends-on ("lang"))
@@ -46,7 +46,7 @@
                              (:file "symbols"        :depends-on ("constants"))
                              (:file "unboxed"        :depends-on ("symbols"))
                              (:file "box"            :depends-on ("version" "unboxed"))
-                             (:file "alloc"          :depends-on ("box"))
+                             (:file "magic"          :depends-on ("box"))
 
                              (:file "box/bignum"     :depends-on ("box"))
                              (:file "box/ratio"      :depends-on ("box/bignum"))
@@ -71,7 +71,6 @@
                              (:file "object/tstack"  :depends-on ("object"))
 
                              (:file "boxed"          :depends-on ("box"
-                                                                  "alloc"
                                                                   "box/bignum"
                                                                   "box/ratio"
                                                                   "box/float"
@@ -86,14 +85,18 @@
                                                                   "box/string-base"
                                                                   "box/bit-vector"
                                                                   "box/symbol"
-                                                                  "object"))
-
-                             (:file "store"          :depends-on ("version" "boxed"))))))
+                                                                  "object"))))
+               #+never
+               (:module :db
+                :components ((:file "package")
+                             (:file "version"        :depends-on ("package"))
+                             (:file "store"          :depends-on ("version")))
+                :depends-on (:mem))))
 
 
 (asdf:defsystem :hyperluminal-db.test
   :name "HYPERLUMINAL-DB.TEST"
-  :version "0.1.0"
+  :version "0.4.0"
   :author "Massimiliano Ghilardi"
   :license "GPLv3"
   :description "test suite for hyperluminal-db"

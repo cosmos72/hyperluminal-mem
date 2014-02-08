@@ -204,17 +204,33 @@ data read and written during each transaction.
 Basic usage
 -----------
 
-Hyperluminal-DB offers the following Lisp types, macros and functions, also documented
-in the sources - remember `(describe 'some-symbol)` at REPL.
+Hyperluminal-DB offers the following Lisp types, constants, macros and functions,
+also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 
 - `MADDRESS` is the type of raw memory pointers.
-   It is currently an alias for `cffi-sys:foreign-pointer`
+   It is currently an alias for the type `cffi-sys:foreign-pointer`
 
-- `MALLOC` allocates raw memory and returns a raw pointer to it.
-   Needed because almost all the functions below operate on raw memory.
+- `MEM-WORD` is the type of a word of raw memory.
+   It is normally autodetected to match the underlying CPU registers,
+   i.e. `mem-word` is normally `(unsigned-byte 32)` on 32-bit systems,
+   `(unsigned-byte 64)` on 64-bit systems, and so on... but it is also possible
+   to override such autodetection and configure it manually.
+   See the section **File Format and ABI** below for details.
 
-   It is actually a simple alias for the function `cffi-sys:%foreign-alloc`
-   and it is equivalent to the `malloc()` function found in C/C++ languages.
+- `+MSIZEOF-WORD+` is a constant equal to the number of bytes in a word.
+   It is autodetected to match the definition of `mem-word`.
+
+- `MEM-SIZE` is a type: it represents the length of a raw memory block,
+   counted in words (not in bytes). Used by all the functions that manipulate
+   raw memory in units of `mem-words` - which means most Hyperluminal-DB functions.
+
+   For the curious, in practice it is `(unsigned-byte 30)` on 32-bit systems,
+   `(unsigned-byte 61)` on 64-bit systems, and so on...
+
+- `(MALLOC n-bytes)` allocates raw memory and returns a raw pointer to it.
+
+   It is actually a simple alias for the function `(cffi-sys:%foreign-alloc n-bytes)`
+   and it is equivalent to the `malloc(n-bytes)` function found in C/C++ languages.
 
    Definition:
 
@@ -223,11 +239,10 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
 
           (the maddress (cffi-sys:%foreign-alloc n-bytes)))
 
-   Remember that the memory returned by `malloc` must be deallocated manually:
+   Remember that, as in C/C++, the memory returned by `malloc` must be deallocated manually:
    call `mfree` on it when no longer needed.
 
-- `MALLOC-WORDS` allocates raw memory and returns it just like `malloc`.
-
+- `(MALLOC-WORDS n-words)` allocates raw memory and returns it just like `malloc`.
    It is usually more handy than `malloc` since almost all Hyperluminal-DB functions
    count and expect memory length in words, not in bytes.
 
@@ -238,10 +253,10 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
 
           (the maddress #| ...implementation... |# ))
 
-
-- `MFREE` deallocates raw memory previously obtained with `malloc-words`, `malloc`
+- `(MFREE ptr)` deallocates raw memory previously obtained with `malloc-words`, `malloc`
    or `cffi-sys:%foreign-alloc`. It is actually a simple alias for the function
-   `cffi-sys:foreign-free` and it is equivalent to the `free()` function found in C/C++ languages.
+   `cffi-sys:foreign-free` and it is equivalent to the `free(ptr)` function
+   found in C/C++ languages.
 
    Definition:
 
@@ -250,8 +265,18 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
 
           (cffi-sys:foreign-free ptr))
 
-- `MSIZE` examines a Lisp value, and tells how many words of raw memory
-   are needed to serialize it.
+- `(WITH-MEM-WORDS (ptr n-words [n-words-var]) &body body)`
+   binds PTR to N-WORDS words of raw memory while executing BODY.
+   The raw memory is automatically deallocated when BODY terminates.
+
+   `with-mem-words` is an alternative to `malloc` and `malloc-words`,
+   useful if you know in advance that the raw memory can be deallocated after BODY finishes.
+   It is a wrapper around the CFFI macro
+   `(cffi-sys:with-foreign-pointer (var size &optional size-var) &body body)`
+   which performs the same task but counts memory size in bytes, not in words.
+
+- `(MSIZE value &optional (index 0))` examines a Lisp value, and tells
+   how many words of raw memory are needed to serialize it.
 
    It is useful to know how large a raw memory block must be
    in order to write a serialized value into it. It is defined as:
@@ -276,10 +301,11 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
    with the advantage that the second and third versions automatically check
    for length overflows and can exploit tail-call optimizations.
 
-   It supports the same types as `MWRITE` below, and can be extended similarly
+   `msize` supports the same types as `MWRITE` below, and can be extended similarly
    to support arbitrary types, see `MSIZE-OBJECT` for details.
    
-- `MWRITE` serializes a Lisp value, writing it into raw memory. It is defined as:
+- `(MWRITE ptr index end-index value)` serializes a Lisp value, writing it into raw memory.
+   It is defined as:
   
         (defun mwrite (ptr index end-index value)
           (declare (type maddress ptr)
@@ -289,8 +315,8 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
             (the mem-size #| ...implementation... |#))
 
    To use it, you need three things beyond the value to serialize:
-   * a pointer to raw memory, obtained for example with one of the functions
-     `malloc-words`, `malloc` or `cffi-sys:%foreign-alloc` described above.
+   * a pointer to raw memory, obtained for example with one of
+     `malloc-words`, `malloc` or `with-raw-mem` described above.
    * the available length (in words) of the raw memory.
      It must be passed as the `end-index` argument
    * the offset (in words) where you want to write the serialized value.
@@ -325,7 +351,8 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
    Finally, it can be easily extended to support arbitrary types,
    see `MWRITE-OBJECT` for details.
 
-- `MREAD` deserializes a value, reading it from raw memory. It is defined as:
+- `(MREAD ptr index end-index)` deserializes a Lisp value, reading it from raw memory.
+   It is defined as:
   
         (defun mread (ptr index end-index)
           (declare (type maddress ptr)
@@ -347,6 +374,67 @@ in the sources - remember `(describe 'some-symbol)` at REPL.
 
 - `MREAD-OBJECT` to be documented...
 
+- `MWRITE-MAGIC` to be documented...
+
+- `MREAD-MAGIC` to be documented...
+
+
+File format and ABI
+-------------------
+  
+By default, Hyperluminal-DB file format and ABI is autodetected to match
+Lisp idea of CFFI-SYS pointers:
+* 32 bit when CFFI-SYS pointers are 32 bit,
+* 64 bit when CFFI-SYS pointers are 64 bit,
+* and so on...
+
+In other words, `mem-word` is normally autodetected to match the width
+of underlying CPU registers (exposed through CFFI-SYS foreign-type :pointer)
+and `+msizeof-word+` is set accordingly.
+
+It is possible to override such autodetection by adding an appropriate entry
+in the global variable `*FEATURES*` **before** compiling and loading Hyperluminal-DB.
+Doing so disables autodetection and either tells Hyperluminal-DB the size
+it should use for `+msizeof-word+` or, in alternative, the type it should use
+for `mem-word`.
+
+For example, to force 64 bit (= 8 bytes) file format and ABI even on 32-bit systems,
+execute the following form before compiling and loading Hyperluminal-DB:
+  (pushnew :hyperluminal-db/word-size/8 *features*)
+
+on the other hand, to force 32 bit (= 4 bytes) file format and ABI,
+execute the form
+  (pushnew :hyperluminal-db/word-size/4 *features*)
+
+in both cases, the Hyperluminal-DB internal function (choose-word-type)
+will recognize the override and define `mem-word` and `+msizeof-word+`
+to match a CFFI unsigned integer type having the specified size
+among the following candidates:
+  :unsigned-char
+  :unsigned-short
+  :unsigned-int
+  :unsigned-long
+  :unsigned-long-long
+In case it does not find a type with the requested size, it will raise an error.
+
+Forcing the same value that would be autodetected is fine and harmless.
+Also, the chosen type must be 32 bits wide or more, but there is no upper limit:
+Hyperluminal-DB is designed to automatically support 64 bits systems,
+128 bit systems, and anything else that will exist in the future.
+It even supports "unusual" configurations where the size of `mem-word`
+is not a power of two (ever heard of 36-bit CPUs?).
+
+For the far future (which arrives surprisingly quickly in software)
+where CFFI-SYS will know about further unsigned integer types,
+it is also possible to explicitly specify the type to use
+by executing a form like
+  (pushnew :hyperluminal-db/word-type/<SOME-CFFI-SYS-TYPE> *features*)
+as for example:
+  (pushnew :hyperluminal-db/word-type/unsigned-long-long *features*)
+
+Hyperluminal-DB will honour such override, intern the type name
+to convert it to a keyword, use it as the definition of `mem-word`,
+and derive `+msizeof-word+` from it.
 
 
 Status
