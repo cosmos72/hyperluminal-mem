@@ -28,6 +28,7 @@ Hyperluminal-DB is designed and optimized for the following scenarios:
 - fairly portable file format, independent from the Lisp implementation.
   File format only depends on endianity (small or big endian)
   and on user's choice between 32 and 64 bit formats.
+  Conversion between small and big endian file format is trivial.
 - optimized for 64 bit systems, where dataset is limited only by `mmap()`
   maximum size (on Linux 3.x, the limit is about 128 terabytes). 
 - usable on 32 bit systems, either retaining 64 bit file format
@@ -36,12 +37,13 @@ Hyperluminal-DB is designed and optimized for the following scenarios:
   - 100 user-defined persistent classes
   - 16 millions instances per user-defined persistent class
   - 256 megabytes storage per user-defined persistent class
-  In both cases, dataset size is limited by `mmap()` maximum size,
-  usually around 1 gigabyte
+  
+  In any case, on 32 bit systems the dataset size is limited by `mmap()`
+  maximum size, usually around 1 gigabyte
 
 ### Latest news, 1st February 2014
 
-Released version 0.1.0. The serialization library works and is in BETA status.
+The serialization library works and is in BETA status.
 
 The memory-mapped database (built on top of the serialization library)
 is in the early-implementation stage, not yet ready for general use.
