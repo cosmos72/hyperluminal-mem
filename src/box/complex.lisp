@@ -31,12 +31,13 @@
 
 (declaim (inline box-words/complex-sfloat))
 
-(defun box-words/complex-sfloat (&optional value)
+(defun box-words/complex-sfloat (value index)
   "Return the number of words needed to store a complex-sfloat VALUE in mmap memory.
 Does not count the space needed by BOX header."
-  (declare (ignore value))
+  (declare (ignore value)
+           (type mem-size index))
 
-  (* 2 (box-words/sfloat)))
+  (mem-size+ index #.(* 2 (box-words/sfloat 0.0 0))))
 
   
 (defun mwrite-box/complex-sfloat (ptr index end-index value)
@@ -85,12 +86,13 @@ Assumes BOX header was already read."
 
 (declaim (inline box-words/complex-dfloat))
 
-(defun box-words/complex-dfloat (&optional value)
+(defun box-words/complex-dfloat (value index)
   "Return the number of words needed to store a complex-dfloat VALUE in mmap memory.
 Does not count the space needed by BOX header."
-  (declare (ignore value))
+  (declare (ignore value)
+           (type mem-size index))
 
-  (* 2 (box-words/dfloat)))
+  (mem-size+ index #.(* 2 (box-words/dfloat 0.0d0 0))))
 
   
 (defun mwrite-box/complex-dfloat (ptr index end-index value)

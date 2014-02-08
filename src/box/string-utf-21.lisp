@@ -27,11 +27,12 @@
 (enable-#?-syntax)
 
 
-(defun box-words/string-utf-21 (string)
+(defun box-words/string-utf-21 (string index)
   "Return the number of words needed to store STRING in memory, not including BOX header."
-  (declare (type string string))
+  (declare (type string string)
+           (type mem-size index))
   ;; 1-word length prefix, and round up required bytes to a whole word
-  (mem-size+1 (ceiling (length string) +characters-per-word+)))
+  (mem-size+ index 1 (ceiling (length string) +characters-per-word+)))
 
 
 
@@ -60,12 +61,16 @@
     `(loop
         for ,char-i from 0 by +characters-per-word+
         for ,word-i from 0 below ,bulk-n-words
-        do (mset-word ,ptr (mem-size+ ,index ,word-i)
+        do (mset-word ,ptr ,index
                       (%bulk-pack-string-utf-21 ,char-func ,string ,char-i))
+          (incf-mem-size ,index)
+
         finally
           (unless (zerop ,tail-n-chars)
-            (mset-word ,ptr (mem-size+ ,index ,bulk-n-words)
-                       (%tail-pack-string-utf-21 ,char-func ,string ,char-i ,tail-n-chars))))))
+            (mset-word ,ptr ,index
+                       (%tail-pack-string-utf-21 ,char-func ,string ,char-i ,tail-n-chars))
+            (incf-mem-size ,index))
+          (return index))))
 
 
 (defun %mwrite-string-utf-21 (ptr index string n-chars)
@@ -86,8 +91,7 @@ ABI: characters will be stored by packing as many as possible into words."
         (simple-string
          (%%mwrite-string-utf-21 schar ptr index string bulk-n-words tail-n-chars))
         (otherwise
-         (%%mwrite-string-utf-21 char ptr index string bulk-n-words tail-n-chars)))
-      t))
+         (%%mwrite-string-utf-21 char ptr index string bulk-n-words tail-n-chars)))))
 
 
 
@@ -108,9 +112,7 @@ ABI: writes string length as mem-int, followed by packed array of characters
     (check-mem-overrun ptr index end-index n-words)
 
     (mset-int ptr index n-chars)
-    (%mwrite-string-utf-21 ptr (mem-size+1 index) string n-chars)
-
-    (mem-size+ index n-words)))
+    (%mwrite-string-utf-21 ptr (mem-size+1 index) string n-chars)))
 
 
 
@@ -154,12 +156,10 @@ Return RESULT and number of words actually read as multiple values."
           (loop while (< char-i n-chars)
              do (setf (schar result char-i) (code-char (logand +character/mask+ word))
                       word   (the mem-word (ash word #.(- +character/bits+)))
-                      char-i (the fixnum (1+ char-i))))))))
+                      char-i (the fixnum (1+ char-i))))
+          (incf (the mem-size index))))))
 
-  (values
-   result
-   (mem-size+ +mem-box/header-words+
-	      (box-words/string-utf-21 result))))
+  (values result index))
 
 
 
@@ -179,6 +179,4 @@ Assumes BOX header was already read."
 
     (let ((string (make-string n-chars :element-type 'character)))
 
-      (%mread-string-utf-21 ptr (mem-size+1 index) string n-chars)
-
-      (values string (mem-size+ index n-words)))))
+      (%mread-string-utf-21 ptr (mem-size+1 index) string n-chars))))

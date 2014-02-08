@@ -26,36 +26,25 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/list (list)
+(defun box-words/list (list index)
   "Return the number of words needed to store LIST in mmap memory, not including BOX header."
   (declare (type list list))
 
-  ;; -1 to store list length
-  (let ((mdetect-size #'mdetect-size)
-	(words-left (1- +mem-box/max-payload-words+)))
-    (declare (type mem-size words-left))
-    
-    ;; count downward: easier to check for overflows
-    (labels
-	((new-words-left (words-left e)
-	   (let ((e-len (the mem-size (funcall mdetect-size e))))
-	     (unless (>= words-left e-len)
-	       (error "HYPERLUMINAL-DB: list too large for object store,
-it requires more space than the maximum supported ~S words"
-		      +mem-box/max-payload-words+ ))
-	     (mem-size- words-left e-len))))
+  ;; +1 to store list length
+  (incf-mem-size index)
 
-      ;; note: list may end with a dotted pair
-      (loop for cons = list then (rest cons)
-	 while (consp cons)
-	 for e = (first cons)
-	 do
-	   (setf words-left (new-words-left words-left e))
+  (let1 mdetect-size #'mdetect-size
+    ;; note: list may end with a dotted pair
+    (loop for cons = list then (rest cons)
+       while (consp cons)
+       for e = (first cons)
+       do
+         (setf index (the mem-size (funcall mdetect-size e index)))
 	 finally
 	   (when cons
-	     (setf words-left (new-words-left words-left cons)))))
+             (setf index (the mem-size (funcall mdetect-size cons index)))))
 
-    (mem-size- +mem-box/max-payload-words+ words-left)))
+    index))
 
        
 
@@ -95,7 +84,7 @@ at (PTR+INDEX)."
 	   ;; dotted pair: store (lognot len)
 	   (setf len (lognot len))))
 
-           ;; finally write list length
+    ;; finally write list length
     (mset-int ptr orig-index len)
     index))
 

@@ -26,25 +26,26 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/pathname (path)
+(defun box-words/pathname (path index)
   "Return the number of words needed to store pathname PATH in mmap memory,
 not including BOX header."
-  (declare (type pathname path))
+  (declare (type pathname path)
+           (type mem-size index))
 
-  (let* ((host (pathname-host path :case :common))
-         (default-host (pathname-host *default-pathname-defaults* :case :common))
+  (let ((mdetect-size #'mdetect-size)
+        (host (pathname-host path :case :common))
+        (default-host (pathname-host *default-pathname-defaults* :case :common)))
 
-         (n-words (+ (mdetect-size (if (eq host default-host) nil host))
-                     (mdetect-size (pathname-device path :case :common))
-                     (mdetect-size (pathname-directory path :case :common))
-                     (mdetect-size (pathname-name path :case :common))
-                     (mdetect-size (pathname-type path :case :common))
-                     (mdetect-size (pathname-version path)))))
-    (unless (<= n-words +mem-box/max-payload-words+)
-      (error "HYPERLUMINAL-DB: pathname too large for object store,
-it requires ~S words, maximum supported is ~S words"
-             (1+ n-words) +mem-box/max-words+))
-    (the mem-size n-words)))
+    (macrolet ((mdetect-size (value index)
+                 `(the mem-size (funcall mdetect-size ,value ,index))))
+      
+      (setf index (mdetect-size (if (eq host default-host) nil host) index)
+            index (mdetect-size (pathname-device path :case :common) index)
+            index (mdetect-size (pathname-directory path :case :common) index)
+            index (mdetect-size (pathname-name path :case :common) index)
+            index (mdetect-size (pathname-type path :case :common) index)
+            index (mdetect-size (pathname-version path) index))
+      index)))
 
 
 

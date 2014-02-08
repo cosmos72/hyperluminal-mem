@@ -26,10 +26,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/hash-table (htable)
+(defun box-words/hash-table (htable index)
   "Return the number of words needed to store hash-table HTABLE in mmap memory,
 not including BOX header."
-  (declare (type hash-table htable))
+  (declare (type hash-table htable)
+           (type mem-size index))
 
   (let ((len (hash-table-count htable)))
     (unless (<= len +most-positive-int+)
@@ -37,29 +38,16 @@ not including BOX header."
 it contains ~S entries, maximum supported is ~S entries"
 	     len +most-positive-int+)))
 
-  ;; -1 to store number of entries
-  (let ((words-left (1- +mem-box/max-payload-words+)))
+  ;; +1 to store number of entries
+  (incf-mem-size index)
 
-    (declare (type mem-size words-left))
-    ;; count downward: easier to check for overflows
+  (let ((mdetect-size #'mdetect-size))
+    (loop for k being the hash-keys in htable using (hash-value v)
+       do
+         (setf index (the mem-size (funcall mdetect-size k index)))
+         (setf index (the mem-size (funcall mdetect-size v index))))
 
-    (let ((mdetect-size #'mdetect-size))
-      (loop for k being the hash-keys in htable using (hash-value v)
-         for k-len = (the mem-size (funcall mdetect-size k))
-         for v-len = (the mem-size (funcall mdetect-size v))
-         do
-           (unless (and (>= words-left k-len)
-                        (progn
-                          (decf-mem-size words-left k-len)
-                          (>= words-left v-len)))
-
-             (error "HYPERLUMINAL-DB: hash-table too large for object store,
-it requires more space than the maximum supported ~S words"
-                    +mem-box/max-payload-words+))
-
-           (decf-mem-size words-left v-len)))
-           
-    (mem-size- +mem-box/max-payload-words+ words-left)))
+    index))
 
   
 
@@ -87,8 +75,8 @@ at (PTR+INDEX)."
 
     (loop for k being the hash-keys in htable using (hash-value v)
        do
-         (incf-mem-size index (funcall mwrite ptr index end-index k))
-         (incf-mem-size index (funcall mwrite ptr index end-index v)))
+         (setf index (the mem-size (funcall mwrite ptr index end-index k)))
+         (setf index (the mem-size (funcall mwrite ptr index end-index v))))
 
     index))
 

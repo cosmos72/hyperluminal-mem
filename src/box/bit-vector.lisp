@@ -26,12 +26,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/bit-vector (vector)
-  "Return the number of words needed to store bit-vector VALUE in mmap memory, not including BOX header."
-  (declare (type bit-vector vector))
-
+(defun box-words/bit-vector (vector index)
+  "Return the number of words needed to store bit-vector VALUE in mmap memory,
+not including BOX header."
+  (declare (type bit-vector vector)
+           (type mem-size index))
   ;; 1-word length prefix, and round up required bytes to a whole word
-  (mem-size+1 (ceiling (length vector) +mem-word/bits+)))
+  (mem-size+ index 1 (ceiling (length vector) +mem-word/bits+)))
   
 
 (defmacro %bit-vector-extract-byte (vector position)

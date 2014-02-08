@@ -28,9 +28,11 @@
 
 (declaim (inline box-words/string-utf-8))
 
-(defun box-words/string-utf-8 (string)
+(defun box-words/string-utf-8 (string index)
   "Return the number of words needed to store STRING in memory, not including BOX header."
-  (declare (type string string))
+  (declare (type string string)
+           (type mem-size index))
+
   (let ((n-bytes 0))
     (declare (type ufixnum n-bytes))
 
@@ -49,7 +51,7 @@
           (%count-utf-8-bytes)))
 
     ;; +1 to store N-CHARS prefix
-    (values (mem-size+1 (ceiling n-bytes +msizeof-word+)))))
+    (mem-size+ index 1 (ceiling n-bytes +msizeof-word+))))
 
 
 (declaim (inline %unsigned->utf-8-word %utf-8-word->unsigned))
@@ -83,6 +85,8 @@
     (values word bits)))
 
 
+(declaim (inline %character->utf-8-word))
+
 (defun %character->utf-8-word (ch)
   (declare (type character ch))
 
@@ -92,41 +96,6 @@
 (defun invalid-utf8-error (byte)
   (declare (type (unsigned-byte 8) byte))
   (error "invalid byte. UTF-8 sequence cannot start with #x~X" byte))
-
-
-(defun %utf-8-word->character (word)
-  (declare (type mem-word word))
-
-  (let ((code 0)
-        (bits 0)
-        (byte0 (logand #xFF word)))
-
-    (cond
-      ((<= byte0 #x7F) (setf code byte0
-                             bits 8))
-      
-      ((<= byte0 #xDF)
-       (setf code (logior (ash (logand #x3F00 word) -8)
-                          (ash (logand #x001F word)  6))
-             bits 16))
-
-      ((<= byte0 #xEF)
-       (setf code (logior (ash (logand #x3F0000 word) -16)
-                          (ash (logand #x003F00 word)  -2)
-                          (ash (logand #x00000F word)  12))
-             bits 24))
-
-      ((<= byte0 #xF7)
-       (setf code (logior (ash (logand #x3F000000 word) -24)
-                          (ash (logand #x003F0000 word) -10)
-                          (ash (logand #x00003F00 word)   4)
-                          (ash (logand #x00000007 word)  18))
-             bits 32))
-
-      (t
-       (invalid-utf8-error byte0)))
-
-    (values (code-char (logand code +character/mask+)) bits)))
 
 
 (defun %utf-8-word->unsigned (word)
@@ -164,11 +133,15 @@
     (values n bits)))
                    
 
+(declaim (inline %utf-8-word->character))
+
 (defun %utf-8-word->character (word)
   (declare (type mem-word word))
 
   (multiple-value-bind (n bits) (%utf-8-word->unsigned word)
     (values (code-char (logand n +character/mask+)) bits)))
+
+
 
 
 (defun %mwrite-string-utf-8 (ptr index end-index string n-chars)

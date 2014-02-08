@@ -28,12 +28,13 @@
     
 
 
-(defun box-words/vector (vector)
+(defun box-words/vector (vector index)
   "Return the number of words needed to store VECTOR in mmap memory,
 not including BOX header."
-  (declare (type (and vector (not (or string base-string bit-vector))) vector))
+  (declare (type (and vector (not (or string base-string bit-vector))) vector)
+           (type mem-size index))
 
-  (box-words/array vector))
+  (box-words/array vector index))
 
 
 (defun mwrite-box/vector (ptr index end-index vector)
@@ -46,20 +47,18 @@ at (PTR+INDEX)."
            (type mem-size index end-index)
 	   (type (and vector (not (or string base-string bit-vector))) vector))
 
-  (let ((mwrite #'mwrite))
+  (check-mem-overrun ptr index end-index 1)
 
-    (check-mem-overrun ptr index end-index 1)
+  (mset-int ptr index (the mem-int (length vector)))
+  (incf-mem-size index)
 
-    (mset-int ptr index (the mem-int (length vector)))
-    (incf-mem-size index)
+  (if (typep vector 'simple-vector)
+      (loop for e across vector do
+           (setf index (mwrite ptr index end-index e)))
+      (loop for e across vector do
+           (setf index (mwrite ptr index end-index e))))
 
-    (if (typep vector 'simple-vector)
-	(loop for e across vector do
-             (setf index (the mem-size (funcall mwrite ptr index end-index e))))
-	(loop for e across vector do
-             (setf index (the mem-size (funcall mwrite ptr index end-index e)))))
-
-    index))
+  index)
 
 
 (defun mread-box/vector (ptr index end-index)
@@ -78,10 +77,9 @@ Assumes BOX header was already read."
 
     (incf-mem-size index)
 
-    (let ((mread #'mread)
-          (vector     (the simple-vector (make-array len))))
+    (let1 vector (the simple-vector (make-array len))
       (loop for i from 0 below len
-	 do (multiple-value-bind (e e-index) (funcall mread ptr index end-index)
+	 do (multiple-value-bind (e e-index) (mread ptr index end-index)
 	      (setf (svref vector i) e
                     index (the mem-size e-index))))
 

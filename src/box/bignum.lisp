@@ -37,18 +37,20 @@ nor the N-WORDS prefix."
     (ceiling (integer-length n) +mem-word/bits+))) ;; round up 
 
 
-(defun box-words/bignum (n)
+(defun box-words/bignum (n index)
   "Return the number of words needed to store bignum N in memory, not including BOX header."
-  (declare (type integer n))
+  (declare (type integer n)
+           (type mem-size index))
 
-  (let ((words (%bignum-words n)))
-    (unless (< words +mem-bignum/max-words+)
-      (error "HYPERLUMINAL-DB: bignum too large for object store,
-it requires ~S words, maximum supported is ~S words"
-             (1+ words) +mem-bignum/max-words+))
+  (let ((words (%bignum-words n))
+        (words-left (mem-size- +mem-bignum/max-words+ index)))
+    (unless (< words words-left)
+      (error "HYPERLUMINAL-DB: not enough free space in object store for bignum:
+it requires ~S words, but only ~S words currently available"
+             (1+ words) words-left))
 
     ;; add 1 word for N-WORDS prefix
-    (the (integer 0 #.+mem-bignum/max-words+) (1+ words))))
+    (mem-size+ index 1 words)))
   
 
 

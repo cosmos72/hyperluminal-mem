@@ -26,18 +26,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/ratio (value)
+(defun box-words/ratio (value index)
   "Return the number of words needed to store a BOX containing ratio VALUE in mmap memory.
 Does not count the space needed by BOX header."
-  (declare (type ratio value))
+  (declare (type ratio value)
+           (type mem-size index))
 
-  (let ((n-words (+ (mdetect-size (numerator value))
-                    (mdetect-size (denominator value)))))
-    (unless (<= n-words +mem-box/max-payload-words+)
-      (error "HYPERLUMINAL-DB: ratio too large for object store,
-it requires ~S words, maximum supported is ~S words"
-             (1+ n-words) +mem-box/max-words+))
-    (the mem-size n-words)))
+  (let1 index (mdetect-size (numerator value) index)
+
+    (mdetect-size (denominator value) index)))
 
 
 (defun mwrite-box/ratio (ptr index end-index value)
@@ -49,9 +46,9 @@ ABI: Writes numerator, then denominator."
            (type mem-size index end-index)
            (type ratio value))
 
-  (let ((mwrite #'mwrite))
-    (setf index (funcall mwrite ptr index end-index (numerator value)))
-    (funcall mwrite ptr index end-index (denominator value))))
+  (let1 index (mwrite ptr index end-index (numerator value))
+
+    (mwrite ptr index end-index (denominator value))))
 
 
 
@@ -61,9 +58,8 @@ Assumes BOX header is already read."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
-  (let ((mread #'mread))
-    (multiple-value-bind (numerator index) (funcall mread ptr index end-index)
-      (multiple-value-bind (denominator index) (funcall mread ptr index end-index)
-        (values
-         (/ (the integer numerator) (the integer denominator))
-         index)))))
+  (multiple-value-bind (numerator index) (mread ptr index end-index)
+    (multiple-value-bind (denominator index) (mread ptr index end-index)
+      (values
+       (/ (the integer numerator) (the integer denominator))
+       index))))

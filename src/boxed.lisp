@@ -89,7 +89,7 @@
 
 (defmacro call-box-func (funcs boxed-type &rest args)
   `(progn
-     (log:debug 'funcall ,boxed-type ,@args)
+     (log.debug 'funcall ,boxed-type ,@args)
      (funcall (get-box-func ,funcs ,boxed-type) ,@args)))
 
 
@@ -144,17 +144,18 @@
 
 (declaim (inline mdetect-box-size))
 
-(defun mdetect-box-size (value &optional (boxed-type (mdetect-box-type value)))
+(defun mdetect-box-size (value &optional (index 0) (boxed-type (mdetect-box-type value)))
   "Return the number of words needed to store boxed VALUE in memory,
 also including BOX header.
 Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
-  (declare (type mem-box-type boxed-type))
+  (declare (type mem-size index)
+           (type mem-box-type boxed-type))
 
   (log.trace value boxed-type)
 
-  (mem-size+ +mem-box/header-words+
-	     (call-box-func +mdetect-box-size-funcs+ boxed-type value)))
+  (call-box-func +mdetect-box-size-funcs+ boxed-type value
+                 (mem-size+ +mem-box/header-words+ index)))
 
 
 (declaim (inline mdetect-box-size-rounded-up))
@@ -298,18 +299,17 @@ Return the boxed value."
 ;;;; mid-level functions accepting both boxed and unboxed values             ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun mdetect-size (value)
+(defun mdetect-size (value &optional (index 0))
   "Compute and return the number of CPU words needed to store VALUE.
 If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
 to DETECT-BOX-N-WORDS.
 Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
-  (the mem-size
-    (if (is-unboxed? value)
-        1
-        (if-bind box-type (mdetect-box-type value)
-            (mdetect-box-size value box-type)
-            (mdetect-obj-size value #'mdetect-size 0)))))
+   (if (is-unboxed? value)
+       (mem-size+1 index)
+       (if-bind box-type (mdetect-box-type value)
+           (mdetect-box-size value index box-type)
+           (mdetect-obj-size value #'mdetect-size index))))
 
 
 (defun mdetect-size-rounded-up (value)

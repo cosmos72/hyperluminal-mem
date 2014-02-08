@@ -375,7 +375,7 @@ but only ~S word~P available at that location"
 
 
 ;; kind of forward declaration for (mdetect-size) defined in boxed.lisp
-(declaim (ftype (function (t) (values mem-size &optional))
+(declaim (ftype (function (t &optional mem-size) (values mem-size &optional))
 		mdetect-size)
 	 (notinline mdetect-size))
 

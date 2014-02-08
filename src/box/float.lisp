@@ -27,15 +27,17 @@
 
 (declaim (inline box-words/sfloat box-words/dfloat))
 
-(defun box-words/sfloat (&optional value)
+(defun box-words/sfloat (value index)
   "Return the number of words needed to store single-float VALUE in memory, not including BOX header."
-  (declare (ignore value))
-  #.(ceiling +msizeof-sfloat+ +msizeof-word+)) ;; round up
+  (declare (ignore value)
+           (type mem-size index))
+  (mem-size+ index #.(ceiling +msizeof-sfloat+ +msizeof-word+))) ;; round up
 
-(defun box-words/dfloat (&optional value)
+(defun box-words/dfloat (value index)
   "Return the number of words needed to store a BOX containing double-float VALUE in memory."
-  (declare (ignore value))
-  #.(ceiling +msizeof-dfloat+ +msizeof-word+)) ;; round up
+  (declare (ignore value)
+           (type mem-size index))
+  (mem-size+ index #.(ceiling +msizeof-dfloat+ +msizeof-word+))) ;; round up
   
 
 

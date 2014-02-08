@@ -55,7 +55,7 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
 
 (defmacro call-mdetect-size1 (value)
   "WARNING: this macro expands references to the hard-coded symbols MDETECT-SIZE-FUNC INDEX"
-  `(incf index (the mem-size (funcall mdetect-size-func ,value))))
+  `(setf index (the mem-size (funcall mdetect-size-func ,value))))
 
 
 (defmacro call-mdetect-size (value &rest more-values)
@@ -113,7 +113,7 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
 
 
 
-(defun mdetect-obj-size (object mdetect-size-func index)
+(defun mdetect-obj-size (object mdetect-size-func &optional (index 0))
   "Compute and return the number of memory words needed to serialize OBJECT,
 including its header"
   (declare (type function mdetect-size-func)

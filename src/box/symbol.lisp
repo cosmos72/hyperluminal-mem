@@ -27,13 +27,17 @@
 
 
 
-(defun %package-words (pkg)
+(defun %package-words (pkg index)
   "Return the number of words needed to store package PKG in mmap memory."
-  (if (or (eq pkg +package-keyword+)
+
+  (if (or (eq pkg nil)
+          (eq pkg +package-keyword+)
           (eq pkg +package-common-lisp+)
           (eq pkg +package-common-lisp-user+))
-      1
-      (mdetect-box-size (package-name pkg))))
+      ;; unboxed package reference
+      (incf-mem-size index)
+      ;; untagged package name: mem-int length, then utf-8 chars
+      (box-words/string-utf-8 (package-name pkg) index)))
 
 
 (declaim (inline %mwrite-package %mread-package))
@@ -47,21 +51,20 @@ ABI: package is stored as package reference if possible, otherwise as package na
            (type mem-size index end-index)
            (type (or null package) pkg))
 
-  (let ((val +mem-pkg/common-lisp+))
+  (let ((tag +mem-tag/package+)
+        (val +mem-pkg/common-lisp+))
     (cond
-      ((eq pkg nil)
-       (mset-symbol-ref ptr index +mem-sym/nil+)
-       (return-from %mwrite-package (mem-size+1 index)))
-
       ((eq pkg +package-keyword+)          (setf val +mem-pkg/keyword+))
       ((eq pkg +package-common-lisp+))
       ((eq pkg +package-common-lisp-user+) (setf val +mem-pkg/common-lisp-user+))
 
+      ((eq pkg nil)                        (setf tag +mem-tag/symbol+ 
+                                                 val +mem-sym/nil+))
       (t
        (return-from %mwrite-package
-         (mwrite ptr index end-index (package-name pkg)))))
+         (mwrite-box/string-utf-8 ptr index end-index (package-name pkg)))))
 
-    (mset-fulltag-and-value ptr index +mem-tag/package+ val)
+    (mset-fulltag-and-value ptr index tag val)
     (mem-size+1 index)))
 
 
@@ -73,67 +76,61 @@ ABI: package is stored as package reference if possible, otherwise as package na
   (declare (type maddress ptr)
            (type mem-size index end-index))
 
-  (multiple-value-bind (value index) (mread ptr index end-index)
-    (values
-     (cond
-       ((eq value nil)                        nil)
-       ((eq value +mem-pkg/keyword+)          +package-keyword+)
-       ((eq value +mem-pkg/common-lisp+)      +package-common-lisp+)
-       ((eq value +mem-pkg/common-lisp-user+) +package-common-lisp-user+)
-       (t                                     (find-package value)))
-     index)))
+  (bind-fulltag-and-value (fulltag value) (ptr index)
+    (if (= +mem-tag/symbol+ fulltag)
+        (values
+         (ecase value
+           (#.+mem-pkg/keyword+          +package-keyword+)
+           (#.+mem-pkg/common-lisp+      +package-common-lisp+)
+           (#.+mem-pkg/common-lisp-user+ +package-common-lisp-user+))
+         (mem-size+1 index))
+       
+        (mread-box/string-utf-8 ptr index end-index))))
 
 
-(defun box-words/symbol (sym)
+(defun box-words/symbol (sym index)
   "Return the number of words needed to store symbol SYM in mmap memory.
 Does not count the space needed by BOX header."
-  (declare (type symbol sym))
+  (declare (type symbol sym)
+           (type mem-size index))
 
   ;; assume symbol does NOT have predefined representation
 
-  (let* ((pkg (symbol-package sym))
-         (pkg-words (%package-words pkg))
-         (sym-words (mdetect-box-size (symbol-name sym)))
-         (words (mem-size+ pkg-words sym-words)))
-
-    (unless (<= words +mem-box/max-payload-words+)
-      (error "HYPERLUMINAL-DB: symbol too long for object store,
-it requires ~S words, maximum supported is ~S words" words +mem-box/max-payload-words+))
-
-    (the mem-size words)))
-
+  (let1 index (%package-words (symbol-package sym) index)
+    (box-words/string-utf-8   (symbol-name    sym) index)))
 
 
 (defun mwrite-box/symbol (ptr index end-index sym)
   "Write symbol SYM into the memory starting at (PTR+INDEX).
 Return INDEX pointing to immediately after words written.
 
-ABI: symbol is stored as symbol reference if possible,
-otherwise as package followed by symbol name."
+ABI: symbol is stored as package followed by symbol name.
+To store symbol as unboxed reference, use MSET-UNBOXED or MWRITE."
   (declare (type maddress ptr)
            (type mem-size index end-index)
            (type symbol sym))
 
   ;; assume symbol does NOT have predefined representation
+  (setf index (%mwrite-package ptr index end-index (symbol-package sym)))
 
-  (let* ((pkg (symbol-package sym))
-         (new-index (%mwrite-package ptr index end-index pkg)))
-
-    (mwrite ptr new-index end-index (symbol-name sym))))
+  (mwrite-box/string-utf-8 ptr index end-index (symbol-name sym)))
+    
 
 
 (defun mread-box/symbol (ptr index end-index)
   "Read a symbol from the memory starting at (PTR+INDEX) and return it.
 Return the symbol and the INDEX pointing to immediately after the words read.
+Assumes BOX header is already read.
 
-Assumes BOX header is already read."
+ABI: symbol is assumed to be stored as package followed by symbol name.
+To read symbol stored as unboxed reference, use MGET-UNBOXED or MREAD."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
   ;; assume symbol does NOT have predefined representation
 
   (multiple-value-bind (pkg index) (%mread-package ptr index end-index)
-    (multiple-value-bind (sym-name index) (mread ptr index end-index)
+    (multiple-value-bind (sym-name index) (mread-box/string-utf-8 ptr index end-index)
       (values
        (if pkg
            (intern sym-name pkg)

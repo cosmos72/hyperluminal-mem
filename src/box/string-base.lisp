@@ -28,12 +28,13 @@
 
 (declaim (inline box-words/base-string))
 
-(defun box-words/base-string (string)
+(defun box-words/base-string (string index)
   "Return the number of words needed to store base-string STRING in mmap memory,
 not including BOX header words."
-  (declare (type base-string string))
+  (declare (type base-string string)
+           (type mem-size index))
   ;; 1-word length prefix, and round up required bytes to a whole word
-  (mem-size+1 (ceiling (length string) +msizeof-word+)))
+  (mem-size+ index 1 (ceiling (length string) +msizeof-word+)))
 
 
 (declaim (inline %mwrite-base-string))
