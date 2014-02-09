@@ -73,7 +73,7 @@
            (mwrite-mread-test ptr index end-index (- x))))))
 
 (test bignum
-  (bignum-test (* 50 +msizeof-word+)))
+  (bignum-test 400))
 
 
 (defparameter *tree*

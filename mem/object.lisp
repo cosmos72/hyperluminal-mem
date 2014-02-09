@@ -146,7 +146,7 @@ The available memory ends immediately before (+ PTR END-INDEX)."
          
     (when (> index2 end-index)
       (error "HYPERLUMINAL-DB internal error!
-wrote ~S word~P at address (+ ~S ~S),
+wrote ~S word~P at address ~S + ~S,
 but only ~S words were available at that location.
 Either this is a bug in hyperluminal-db, or some object
 was concurrently modified while being written"

@@ -104,35 +104,35 @@ Return BOX and BOXED-TYPE as multiple values"
 
 
 (defun box-type-error (ptr index boxed-type)
-  (error "the object at address (+ ~S ~S) declares to have type ~S,
+  (error "the object at address ~S + ~S declares to have type ~S,
 which is not in the valid range ~S..~S for ~S"
          ptr index boxed-type +mem-box/first+ +mem-box/last+ 'boxed-type))
 
 (defun mem-length-error (ptr index end-index n-words)
   (declare (type integer index end-index))
   (let ((available-words (- end-index index)))
-    (error "the object at address (+ ~S ~S) declares to be ~S word~P long,
+    (error "the object at address ~S + ~S declares to be ~S word~P long,
 but only ~S word~P available at that location"
            ptr index n-words n-words available-words available-words)))
 
 (defun mem-overrun-error (ptr index end-index n-words)
   (declare (type integer index end-index))
   (let ((available-words (- end-index index)))
-    (error "attempt to write ~S word~P at address (+ ~S ~S),
+    (error "attempt to write ~S word~P at address ~S + ~S,
 but only ~S word~P available at that location"
            n-words n-words ptr index available-words available-words)))
 
 (defun array-rank-error (ptr index array-type rank max-rank)
   (declare (type symbol array-type)
            (type integer index rank max-rank))
-  (error "the ~S at address (+ ~S ~S) declares to have
+  (error "the ~S at address ~S + ~S declares to have
 ~S dimensions, which is outside the supported rank range 0...~S"
          array-type ptr index rank max-rank))
 
 (defun array-length-error (ptr index array-type length max-length)
   (declare (type symbol array-type)
            (type integer index length max-length))
-  (error "the ~S at address (+ ~S ~S) declares to contain
+  (error "the ~S at address ~S + ~S declares to contain
 ~S elements, which is outside the supported length range 0...~S"
          array-type ptr index length max-length))
 
