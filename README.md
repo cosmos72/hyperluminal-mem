@@ -25,6 +25,8 @@ Hyperluminal-DB is designed and optimized for the following scenarios:
     practice.
     The speed difference is largely due to the need to make hardware
     transactions compatible with software ones.
+- designed for safety: it can be used on untrusted and possibly malicious data,
+  as for example serialized packets or files received from the internet.
 - fairly portable file format, independent from the Lisp implementation.
   File format only depends on endianity (small or big endian)
   and on user's choice between 32 and 64 bit formats.
@@ -41,7 +43,14 @@ Hyperluminal-DB is designed and optimized for the following scenarios:
   In any case, on 32 bit systems the dataset size is limited by `mmap()`
   maximum size, usually around 1 gigabyte
 
-### Latest news, 1st February 2014
+### Latest news, 9th February 2014
+
+Released version 0.5.0.
+
+The serialization library is tested, documented and ready to use.
+It may still contain some rough edges and small bugs.
+
+### News, 1st February 2014
 
 The serialization library works and is in BETA status.
 
@@ -465,6 +474,16 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 
 - `MREAD-MAGIC` to be documented...
 
+- `(HLMEM-VERSION)` is a function that returns the current version of
+  the serialization library, implemented by the `HYPERLUMINAL-MEM` package.
+  The returned value is a list having the form `'(major minor patch)`
+  as for example `'(0 5 0)`
+
+- `(HLDB-VERSION)` is a function that returns the current version of
+  the memory-mapped database library, implemented by the `HYPERLUMINAL-DB`
+  package. The returned value is a list having the form `'(major minor patch)`
+  as for example `'(0 5 0)`
+
 
 File format and ABI
 -------------------
@@ -535,7 +554,7 @@ As of February 2014, Hyperluminal-DB is being written by Massimiliano Ghilardi
 and it is considered by the author to be in BETA status.
 
 The serialization/deserialization library is usable, tested and documented,
-but it may still contain some rough edges or minor bugs.
+but it may still contain some rough edges and minor bugs.
 
 On the other hand, the memory-mapped database (built on top of the serialization library)
 is in the early-implementation stage, not yet ready for general use.
