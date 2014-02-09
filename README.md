@@ -371,8 +371,8 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    `mread` supports the same types as `mwrite` and it can be extended similarly,
    see `MREAD-OBJECT` and `MWRITE-OBJECT` for details.
 
-- `(MSIZE-OBJECT instance index)` is a generic function that examines a Lisp object
-   and tells how many words of raw memory are needed to serialize it.
+- `(MSIZE-OBJECT object index)` is a generic function that examines a user-defined
+   Lisp object and tells how many words of raw memory are needed to serialize it.
 
    Programmers can extend Hyperluminal-DB by defining specialized methods for it,
    see `MWRITE-OBJECT` for details.
@@ -383,15 +383,15 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    Programmers can extend Hyperluminal-DB by defining specialized methods for it,
    see `MWRITE-OBJECT` for details.
 
-- `(MWRITE-OBJECT instance ptr index end-index)` is a generic function
+- `(MWRITE-OBJECT object ptr index end-index)` is a generic function
    that serializes a user-defined Lisp object, writing it into raw memory.
 
    Programmers can extend Hyperluminal-DB by defining specialized methods for
-   `msize-object` `mwrite-object` and `mread-object`. Such methods are invoked
+   `msize-object`, `mwrite-object` and `mread-object`. Such methods are invoked
    automatically by `msize`, `mwrite` and `mread` when they encounter a user-defined object,
    i.e. an instance of structure-object or standard-object or their subclasses.
 
-   The task of `msize-object` `mwrite-object` and `mread-object` is relatively
+   The task of `msize-object`, `mwrite-object` and `mread-object` is relatively
    straightforward: they are supposed to cycle through the relevant instance slots
    (or accessors) and recursively call `msize`, `mwrite` or `mread` on each slot.
    
@@ -402,7 +402,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
            (y :initarg :y :initform 0.0 :accessor point3d-y)
            (z :initarg :z :initform 0.0 :accessor point3d-z)))
 
-   then a reasonable specialization of `msize-object` can be:
+   then a reasonable specialization of `msize-object` is:
     
         (defmethod msize-object ((p point3d) index)
           (let* ((index-x (msize (point3d-x p) index))
@@ -431,13 +431,13 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
                  (index-z (mwrite (point3d-z p) ptr index-y end-index)))
              index-z))
 
-   which uses the same mechanism to compute the serialized value total size.
+   which uses the same `index`-passing mechanism to compute the serialized value total size.
    Again a shorter, slightly automagic alternative is to use the macro `mwrite*`
    which expands to multiple calls of `mwrite` and correctly passes around the
    intermediate `index` values:
 
-       (defmethod mwrite-object ((p point3d) ptr index end-index)
-         (mwrite* ptr index end-index (point3d-x p) (point3d-y p) (point3d-z p)))
+        (defmethod mwrite-object ((p point3d) ptr index end-index)
+          (mwrite* ptr index end-index (point3d-x p) (point3d-y p) (point3d-z p)))
 
    Defining `mread-object` is slightly more complicated, for two reasons:
    first, it also needs to instantiate an appropriate object and fill its slots
@@ -445,15 +445,15 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 
    The result is a painstaking nest of `multiple-value-bind`:
    
-       (defmethod mread-object ((type (eql 'point3d)) ptr index end-index &key)
-         (multiple-value-bind (x index-x) (mread ptr index end-index)
-           (multiple-value-bind (y index-y) (mread ptr index-x end-index)
-             (multiple-value-bind (z index-z) (mread ptr index-y end-index)
-               (values
-                 (make-instance 'point3d :x x :y y :z z)
-                  index-z)))))
+        (defmethod mread-object ((type (eql 'point3d)) ptr index end-index &key)
+          (multiple-value-bind (x index-x) (mread ptr index end-index)
+            (multiple-value-bind (y index-y) (mread ptr index-x end-index)
+              (multiple-value-bind (z index-z) (mread ptr index-y end-index)
+                (values
+                  (make-instance 'point3d :x x :y y :z z)
+                   index-z)))))
    
-   And `with-mread*` macro comes to the rescue, removing all the boilerplate:
+   The `with-mread*` macro comes to the rescue, removing all the boilerplate:
 
         (defmethod mread-object ((type (eql 'point3d)) ptr index end-index &key)
           (with-mread* (x y z new-index) (ptr index end-index)
