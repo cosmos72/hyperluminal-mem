@@ -302,8 +302,9 @@ Return the boxed value."
 (defun msize (value &optional (index 0))
   "Compute and return the number of CPU words needed to store VALUE.
 If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
-to DETECT-BOX-N-WORDS.
+to MSIZE-BOX or, for user-defined types, to MSIZE-OBJECT.
 Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
+  (declare (type mem-size index))
 
    (if (is-unboxed? value)
        (mem-size+1 index)
@@ -312,13 +313,14 @@ Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
            (msize-obj value #'msize index))))
 
 
-(defun msize-rounded-up (value)
+(defun msize-rounded-up (value &optional (index 0))
   "Compute and return the number of CPU words needed to store VALUE.
 If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
-to DETECT-BOX-N-WORDS.
+to MSIZE-BOX or, for user-defined types, to MSIZE-OBJECT.
 Also rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
+  (declare (type mem-size index))
 
-  (round-up-size (msize value)))
+  (round-up-size (msize value index)))
 
 
 ;; (declaim (ftype (...) mwrite)) is in box.lisp

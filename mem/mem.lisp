@@ -430,6 +430,7 @@ The obtained memory must be freed manually: call MFREE on it when no longer need
 
 (defun mfree (ptr)
   "Deallocate a block of raw memory previously obtained with MALLOC."
+  (declare (type maddress ptr))
   (cffi-sys:foreign-free ptr))
 
 

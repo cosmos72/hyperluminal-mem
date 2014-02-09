@@ -106,6 +106,7 @@ then open a REPL and run:
 
     CL-USER> (ql:quickload "hyperluminal-db")
     ;; lots of output...
+    CL-USER> (use-package :hlmem)
     CL-USER> (use-package :hldb)
      
 If all goes well, this will load Hyperluminal-DB and its dependencies:
@@ -153,8 +154,8 @@ From the REPL, run:
 
     CL-USER> (fiveam:run! 'hyperluminal-db.test:suite)
     ;; even more output...
-     Did 75 checks.
-        Pass: 75 (100%)
+     Did 2505 checks.
+        Pass: 2505 (100%)
         Skip: 0 ( 0%)
         Fail: 0 ( 0%)
         
@@ -191,7 +192,7 @@ perform input/output.
 The result is that Hyperluminal-DB is able to perform **transactional**
 input/output while running hardware memory transactions - an apparent
 paradox - in an extremely specific but significant case: reading and
-writing mmap() memory.
+writing memory-mapped files.
 
 This allows reaching extremely high transaction speeds: the only hard limit
 is the hardware - an Intel Core i7 4770 peaks at **400 millions** transactions
@@ -400,10 +401,12 @@ of `mem-word`, in alternative, the CFFI-SYS type it should use for `mem-word`.
 
 For example, to force 64 bit (= 8 bytes) file format and ABI even on 32-bit systems,
 execute the following form before compiling and loading Hyperluminal-DB:
+
     (pushnew :hyperluminal-db/word-size/8 *features*)
 
 on the other hand, to force 32 bit (= 4 bytes) file format and ABI,
 execute the form
+
     (pushnew :hyperluminal-db/word-size/4 *features*)
 
 in both cases, the Hyperluminal-DB internal function (choose-word-type)
