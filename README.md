@@ -413,11 +413,12 @@ in both cases, the Hyperluminal-DB internal function (choose-word-type)
 will recognize the override and define `mem-word` and `+msizeof-word+`
 to match a CFFI-SYS unsigned integer type having the specified size
 among the following candidates:
-    :unsigned-char
-    :unsigned-short
-    :unsigned-int
-    :unsigned-long
-    :unsigned-long-long
+* :unsigned-char
+* :unsigned-short
+* :unsigned-int
+* :unsigned-long
+* :unsigned-long-long
+
 In case it does not find a type with the requested size, it will raise an error.
 
 Forcing the same value that would be autodetected is fine and harmless.
