@@ -439,7 +439,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
         (defmethod mwrite-object ((p point3d) ptr index end-index)
           (mwrite* ptr index end-index (point3d-x p) (point3d-y p) (point3d-z p)))
 
-   Defining `mread-object` is slightly more complicated, for two reasons:
+   Defining `mread-object` specialization is slightly more complicated, for two reasons:
    first, it also needs to instantiate an appropriate object and fill its slots
    and second, `mread` and `mread-object` return multiple values.
 
@@ -482,9 +482,9 @@ and `+msizeof-word+` is set accordingly.
 It is possible to override such autodetection by adding an appropriate entry
 in the global variable `*FEATURES*` **before** compiling and loading Hyperluminal-DB.
 Doing so disables autodetection and either tells Hyperluminal-DB the desired size
-of `mem-word`, in alternative, the CFFI-SYS type it should use for `mem-word`.
+of `mem-word` or, in alternative, the CFFI-SYS type it should use for `mem-word`.
 
-For example, to force 64 bit (= 8 bytes) file format and ABI even on 32-bit systems,
+For example, to force 64 bit (= 8 bytes) file format and ABI,
 execute the following form before compiling and loading Hyperluminal-DB:
 
     (pushnew :hyperluminal-db/word-size/8 *features*)
@@ -507,7 +507,7 @@ among the following candidates:
 In case it does not find a type with the requested size, it will raise an error.
 
 Forcing the same value that would be autodetected is fine and harmless.
-Also, the chosen type must be 32 bits wide or more, but there is no upper limit:
+Also, the chosen type must be at least 32 bits wide, but there is no upper limit:
 Hyperluminal-DB is designed to automatically support 64 bits systems,
 128 bit systems, and anything else that will exist in the future.
 It even supports 'unusual' configurations where the size of `mem-word`
@@ -534,8 +534,8 @@ Status
 As of February 2014, Hyperluminal-DB is being written by Massimiliano Ghilardi
 and it is considered by the author to be in BETA status.
 
-The serialization/deserialization library is in BETA status,
-i.e. usable but not yet polished nor thoroughly tested.
+The serialization/deserialization library is usable, tested and documented,
+but it may still contain some rough edges or minor bugs.
 
 On the other hand, the memory-mapped database (built on top of the serialization library)
 is in the early-implementation stage, not yet ready for general use.
