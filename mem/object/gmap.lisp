@@ -26,39 +26,32 @@
 
 
 
-(defmethod msize-object ((obj gmap) msize-func index)
-  (declare (type function msize-func)
-           (type mem-size index))
+(defmethod msize-object ((obj gmap) index)
+  (declare (type mem-size index))
 
-  (setf index (call-msize (msize-func index)
-                          (gmap-pred obj)
-                          (gmap-count obj)))
+  (setf index (msize* index (gmap-pred obj) (gmap-count obj)))
   (do-gmap (key value) obj
-    (setf index (call-msize (msize-func index) key value)))
+    (setf index (msize* index key value)))
   index)
 
 
-(defmethod mwrite-object ((obj gmap) mwrite-func ptr index end-index)
-  (declare (type function mwrite-func)
-           (type mem-size index end-index))
+(defmethod mwrite-object ((obj gmap) ptr index end-index)
+  (declare (type mem-size index end-index))
 
-  (setf index (call-mwrite (mwrite-func ptr index end-index)
-                           (gmap-pred obj)
-                           (gmap-count obj)))
+  (setf index (mwrite* ptr index end-index (gmap-pred obj) (gmap-count obj)))
   (do-gmap (key value) obj
-    (setf index (call-mwrite (mwrite-func ptr index end-index) key value)))
+    (setf index (mwrite* ptr index end-index key value)))
   index)
 
 
-(defmethod mread-object ((obj gmap) mread-func ptr index end-index &key)
+(defmethod mread-object ((obj gmap) ptr index end-index &key)
   "Warning: this method expects the caller to have already read the serialized :PRED argument and instantiated a GMAP or a subclass"
-  (declare (type function mread-func)
-           (type mem-size index end-index))
+  (declare (type mem-size index end-index))
 
-  (multiple-bind-mread (index size) (mread-func ptr index end-index)
+  (multiple-value-bind (size index) (mread ptr index end-index)
     (check-type size mem-uint)
     (dotimes (i size)
-      (multiple-bind-mread (new-index key value) (mread-func ptr index end-index)
+      (multiple-value-bind-chain2* (key value new-index) (mread ptr index end-index)
         (set-gmap obj key value)
         (setf index new-index)))
   
@@ -70,17 +63,21 @@
 ;; it would allow a malicious remote user to execute arbitrary code!
 (define-constant-once +gmap-trusted-pred-list+ '(< fixnum< char< string<))
 
-(defun mread-object/gmap (type mread-func ptr index end-index)
+(defun mread-object/gmap (type ptr index end-index)
   (declare (type symbol type)
-           (type function mread-func)
+           (type maddress ptr)
            (type mem-size index end-index))
 
-  (multiple-bind-mread (index pred) (mread-func ptr index end-index)
+  (multiple-value-bind (pred index) (mread ptr index end-index)
+
     (unless (member pred +gmap-trusted-pred-list+)
       (error "HYPERLUMINAL-DB: refusing to use untrusted ~S ~S value ~S,
 expecting one of the trusted values ~S" type :pred pred +gmap-trusted-pred-list+))
+
+    (mread-object (new type :pred pred) ptr index end-index)))
+
+
                
-    (mread-object (new type :pred pred) mread-func ptr index end-index)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -88,20 +85,18 @@ expecting one of the trusted values ~S" type :pred pred +gmap-trusted-pred-list+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defmethod mread-object ((type (eql 'rbmap)) mread-func ptr index end-index &key)
-  (declare (type function mread-func)
-           (type mem-size index end-index))
+(defmethod mread-object ((type (eql 'rbmap)) ptr index end-index &key)
+  (declare (type mem-size index end-index))
 
-  (mread-object/gmap type mread-func ptr index end-index))
+  (mread-object/gmap type ptr index end-index))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;   read TMAP                                                             ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmethod mread-object ((type (eql 'tmap)) mread-func ptr index end-index &key)
-  (declare (type function mread-func)
-           (type mem-size index end-index))
+(defmethod mread-object ((type (eql 'tmap)) ptr index end-index &key)
+  (declare (type mem-size index end-index))
 
-  (mread-object/gmap type mread-func ptr index end-index))
+  (mread-object/gmap type ptr index end-index))
 

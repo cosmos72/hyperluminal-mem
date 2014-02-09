@@ -23,19 +23,18 @@
 ;;;;    dispatchers for object types                                         ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
-(defgeneric msize-object (object msize-func index)
+(defgeneric msize-object (object index)
   (:documentation
    "Compute and return the number of memory words needed to serialize OBJECT,
 not including its header"))
 
-(defgeneric mwrite-object (object mwrite-func ptr index end-index)
+(defgeneric mwrite-object (object ptr index end-index)
   (:documentation
    "Serialize OBJECT by writing it into the memory starting at (+ PTR INDEX).
 Assumes OBJECT header was already written.
 The available memory ends immediately before (+ PTR END-INDEX)."))
 
-(defgeneric mread-object (type mread-func ptr index end-index &key)
+(defgeneric mread-object (type ptr index end-index &key)
   (:documentation
    "Deserialize an object of type TYPE by reading it from the memory starting at (+ PTR INDEX).
 Assumes OBJECT header was already read.
@@ -53,55 +52,35 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
 
 
 
-(defmacro call-msize1 ((msize-func index) value)
-  `(the (values mem-size &optional)
-     (funcall ,msize-func ,value ,index)))
-
-(defmacro call-msize ((msize-func index) value &rest more-values)
-  "Warning: this macro expands multiple references to MSIZE-FUNC"
+(defmacro msize* (index value &rest more-values)
   (if more-values
       (with-gensym new-index
-        `(let1 ,new-index (call-msize1 (,msize-func ,index) ,value)
-           (call-msize (,msize-func ,new-index) ,@more-values)))
-      `(call-msize1 (,msize-func ,index) ,value)))
+        `(let1 ,new-index (msize ,value ,index)
+           (msize* ,new-index ,@more-values)))
+      `(the (values mem-size &optional)
+         (msize ,value ,index))))
   
 
 
-(defmacro call-mwrite1 ((mwrite-func ptr index end-index) value)
-  `(the (values mem-size &optional)
-     (funcall ,mwrite-func ,ptr ,index ,end-index ,value)))
-
-
-(defmacro call-mwrite ((mwrite-func ptr index end-index) value &rest more-values)
-  "Warning: this macro expands multiple references to MWRITE-FUNC PTR and END-INDEX"
+(defmacro mwrite* (ptr index end-index value &rest more-values)
+  "Warning: this macro expands multiple references to PTR and END-INDEX"
   (if more-values
       (with-gensym new-index
-        `(let1 ,new-index (call-mwrite1 (,mwrite-func ,ptr ,index ,end-index) ,value)
-           (call-mwrite (,mwrite-func ,ptr ,new-index ,end-index) ,@more-values)))
-      `(call-mwrite1 (,mwrite-func ,ptr ,index ,end-index) ,value)))
+        `(let1 ,new-index (mwrite ,ptr ,index ,end-index ,value)
+           (mwrite* ,ptr ,new-index ,end-index ,@more-values)))
+      `(mwrite ,ptr ,index ,end-index ,value)))
 
 
 
-(defmacro call-mread1 ((mread-func ptr index end-index))
-  `(the (values t mem-size &optional)
-     (funcall ,mread-func ,ptr ,index ,end-index)))
-
-
-(defmacro multiple-bind-mread1 ((new-index var) (mread-func ptr index end-index) &body body)
-  `(multiple-value-bind (,var ,new-index)
-       (call-mread1 (,mread-func ,ptr ,index ,end-index))
-     ,@body))
-
-
-(defmacro multiple-bind-mread ((new-index var &rest more-vars)
-                               (mread-func ptr index end-index) &body body)
-  "Warning: this macro expands multiple references to MREAD-FUNC PTR and END-INDEX"
+(defmacro multiple-value-bind-chain2* ((var1 var2 &rest more-vars)
+                                       (func arg1 arg2 &rest more-args) &body body)
+  "Warning: this macro expands multiple references to FUNC, ARG1 and MORE-ARGS"
   (if more-vars
-      (with-gensym tmp-index
-        `(multiple-bind-mread1 (,tmp-index ,var) (,mread-func ,ptr ,index ,end-index)
-           (multiple-bind-mread (,new-index ,@more-vars) (,mread-func ,ptr ,tmp-index ,end-index)
-               ,@body)))
-      `(multiple-bind-mread1 (,new-index ,var) (,mread-func ,ptr ,index ,end-index)
+      (with-gensym tmp
+        `(multiple-value-bind (,var1 ,tmp) (,func ,arg1 ,arg2 ,@more-args)
+           (multiple-value-bind-chain2* (,var2 ,@more-vars) (,func ,arg1 ,tmp ,@more-args)
+             ,@body)))
+      `(multiple-value-bind (,var1 ,var2) (,func ,arg1 ,arg2 ,@more-args)
          ,@body)))
 
 
@@ -113,32 +92,29 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
 
 
 
-(defun msize-obj (object msize-func &optional (index 0))
+(defun msize-obj (object &optional (index 0))
   "Compute and return the number of memory words needed to serialize OBJECT,
 including its header"
-  (declare (type function msize-func)
-           (type mem-size index))
+  (declare (type mem-size index))
 
   (incf index +mem-box/header-words+)
 
-  (let1 index (call-msize (msize-func index) (type-of object))
+  (let1 index (msize (type-of object) index)
     (the (values mem-size &optional)
-      (msize-object object msize-func index))))
+      (msize-object object index))))
 
 
-(defun mwrite-obj (object mwrite-func ptr index end-index)
+(defun mwrite-obj (object ptr index end-index)
   "Serialize OBJECT by writing it into the memory starting at (+ PTR INDEX).
 Also serializes OBJECT header.
 The available memory ends immediately before (+ PTR END-INDEX)."
-  (declare (type function mwrite-func)
-           (type mem-size index end-index))
+  (declare (type mem-size index end-index))
+
 
   ;; write OBJECT payload
-  (let* ((index1 (call-mwrite (mwrite-func ptr (mem-size+ +mem-box/header-words+ index)
-                                           end-index)
-                              (type-of object)))
-
-         (index2 (mwrite-object object mwrite-func ptr index1 end-index))
+  (let* ((index0 (mem-size+ index +mem-box/header-words+))
+         (index1 (mwrite ptr index0 end-index (type-of object)))
+         (index2 (mwrite-object object ptr index1 end-index))
          (actual-words (mem-size- index2 index)))
          
     (when (> index2 end-index)
@@ -149,26 +125,26 @@ Either this is a bug in hyperluminal-db, or some object
 was concurrently modified while being written"
              actual-words actual-words ptr index (mem-size- end-index index)))
 
+    ;; write OBJECT header
     (mwrite-box/header ptr index +mem-obj/first+ (round-up-size actual-words))
     index2))
 
 
-(defun mread-obj (mread-func ptr index end-index)
+(defun mread-obj (ptr index end-index)
   "Deserialize an object of type TYPE by reading it from the memory starting at (+ PTR INDEX).
 Also deserializes OBJECT header.
 The available memory ends immediately before (+ PTR END-INDEX)."
-  (declare (type function mread-func)
-           (type mem-size index end-index))
+  (declare (type mem-size index end-index))
   
   ;; skip BOX header
   (incf index +mem-box/header-words+)
 
   ;; read OBJECT type
-  (multiple-bind-mread (new-index type) (mread-func ptr index end-index)
+  (multiple-value-bind (type new-index) (mread ptr index end-index)
     ;; TODO validate type against a set of trusted types
     (check-type type symbol)
 
     (the (values t mem-size &optional)
-      (mread-object type mread-func ptr new-index end-index))))
+      (mread-object type ptr new-index end-index))))
 
     

@@ -26,42 +26,39 @@
 
 
 
-(defmethod msize-object ((obj ghash-table) msize-func index)
-  (declare (type function msize-func)
-           (type mem-size index))
+(defmethod msize-object ((obj ghash-table) index)
+  (declare (type mem-size index))
 
-  (setf index (call-msize (msize-func index)
-                          (ghash-table-test obj)
-                          (ghash-table-hash obj)
-                          (ghash-table-count obj)))
+  (setf index (msize* index
+                      (ghash-table-test obj)
+                      (ghash-table-hash obj)
+                      (ghash-table-count obj)))
   (do-ghash (key value) obj
-    (setf index (call-msize (msize-func index) key value)))
+    (setf index (msize* index key value)))
   index)
 
 
-(defmethod mwrite-object ((obj ghash-table) mwrite-func ptr index end-index)
-  (declare (type function mwrite-func)
-           (type mem-size index end-index))
+(defmethod mwrite-object ((obj ghash-table) ptr index end-index)
+  (declare (type mem-size index end-index))
 
-  (setf index (call-mwrite (mwrite-func ptr index end-index)
-                           (ghash-table-test obj)
-                           (ghash-table-hash obj)
-                           (ghash-table-count obj)))
+  (setf index (mwrite* ptr index end-index
+                       (ghash-table-test obj)
+                       (ghash-table-hash obj)
+                       (ghash-table-count obj)))
   (do-ghash (key value) obj
-    (setf index (call-mwrite (mwrite-func ptr index end-index) key value)))
+    (setf index (mwrite* ptr index end-index key value)))
   index)
 
 
-(defmethod mread-object ((obj ghash-table) mread-func ptr index end-index
+(defmethod mread-object ((obj ghash-table) ptr index end-index
                          &key size &allow-other-keys)
   "Warning: this method expects the caller to have already read the serialized
 :TEST, :HASH and :SIZE values and instantiated a GHASH-TABLE or a subclass"
-  (declare (type function mread-func)
-           (type mem-size index end-index)
+  (declare (type mem-size index end-index)
            (type mem-uint size))
 
   (dotimes (i size)
-    (multiple-bind-mread (new-index key value) (mread-func ptr index end-index)
+    (multiple-value-chain-2* (new-index key value) (mread ptr index end-index)
       (set-ghash obj key value)
       (setf index new-index)))
   
@@ -79,12 +76,11 @@
     '(sxhash identity))
 
 
-(defun mread-object/ghash-table (type mread-func ptr index end-index)
+(defun mread-object/ghash-table (type ptr index end-index)
   (declare (type symbol type)
-           (type function mread-func)
            (type mem-size index end-index))
 
-  (multiple-bind-mread (new-index test hash size) (mread-func ptr index end-index)
+  (multiple-value-bind-chain2* (test hash size new-index) (mread ptr index end-index)
     (unless (member test +ghash-table-trusted-test-list+)
       (error "HYPERLUMINAL-DB: refusing to use untrusted ~S ~S value ~S,
 expecting one of the trusted values ~S" type :test test +ghash-table-trusted-test-list+))
@@ -95,7 +91,7 @@ expecting one of the trusted values ~S" type :hash hash +ghash-table-trusted-has
     (check-type size mem-uint)
 
     (mread-object (new type :test test :hash hash :initial-capacity size)
-                  mread-func ptr new-index end-index :size size)))
+                  ptr new-index end-index :size size)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -103,20 +99,18 @@ expecting one of the trusted values ~S" type :hash hash +ghash-table-trusted-has
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defmethod mread-object ((type (eql 'ghash-table)) mread-func ptr index end-index &key)
-  (declare (type function mread-func)
-           (type mem-size index end-index))
+(defmethod mread-object ((type (eql 'ghash-table)) ptr index end-index &key)
+  (declare (type mem-size index end-index))
 
-  (mread-object/ghash-table type mread-func ptr index end-index))
+  (mread-object/ghash-table type ptr index end-index))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;   read THASH-TABLE                                                      ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmethod mread-object ((type (eql 'thash-table)) mread-func ptr index end-index &key)
-  (declare (type function mread-func)
-           (type mem-size index end-index))
+(defmethod mread-object ((type (eql 'thash-table)) ptr index end-index &key)
+  (declare (type mem-size index end-index))
 
-  (mread-object/ghash-table type mread-func ptr index end-index))
+  (mread-object/ghash-table type ptr index end-index))
 

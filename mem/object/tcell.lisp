@@ -25,24 +25,21 @@
 
 
 
-(defmethod msize-object ((c tcell) msize-func index)
-  (declare (type function msize-func)
-           (type mem-size index))
+(defmethod msize-object ((c tcell) index)
+  (declare (type mem-size index))
 
-  (call-msize (msize-func index) (_ c value)))
-
-
-(defmethod mwrite-object ((c tcell) mwrite-func ptr index end-index)
-  (declare (type function mwrite-func)
-           (type mem-size index end-index))
-
-  (call-mwrite (mwrite-func ptr index end-index) (_ c value)))
+  (msize (_ c value) index))
 
 
-(defmethod mread-object ((type (eql 'tcell)) mread-func ptr index end-index &key)
-  (declare (type function mread-func)
-           (type mem-size index end-index))
+(defmethod mwrite-object ((c tcell) ptr index end-index)
+  (declare (type mem-size index end-index))
 
-  (multiple-bind-mread (index value) (mread-func ptr index end-index)
+  (mwrite ptr index end-index (_ c value)))
+
+
+(defmethod mread-object ((type (eql 'tcell)) ptr index end-index &key)
+  (declare (type mem-size index end-index))
+
+  (multiple-value-bind (value index) (mread ptr index end-index)
     (values (tcell value) index)))
 
