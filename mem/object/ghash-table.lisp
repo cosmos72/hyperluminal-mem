@@ -58,7 +58,7 @@
            (type mem-uint size))
 
   (dotimes (i size)
-    (multiple-value-chain-2* (new-index key value) (mread ptr index end-index)
+    (with-mread* (key value new-index) (ptr index end-index)
       (set-ghash obj key value)
       (setf index new-index)))
   
@@ -80,7 +80,7 @@
   (declare (type symbol type)
            (type mem-size index end-index))
 
-  (multiple-value-bind-chain2* (test hash size new-index) (mread ptr index end-index)
+  (with-mread* (test hash size new-index) (ptr index end-index)
     (unless (member test +ghash-table-trusted-test-list+)
       (error "HYPERLUMINAL-DB: refusing to use untrusted ~S ~S value ~S,
 expecting one of the trusted values ~S" type :test test +ghash-table-trusted-test-list+))

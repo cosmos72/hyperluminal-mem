@@ -62,6 +62,7 @@
 
            #:mget-unboxed #:mset-unboxed
            #:msize        #:mwrite         #:mread
+           #:msize*       #:mwrite*        #:with-mread*
            #:msize-object #:mwrite-object  #:mread-object
 
            #:!mdump #:!memset-words))

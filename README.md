@@ -53,19 +53,20 @@ Supported systems
 Hyperluminal-DB is currently tested on the following Common Lisp implementations:
 
 * [SBCL](http://sbcl.org/)
-  * version 1.1.14       (x86_64)   on Debian GNU/Linux 7.0  (x86_64)
-  * version 1.0.57       (x86)      on Debian GNU/Linux 7.0  (x86)
-  * version 1.1.14       (powerpc)  on Debian GNU/Linux 7.3  (powerpc) inside Qemu
+  * version 1.1.15       (x86_64)   on Debian GNU/Linux jessie (x86_64)
+  * version 1.1.14       (x86)      on Debian GNU/Linux jessie (x86_64)
+  * version 1.1.14       (powerpc)  on Debian GNU/Linux jessie (powerpc) inside Qemu
+  * version 1.0.57       (x86)      on Debian Ubuntu Linux 12.04LTS (x86)
 
 * [CCL](http://ccl.clozure.com/)
-  * version 1.9-r15769   (x86_64)   on Debian GNU/Linux 7.0  (x86_64)
-  * version 1.9-r15769M  (x86)      on Debian GNU/Linux 7.0  (x86_64)
-  * version 1.9-r15761   (linuxppc) on Debian GNU/Linux 7.3  (powerpc) inside Qemu
+  * version 1.9-r15769   (x86_64)   on Debian GNU/Linux jessie (x86_64)
+  * version 1.9-r15769M  (x86)      on Debian GNU/Linux jessie (x86_64)
+  * version 1.9-r15761   (linuxppc) on Debian GNU/Linux jessie (powerpc) inside Qemu
   * version 1.9-dev-r15475M-trunk (LinuxARM32) on Raspbian GNU/Linux (armhf) Raspberry Pi
 
 * [CMUCL](http://www.cons.org/cmucl/)
-  * version 20d Unicode  (x86)     on Debian GNU/Linux 7.0  (x86_64)
-  * version 20c Unicode  (x86)     on Debian GNU/Linux 7.0  (x86)
+  * version 20d Unicode  (x86)      on Debian GNU/Linux jessie  (x86_64)
+  * version 20c Unicode  (x86)      on Debian GNU/Linux jessie  (x86_64)
 
 CMUCL needs to be started with the option `-fpu x87` to run Hyperluminal-DB reliably, see 
 [STMX documentation](https://github.com/cosmos72/stmx/blob/master/doc/supported-systems.md)
@@ -304,7 +305,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    for length overflows and can exploit tail-call optimizations.
 
    `msize` supports the same types as `MWRITE` below, and can be extended similarly
-   to support arbitrary types, see `MSIZE-OBJECT` for details.
+   to support arbitrary types, see `MSIZE-OBJECT` and `MWRITE-OBJECT` for details.
    
 - `(MWRITE ptr index end-index value)` serializes a Lisp value, writing it into raw memory.
    It is defined as:
@@ -368,13 +369,97 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    serialized values from the raw memory.
 
    `mread` supports the same types as `mwrite` and it can be extended similarly,
-   see `MREAD-OBJECT` for details.
+   see `MREAD-OBJECT` and `MWRITE-OBJECT` for details.
 
-- `MSIZE-OBJECT` to be documented...
+- `(MSIZE-OBJECT instance index)` is a generic function that examines a Lisp object
+   and tells how many words of raw memory are needed to serialize it.
 
-- `MWRITE-OBJECT` to be documented...
+   Programmers can extend Hyperluminal-DB by defining specialized methods for it,
+   see `MWRITE-OBJECT` for details.
 
-- `MREAD-OBJECT` to be documented...
+- `(MREAD-OBJECT ptr index end-index &key)` is a generic function that reads
+   a serialized user-defined object from raw memory, deserializes and returns it.
+
+   Programmers can extend Hyperluminal-DB by defining specialized methods for it,
+   see `MWRITE-OBJECT` for details.
+
+- `(MWRITE-OBJECT instance ptr index end-index)` is a generic function
+   that serializes a user-defined Lisp object, writing it into raw memory.
+
+   Programmers can extend Hyperluminal-DB by defining specialized methods for
+   `msize-object` `mwrite-object` and `mread-object`. Such methods are invoked
+   automatically by `msize`, `mwrite` and `mread` when they encounter a user-defined object,
+   i.e. an instance of structure-object or standard-object or their subclasses.
+
+   The task of `msize-object` `mwrite-object` and `mread-object` is relatively
+   straightforward: they are supposed to cycle through the relevant instance slots
+   (or accessors) and recursively call `msize`, `mwrite` or `mread` on each slot.
+   
+   For example, if a `POINT3D` class is defined as
+
+        (defclass point3d ()
+          ((x :initarg :x :initform 0.0 :accessor point3d-x)
+           (y :initarg :y :initform 0.0 :accessor point3d-y)
+           (z :initarg :z :initform 0.0 :accessor point3d-z)))
+
+   then a reasonable specialization of `msize-object` can be:
+    
+        (defmethod msize-object ((p point3d) index)
+          (let* ((index-x (msize (point3d-x p) index))
+                 (index-y (msize (point3d-y p) index-x))
+                 (index-z (msize (point3d-z p) index-y)))
+             index-z))
+   
+   note how the result of each `msize` call is passed to the next call - this ensures
+   that the sum of the sizes is computed automatically, and also takes care of signalling
+   an error in case of overflow.
+
+   A shorter, slightly automagic alternative is to use the macro `msize*`
+   which expands to multiple calls of `msize` and correctly passes around the
+   intermediate `index` values:
+
+        (defmethod msize-object ((p point3d) index)
+          (msize* index (point3d-x p) (point3d-y p) (point3d-z p)))
+
+   Note how `index` is now the first argument, not the last.
+
+   Similarly, `mwrite-object` can be specialized as:
+
+        (defmethod mwrite-object ((p point3d) ptr index end-index)
+          (let* ((index-x (mwrite (point3d-x p) ptr index   end-index))
+                 (index-y (mwrite (point3d-y p) ptr index-x end-index))
+                 (index-z (mwrite (point3d-z p) ptr index-y end-index)))
+             index-z))
+
+   which uses the same mechanism to compute the serialized value total size.
+   Again a shorter, slightly automagic alternative is to use the macro `mwrite*`
+   which expands to multiple calls of `mwrite` and correctly passes around the
+   intermediate `index` values:
+
+       (defmethod mwrite-object ((p point3d) ptr index end-index)
+         (mwrite* ptr index end-index (point3d-x p) (point3d-y p) (point3d-z p)))
+
+   Defining `mread-object` is slightly more complicated, for two reasons:
+   first, it also needs to instantiate an appropriate object and fill its slots
+   and second, `mread` and `mread-object` return multiple values.
+
+   The result is a painstaking nest of `multiple-value-bind`:
+   
+       (defmethod mread-object ((type (eql 'point3d)) ptr index end-index &key)
+         (multiple-value-bind (x index-x) (mread ptr index end-index)
+           (multiple-value-bind (y index-y) (mread ptr index-x end-index)
+             (multiple-value-bind (z index-z) (mread ptr index-y end-index)
+               (values
+                 (make-instance 'point3d :x x :y y :z z)
+                  index-z)))))
+   
+   And `with-mread*` macro comes to the rescue, removing all the boilerplate:
+
+        (defmethod mread-object ((type (eql 'point3d)) ptr index end-index &key)
+          (with-mread* (x y z new-index) (ptr index end-index)
+            (values
+              (make-instance 'point3d :x x :y y :z z)
+              new-index)))))
 
 - `MWRITE-MAGIC` to be documented...
 

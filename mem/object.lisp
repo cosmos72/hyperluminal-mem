@@ -52,22 +52,37 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
 
 
 
-(defmacro msize* (index value &rest more-values)
+(defmacro %msize* (index value &rest more-values)
+  "Warning: this macro expands VALUE *before* INDEX"
   (if more-values
       (with-gensym new-index
         `(let1 ,new-index (msize ,value ,index)
-           (msize* ,new-index ,@more-values)))
-      `(the (values mem-size &optional)
-         (msize ,value ,index))))
+           (%msize* ,new-index ,@more-values)))
+      `(msize ,value ,index)))
+
+
+(defmacro msize* (index value &rest more-values)
+  (with-gensym old-index
+    `(let1 ,old-index ,index
+       (%msize* ,old-index ,value ,@more-values))))
   
+
+(defmacro %mwrite* (ptr index end-index value &rest more-values)
+  "Warning: this macro expands multiple references to PTR and END-INDEX"
+  (if more-values
+      (with-gensyms (new-index)
+        `(let1 ,new-index (mwrite ,ptr ,index ,end-index ,value)
+           (%mwrite* ,ptr ,new-index ,end-index ,@more-values)))
+      `(mwrite ,ptr ,index ,end-index ,value)))
 
 
 (defmacro mwrite* (ptr index end-index value &rest more-values)
-  "Warning: this macro expands multiple references to PTR and END-INDEX"
   (if more-values
-      (with-gensym new-index
-        `(let1 ,new-index (mwrite ,ptr ,index ,end-index ,value)
-           (mwrite* ,ptr ,new-index ,end-index ,@more-values)))
+      (with-gensyms (ptr-var idx-var end-var)
+        `(let* ((,ptr-var ,ptr)
+                (,idx-var ,index)
+                (,end-var ,end-index))
+           (%mwrite* ,ptr-var ,idx-var ,end-var ,value ,@more-values)))
       `(mwrite ,ptr ,index ,end-index ,value)))
 
 
@@ -84,6 +99,18 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
          ,@body)))
 
 
+(defmacro with-mread* ((var1 var2 &rest more-vars)
+                       (ptr index end-index) &body body)
+  (if more-vars
+      (with-gensyms (ptr-var idx-var end-var)
+        `(let* ((,ptr-var ,ptr)
+                (,idx-var ,index)
+                (,end-var ,end-index))
+           (multiple-value-bind-chain2* (,var1 ,var2 ,@more-vars)
+               (mread ,ptr-var ,idx-var ,end-var)
+             ,@body)))
+      `(multiple-value-bind (,var1 ,var2) (mread ,ptr ,index ,end-index)
+         ,@body)))
 
 
 
