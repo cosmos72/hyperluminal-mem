@@ -409,7 +409,7 @@ execute the form
 
     (pushnew :hyperluminal-db/word-size/4 *features*)
 
-in both cases, the Hyperluminal-DB internal function (choose-word-type)
+in both cases, the Hyperluminal-DB internal function `(choose-word-type)`
 will recognize the override and define `mem-word` and `+msizeof-word+`
 to match a CFFI-SYS unsigned integer type having the specified size
 among the following candidates:
@@ -432,9 +432,12 @@ For the far future (which arrives surprisingly quickly in software)
 where CFFI-SYS will know about further unsigned integer types,
 it is also possible to explicitly specify the type to use
 by executing a form like
-  (pushnew :hyperluminal-db/word-type/<SOME-CFFI-SYS-TYPE> *features*)
+
+    (pushnew :hyperluminal-db/word-type/<SOME-CFFI-SYS-TYPE> *features*)
+
 as for example:
-  (pushnew :hyperluminal-db/word-type/unsigned-long-long *features*)
+
+    (pushnew :hyperluminal-db/word-type/unsigned-long-long *features*)
 
 Hyperluminal-DB will honour such override, intern the type name
 to convert it to a keyword, use it as the definition of `mem-word`,
