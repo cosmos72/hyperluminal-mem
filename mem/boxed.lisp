@@ -341,7 +341,7 @@ WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
       (mem-size+1 index)
       (if-bind box-type (mdetect-box-type value)
           (mwrite-box ptr index end-index value box-type)
-          (mwrite-obj value #'mwrite ptr index end-index))))
+          (mwrite-obj value ptr index end-index))))
 
 
 ;; (declaim (ftype (...) mread)) is in box.lisp
