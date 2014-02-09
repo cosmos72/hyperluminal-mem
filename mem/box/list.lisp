@@ -33,16 +33,16 @@
   ;; +1 to store list length
   (incf-mem-size index)
 
-  (let1 mdetect-size #'mdetect-size
+  (let1 msize #'msize
     ;; note: list may end with a dotted pair
     (loop for cons = list then (rest cons)
        while (consp cons)
        for e = (first cons)
        do
-         (setf index (the mem-size (funcall mdetect-size e index)))
+         (setf index (the mem-size (funcall msize e index)))
 	 finally
 	   (when cons
-             (setf index (the mem-size (funcall mdetect-size cons index)))))
+             (setf index (the mem-size (funcall msize cons index)))))
 
     index))
 

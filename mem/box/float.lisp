@@ -27,17 +27,24 @@
 
 (declaim (inline box-words/sfloat box-words/dfloat))
 
+(defconstant +box-words/sfloat+
+  #.(ceiling +msizeof-sfloat+ +msizeof-word+)) ;; round up
+
+(defconstant +box-words/dfloat+
+  #.(ceiling +msizeof-dfloat+ +msizeof-word+)) ;; round up
+
 (defun box-words/sfloat (value index)
   "Return the number of words needed to store single-float VALUE in memory, not including BOX header."
   (declare (ignore value)
            (type mem-size index))
-  (mem-size+ index #.(ceiling +msizeof-sfloat+ +msizeof-word+))) ;; round up
+  (mem-size+ index +box-words/sfloat+))
+
 
 (defun box-words/dfloat (value index)
   "Return the number of words needed to store a BOX containing double-float VALUE in memory."
   (declare (ignore value)
            (type mem-size index))
-  (mem-size+ index #.(ceiling +msizeof-dfloat+ +msizeof-word+))) ;; round up
+  (mem-size+ index +box-words/dfloat+))
   
 
 
@@ -50,7 +57,7 @@ ABI: single-float is stored raw (usually means IEEE format)"
            (type mem-size index end-index)
            (type single-float value))
 
-  (let ((n-words (box-words/sfloat)))
+  (let1 n-words +box-words/sfloat+
     (check-mem-overrun ptr index end-index n-words)
 
     (mset-t value :sfloat ptr index)
@@ -66,9 +73,9 @@ ABI: double-float is stored raw (usually means IEEE format)"
            (type mem-size index end-index)
            (type double-float value))
 
-  (let ((n-words (box-words/dfloat)))
+  (let1 n-words +box-words/dfloat+
     (check-mem-overrun ptr index end-index n-words)
-
+    
     (mset-t value :dfloat ptr index)
     (mem-size+ index n-words)))
 
@@ -79,7 +86,7 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))
   
-  (let ((n-words (box-words/sfloat)))
+  (let1 n-words +box-words/sfloat+
     (check-mem-length ptr index end-index n-words)
 
     (values
@@ -93,7 +100,7 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
-  (let ((n-words (box-words/dfloat)))
+  (let1 n-words +box-words/dfloat+
     (check-mem-length ptr index end-index n-words)
 
     (values

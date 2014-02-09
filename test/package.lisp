@@ -22,9 +22,11 @@
 
 (defpackage #:hyperluminal-db.test
 
-  (:nicknames #:sp.test)
+  (:nicknames #:hldb.test)
 
   (:use #:cl
+        #:fiveam
+        #:hyperluminal-mem
         #:hyperluminal-db)
 
   (:export #:suite))

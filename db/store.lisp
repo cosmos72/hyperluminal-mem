@@ -23,19 +23,21 @@
 
 
 (defun get-abi ()
-  '((:hldb-version      . #.*hldb-version*)
-    (:hldb-file-version . #.*hldb-file-version*)
-    (:bits-per-byte     . #.+mem-byte/bits+)
-    (:bits-per-tag      . #.+mem-tag/bits+)
-    (:bits-per-pointer  . #.+mem-pointer/bits+)
-    (:bits-per-word     . #.+mem-word/bits+)
-    (:bits-per-base-char  . #.+base-char/bits+)
-    (:bits-per-character  . #.+character/bits+)
-    (:sizeof-byte         . #.+msizeof-byte+)
+  '((:hldb-version      . #.+hldb-version+)
+    (:hldb-abi-version  . #.+hldb-abi-version+)
+    (:hlmem-version     . #.hlmem::+hlmem-version+)
+    (:hlmem-abi-version . #.hlmem::+hlmem-abi-version+)
+    (:bits-per-byte     . #.hlmem::+mem-byte/bits+)
+    (:bits-per-tag      . #.hlmem::+mem-tag/bits+)
+    (:bits-per-pointer  . #.hlmem::+mem-pointer/bits+)
+    (:bits-per-word     . #.hlmem::+mem-word/bits+)
+    (:bits-per-base-char  . #.hlmem::+base-char/bits+)
+    (:bits-per-character  . #.hlmem::+character/bits+)
+    (:sizeof-byte         . #.hlmem::+msizeof-byte+)
     (:sizeof-word         . #.+msizeof-word+)
-    (:sizeof-single-float . #.+msizeof-sfloat+)
-    (:sizeof-double-float . #.+msizeof-dfloat+)
-    (:little-endian       . #.+mem/little-endian+)))
+    (:sizeof-single-float . #.hlmem::+msizeof-sfloat+)
+    (:sizeof-double-float . #.hlmem::+msizeof-dfloat+)
+    (:little-endian       . #.hlmem::+mem/little-endian+)))
 
 
 
@@ -63,14 +65,14 @@
 ;; example MMAP length: 256MB on 32bit archs, 127TB on 64bit archs
 (defconstant +max-fwords+
   (let* ;; assume 1/4 of addressable memory can be actually used
-      ((arch-max-bytes (ash 1 (- +mem-word/bits+ 2)))
+      ((arch-max-bytes (ash 1 (- hlmem::+mem-word/bits+ 2)))
        
        ;; assume maximum size of a mmap area is 127TB.
        ;; this is just an example, and not really needed
        (mmap-max-bytes #x7FE000000000)
 
        ;; compute maximum bytes addressable by a hyperluminal-db:mem-pointer
-       (persist-max-bytes (* +msizeof-word+ (box-pointer->size +most-positive-pointer+)))
+       (persist-max-bytes (* +msizeof-word+ (box-pointer->size hlmem::+most-positive-pointer+)))
                     
        (max-bytes (min arch-max-bytes mmap-max-bytes persist-max-bytes ))
 
@@ -149,7 +151,7 @@ and write them back to file"
 
 
 
-(defun open-store (&key (filename "mmap") (min-words #.(truncate +pagesize+ +msizeof-word+)))
+(defun hldb-open (&key (filename "mmap") (min-words #.(truncate +pagesize+ +msizeof-word+)))
   (declare (type mem-size min-words))
 
   ;; open file and (if needed) extend it
@@ -163,7 +165,7 @@ and write them back to file"
            (progn
              (setf ptr (mmap fd words)
                    *p* ptr)
-             (if-bind index (mread-magic ptr words)
+             (if-bind index (mread-magic ptr 0 words)
                  (let1 index (mfree-head-index index)
                    (mread-free-list ptr index))
                  (init-store ptr words)))
@@ -177,7 +179,7 @@ and write them back to file"
 
 
 
-(defun close-store ()
+(defun hldb-close ()
   (unless (null-pointer? *p*)
     (munmap *p* *fwords*)
     (setf *p* +null-pointer+))

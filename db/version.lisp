@@ -20,6 +20,18 @@
 (in-package :hyperluminal-db)
 
 
-(define-constant-once *hldb-version* '(0 4 0))
+(define-constant-once +hldb-version+ hlmem::+hlmem-version+)
 
-(define-constant-once *hldb-file-version* '(0 1 0))
+(define-constant-once +hldb-abi-version+ '(0 1 0))
+
+
+(defun hldb-version ()
+  "Return HYPERLUMINAL-DB version, in the form '(major minor patch)
+as for example '(0 4 0)"
+  +hldb-version+)
+
+
+(defun hldb-abi-version ()
+  "Return HYPERLUMINAL-DB file format and ABI version, in the form '(major minor patch)
+as for example '(0 1 0)"
+  +hldb-abi-version+)

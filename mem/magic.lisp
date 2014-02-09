@@ -35,9 +35,9 @@
     (string-to-code-vector (if +mem/little-endian+ "HLDB" "hldb")))
 
 (define-global *magic-write-list*
-    '((4  abi-major-version   #.(first  *hlmem-abi-version*))
-      (5  abi-minor-version   #.(second *hlmem-abi-version*))
-      (6  abi-patch-version   #.(third  *hlmem-abi-version*))
+    '((4  abi-major-version   #.(first  +hlmem-abi-version+))
+      (5  abi-minor-version   #.(second +hlmem-abi-version+))
+      (6  abi-patch-version   #.(third  +hlmem-abi-version+))
       (7  bits-per-tag        #.+mem-tag/bits+)
       (8  sizeof-word         #.+msizeof-word+)
       (9  sizeof-single-float #.+msizeof-sfloat+)

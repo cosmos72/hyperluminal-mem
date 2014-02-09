@@ -33,7 +33,7 @@ not including BOX header."
 
   (let* ((rank (array-rank array))
          (len (array-total-size array))
-         (mdetect-size #'mdetect-size))
+         (msize #'msize))
 
     (unless (<= rank +most-positive-int+)
       (error "HYPERLUMINAL-DB: array has too many dimensions for object store.
@@ -49,13 +49,16 @@ it contains ~S elements, maximum supported is ~S elements"
       ;; N-dimensional arrays also need 1 word to store the rank
       (incf-mem-size index))
 
+    ;; 1 word per dimension
+    (incf-mem-size index rank)
+
     (macrolet
 	((compute-n-words (array len index &optional (func-aref 'row-major-aref))
 	   (with-gensyms (i e)
 	     `(loop for ,i from 0 below ,len
                  for ,e = (,func-aref ,array ,i)
                  do
-                   (setf , index (the mem-size (funcall mdetect-size ,e ,index)))))))
+                   (setf , index (the mem-size (funcall msize ,e ,index)))))))
 
       (cond
         ((typep array 'simple-vector)          (compute-n-words array len index svref))
@@ -85,12 +88,13 @@ at (PTR+INDEX)."
 
     (check-mem-overrun ptr index end-index (1+ rank))
 
-    (mset-int ptr index (the mem-int rank))
-    (loop for i from 0 below rank do
-         (incf-mem-size index)
-         (mset-int ptr index (the mem-int (array-dimension array i))))
+    (unless (= 1 rank)
+      (mset-int ptr index (the mem-int rank))
+      (incf-mem-size index))
 
-    (incf-mem-size index)
+    (loop for i from 0 below rank do
+         (mset-int ptr index (the mem-int (array-dimension array i)))
+         (incf-mem-size index))
 
     (macrolet
         ((loop-mwrite-array ()

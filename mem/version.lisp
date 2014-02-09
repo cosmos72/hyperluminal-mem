@@ -20,7 +20,18 @@
 (in-package :hyperluminal-mem)
 
 
-(define-constant-once *hlmem-version* '(0 4 0))
+(define-constant-once +hlmem-version+ '(0 4 0))
 
-(define-constant-once *hlmem-abi-version* '(0 1 0))
+(define-constant-once +hlmem-abi-version+ '(0 1 0))
 
+
+(defun hlmem-version ()
+  "Return HYPERLUMINAL-MEM version, in the form '(major minor patch)
+as for example '(0 4 0)"
+  +hlmem-version+)
+
+
+(defun hlmem-abi-version ()
+  "Return HYPERLUMINAL-MEM ABI version, in the form '(major minor patch)
+as for example '(0 1 0)"
+  +hlmem-abi-version+)

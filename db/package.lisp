@@ -23,15 +23,13 @@
 
 (defpackage #:hyperluminal-db
 
-  (:nicknames #:hldb #:hldb)
+  (:nicknames #:hldb)
 
   (:use #:cl #:hyperluminal-mem)
 
   (:import-from #:stmx.lang
 
-                #:eval-always
-
-                #:enable-#?-syntax
+                #:enable-#?-syntax  #:eval-always
                 #:set-feature  #:set-features #:default-feature #:default-features
                 #:get-feature  #:all-features?
 
@@ -40,4 +38,18 @@
                 #:when-bind    #:if-bind       #:awhen    #:aif 
                 #:log.debug    #:log.trace     #:log.make-logger)
 
-  (:export      #:open-store #:close-store))
+  (:import-from #:hyperluminal-mem
+
+                #:+null-pointer+ #:+most-positive-size+
+                #:+mem-box/min-words+    #:+mem-box/max-words+
+                #:+mem-box/header-words+ #:+mem-box/min-payload-words+
+                #:box-pointer->size #:size->box-pointer
+
+                #:mem-size+ #:mem-size+1 #:mem-size- #:mem-size-1
+                #:mget-value
+
+                #:!mread #:!mwrite)
+
+  (:export      #:hldb-version #:hldb-abi-version
+                #:hldb-open    #:hldb-close))
+                

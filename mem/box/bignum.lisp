@@ -106,6 +106,8 @@ followed by an array of words containing N in two's complement."
     (check-mem-overrun ptr index end-index (mem-size+1 n-words))
 
     (mset-int ptr index (if (< n 0) (lognot n-words) n-words))
+    ;; add 1, we just wrote N-WORDS prefix
+    (incf-mem-size index)
 
     #+sbcl
     ;; optimization: directly access SBCL internal representation of BIGNUMs.
@@ -120,11 +122,11 @@ followed by an array of words containing N in two's complement."
                         (+ +lisp-object-header-length+
                            (logand +lisp-object-address-mask+
                                    (sb-kernel:get-lisp-obj-address n)))))))
-            (memcpy-words ptr (mem-size+1 index) src 0 n-words)
-            (mem-size+ index 1 n-words)))) ;; add 1 for N-WORDS prefix
+            (memcpy-words ptr index src 0 n-words)
+            (mem-size+ index n-words)))) 
       
     #-sbcl
-    (%mwrite-bignum-recurse ptr (mem-size+1 index) n-words n)))
+    (%mwrite-bignum-recurse ptr index n-words n)))
     
 
 

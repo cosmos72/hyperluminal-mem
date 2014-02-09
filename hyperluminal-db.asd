@@ -86,11 +86,12 @@
                                                                   "box/bit-vector"
                                                                   "box/symbol"
                                                                   "object"))))
-               #+never
                (:module :db
                 :components ((:file "package")
                              (:file "version"        :depends-on ("package"))
-                             (:file "store"          :depends-on ("version")))
+                             (:file "box"            :depends-on ("version"))
+                             (:file "alloc"          :depends-on ("box"))
+                             (:file "store"          :depends-on ("alloc")))
                 :depends-on (:mem))))
 
 

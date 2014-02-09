@@ -227,10 +227,10 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    For the curious, in practice it is `(unsigned-byte 30)` on 32-bit systems,
    `(unsigned-byte 61)` on 64-bit systems, and so on...
 
-- `(MALLOC n-bytes)` allocates raw memory and returns a raw pointer to it.
+- `(MALLOC n-bytes)` is a function, it allocates raw memory and returns a raw pointer to it.
 
    It is actually a simple alias for the function `(cffi-sys:%foreign-alloc n-bytes)`
-   and it is equivalent to the `malloc(n-bytes)` function found in C/C++ languages.
+   and it is equivalent to the function `void * malloc(size_t n_bytes)` found in C/C++ languages.
 
    Definition:
 
@@ -242,7 +242,8 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    Remember that, as in C/C++, the memory returned by `malloc` must be deallocated manually:
    call `mfree` on it when no longer needed.
 
-- `(MALLOC-WORDS n-words)` allocates raw memory and returns it just like `malloc`.
+- `(MALLOC-WORDS n-words)` is a function, it allocates raw memory and returns
+   a raw pointer to it just like `malloc`.
    It is usually more handy than `malloc` since almost all Hyperluminal-DB functions
    count and expect memory length in words, not in bytes.
 
@@ -255,7 +256,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 
 - `(MFREE ptr)` deallocates raw memory previously obtained with `malloc-words`, `malloc`
    or `cffi-sys:%foreign-alloc`. It is actually a simple alias for the function
-   `cffi-sys:foreign-free` and it is equivalent to the `free(ptr)` function
+   `cffi-sys:foreign-free` and it is equivalent to the function `void free(void * ptr)`
    found in C/C++ languages.
 
    Definition:
@@ -266,7 +267,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
           (cffi-sys:foreign-free ptr))
 
 - `(WITH-MEM-WORDS (ptr n-words [n-words-var]) &body body)`
-   binds PTR to N-WORDS words of raw memory while executing BODY.
+   is a macro that binds PTR to N-WORDS words of raw memory while executing BODY.
    The raw memory is automatically deallocated when BODY terminates.
 
    `with-mem-words` is an alternative to `malloc` and `malloc-words`,
@@ -275,7 +276,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    `(cffi-sys:with-foreign-pointer (var size &optional size-var) &body body)`
    which performs the same task but counts memory size in bytes, not in words.
 
-- `(MSIZE value &optional (index 0))` examines a Lisp value, and tells
+- `(MSIZE value [index])` is a function that examines a Lisp value, and tells
    how many words of raw memory are needed to serialize it.
 
    It is useful to know how large a raw memory block must be
@@ -316,11 +317,11 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 
    To use it, you need three things beyond the value to serialize:
    * a pointer to raw memory, obtained for example with one of
-     `malloc-words`, `malloc` or `with-raw-mem` described above.
-   * the available length (in words) of the raw memory.
-     It must be passed as the `end-index` argument
+     `malloc-words`, `malloc` or `with-mem-words` described above.
    * the offset (in words) where you want to write the serialized value.
      It must be passed as the `index` argument
+   * the available length (in words) of the raw memory.
+     It must be passed as the `end-index` argument
    
    `mwrite` returns an offset pointing immediately after the serialized value.
    This allows to easily write consecutive serialized values into the raw memory.
@@ -394,34 +395,33 @@ and `+msizeof-word+` is set accordingly.
 
 It is possible to override such autodetection by adding an appropriate entry
 in the global variable `*FEATURES*` **before** compiling and loading Hyperluminal-DB.
-Doing so disables autodetection and either tells Hyperluminal-DB the size
-it should use for `+msizeof-word+` or, in alternative, the type it should use
-for `mem-word`.
+Doing so disables autodetection and either tells Hyperluminal-DB the desired size
+of `mem-word`, in alternative, the CFFI-SYS type it should use for `mem-word`.
 
 For example, to force 64 bit (= 8 bytes) file format and ABI even on 32-bit systems,
 execute the following form before compiling and loading Hyperluminal-DB:
-  (pushnew :hyperluminal-db/word-size/8 *features*)
+    (pushnew :hyperluminal-db/word-size/8 *features*)
 
 on the other hand, to force 32 bit (= 4 bytes) file format and ABI,
 execute the form
-  (pushnew :hyperluminal-db/word-size/4 *features*)
+    (pushnew :hyperluminal-db/word-size/4 *features*)
 
 in both cases, the Hyperluminal-DB internal function (choose-word-type)
 will recognize the override and define `mem-word` and `+msizeof-word+`
-to match a CFFI unsigned integer type having the specified size
+to match a CFFI-SYS unsigned integer type having the specified size
 among the following candidates:
-  :unsigned-char
-  :unsigned-short
-  :unsigned-int
-  :unsigned-long
-  :unsigned-long-long
+    :unsigned-char
+    :unsigned-short
+    :unsigned-int
+    :unsigned-long
+    :unsigned-long-long
 In case it does not find a type with the requested size, it will raise an error.
 
 Forcing the same value that would be autodetected is fine and harmless.
 Also, the chosen type must be 32 bits wide or more, but there is no upper limit:
 Hyperluminal-DB is designed to automatically support 64 bits systems,
 128 bit systems, and anything else that will exist in the future.
-It even supports "unusual" configurations where the size of `mem-word`
+It even supports 'unusual' configurations where the size of `mem-word`
 is not a power of two (ever heard of 36-bit CPUs?).
 
 For the far future (which arrives surprisingly quickly in software)

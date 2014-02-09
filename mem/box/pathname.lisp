@@ -32,19 +32,19 @@ not including BOX header."
   (declare (type pathname path)
            (type mem-size index))
 
-  (let ((mdetect-size #'mdetect-size)
+  (let ((msize #'msize)
         (host (pathname-host path :case :common))
         (default-host (pathname-host *default-pathname-defaults* :case :common)))
 
-    (macrolet ((mdetect-size (value index)
-                 `(the mem-size (funcall mdetect-size ,value ,index))))
+    (macrolet ((msize (value index)
+                 `(the mem-size (funcall msize ,value ,index))))
       
-      (setf index (mdetect-size (if (eq host default-host) nil host) index)
-            index (mdetect-size (pathname-device path :case :common) index)
-            index (mdetect-size (pathname-directory path :case :common) index)
-            index (mdetect-size (pathname-name path :case :common) index)
-            index (mdetect-size (pathname-type path :case :common) index)
-            index (mdetect-size (pathname-version path) index))
+      (setf index (msize (if (eq host default-host) nil host) index)
+            index (msize (pathname-device path :case :common) index)
+            index (msize (pathname-directory path :case :common) index)
+            index (msize (pathname-name path :case :common) index)
+            index (msize (pathname-type path :case :common) index)
+            index (msize (pathname-version path) index))
       index)))
 
 

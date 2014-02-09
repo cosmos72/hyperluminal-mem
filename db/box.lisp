@@ -17,7 +17,7 @@
 ;; along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-(in-package :hyperluminal-mem)
+(in-package :hyperluminal-db)
 
 
 ;;;; boxed values, i.e. mem-box, are variable-length mmap areas

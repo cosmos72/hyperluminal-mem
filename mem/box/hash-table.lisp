@@ -41,11 +41,11 @@ it contains ~S entries, maximum supported is ~S entries"
   ;; +1 to store number of entries
   (incf-mem-size index)
 
-  (let ((mdetect-size #'mdetect-size))
+  (let ((msize #'msize))
     (loop for k being the hash-keys in htable using (hash-value v)
        do
-         (setf index (the mem-size (funcall mdetect-size k index)))
-         (setf index (the mem-size (funcall mdetect-size v index))))
+         (setf index (the mem-size (funcall msize k index)))
+         (setf index (the mem-size (funcall msize v index))))
 
     index))
 

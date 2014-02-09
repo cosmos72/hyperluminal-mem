@@ -32,9 +32,9 @@ Does not count the space needed by BOX header."
   (declare (type ratio value)
            (type mem-size index))
 
-  (let1 index (mdetect-size (numerator value) index)
+  (let1 index (msize (numerator value) index)
 
-    (mdetect-size (denominator value) index)))
+    (msize (denominator value) index)))
 
 
 (defun mwrite-box/ratio (ptr index end-index value)

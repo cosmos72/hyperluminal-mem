@@ -23,7 +23,7 @@
 
 (defpackage #:hyperluminal-mem
 
-  (:nicknames #:hl-mem)
+  (:nicknames #:hlmem)
 
   (:use #:cl)
 
@@ -54,8 +54,14 @@
                 #:ghash-table-count #:set-ghash #:do-ghash)
                 
 
-  (:export #:malloc #:malloc-words #:mfree #:with-mem-words #:+msizeof-word+
+  (:export #:hlmem-version #:hlmem-abi-version
+           
+           #:maddress   #:mem-word   #:mem-size   #:+msizeof-word+
+           #:malloc  #:malloc-words  #:mfree  #:with-mem-words
+           #:mread-magic  #:mwrite-magic
+
+           #:mget-unboxed #:mset-unboxed
            #:msize        #:mwrite         #:mread
            #:msize-object #:mwrite-object  #:mread-object
-           #:mget-unboxed #:mset-unboxed
-           #:mread-magic  #:mwrite-magic))
+
+           #:!mdump #:!memset-words))
