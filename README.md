@@ -287,6 +287,12 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    `(cffi-sys:with-foreign-pointer (var size &optional size-var) &body body)`
    which performs the same task but counts memory size in bytes, not in words.
 
+   Other alternatives to obtain raw memory include at least:
+   * using the functions `make-static-vector` and `static-vector-pointer`
+     from STATIC-VECTORS library (remember to call `free-static-vector` when done)
+   * using memory-mapped files, for example with the function `mmap`
+     from OSICAT library (remember to call `munmap` when done)
+
 - `(MSIZE value [index])` is a function that examines a Lisp value, and tells
    how many words of raw memory are needed to serialize it.
 
