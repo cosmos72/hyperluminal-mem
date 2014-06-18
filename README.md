@@ -520,14 +520,14 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    1. it only works on standard-objects, i.e. on classes defined with (defclass ...)
   
    2. it can only serialize/deserialize (some or all) the object slots
-      with plain `msize`, `mread` and `mwrite`, i.e. it is NOT possible to
+      with plain `msize`, `mread` and `mwrite`, i.e. it is **not** possible to
       specify a customized logic to serialize/deserialize the slots.
  
    3. it must be possible to construct the object with some initial, dummy
       slot values in order to pass it to `mread-object-slots`.
       This function will then set the actual slot values.
    
-   4. by default, *all* slots are serialized/deserialized. To override this
+   4. by default, **all** slots are serialized/deserialized. To override this
       behaviour, programmers can specialize the generic function `mlist-object-slots`,
       which must return the list of slots (either slot names or closer-mop:slot-definition)
       to be serialized/deserialized. The methods on `mlist-object-slots` have the form:
