@@ -523,9 +523,9 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
       with plain `msize`, `mread` and `mwrite`, i.e. it is NOT possible to
       specify a customized logic to serialize/deserialize the slots.
  
-   3. it must be possible to construct the object with some initial (dummy)
-      slot values in order to pass it to `mread-object-slots`, which will set
-      the actual slot values.
+   3. it must be possible to construct the object with some initial, dummy
+      slot values in order to pass it to `mread-object-slots`.
+      This function will then set the actual slot values.
    
    4. by default, *all* slots are serialized/deserialized. To override this
       behaviour, programmers can specialize the generic function `mlist-object-slots`,
