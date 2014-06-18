@@ -65,4 +65,6 @@
            #:msize*       #:mwrite*        #:with-mread*
            #:msize-object #:mwrite-object  #:mread-object
 
-           #:!mdump #:!memset-words))
+           #:msize-object-slots #:mwrite-object-slots  #:mread-object-slots
+
+           #:!mdump #:!mdump-bytes #:!mdump-bytes-reverse #:!memset-words))

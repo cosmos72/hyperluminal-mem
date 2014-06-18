@@ -45,13 +45,14 @@
 
 
 (defmethod mread-object ((obj gmap) ptr index end-index &key)
-  "Warning: this method expects the caller to have already read the serialized :PRED argument and instantiated a GMAP or a subclass"
+  "Warning: this method expects the caller to have already read the serialized
+:PRED argument and instantiated a GMAP or a subclass"
   (declare (type mem-size index end-index))
 
   (multiple-value-bind (size index) (mread ptr index end-index)
     (check-type size mem-uint)
     (dotimes (i size)
-      (multiple-value-bind-chain2* (key value new-index) (mread ptr index end-index)
+      (with-mread* (key value new-index) (ptr index end-index)
         (set-gmap obj key value)
         (setf index new-index)))
   

@@ -54,13 +54,16 @@
 
 
 
-(defun mwrite-mread-test (ptr index end-index x)
+(defun mwrite-mread-test (ptr index end-index x &key (comparator #'equalp))
+  (declare (type maddress ptr)
+           (type mem-size index end-index)
+           (type function comparator))
   (let ((send (msize x index))
         (xend (mwrite ptr index end-index x)))
     (is (= send xend))
     (multiple-value-bind (y yend) (mread ptr index end-index)
       (is (= xend yend))
-      (is (equalp x y)))))
+      (is-true (funcall comparator x y)))))
           
 
 (defun bignum-test (count)
@@ -72,7 +75,7 @@
            (mwrite-mread-test ptr index end-index x)
            (mwrite-mread-test ptr index end-index (- x))))))
 
-(test bignum
+(def-test bignum (:compile-at :definition-time)
   (bignum-test 400))
 
 
@@ -81,6 +84,7 @@
 
           most-positive-fixnum most-negative-fixnum
           (ash most-positive-fixnum 10) (ash most-negative-fixnum 10)
+          +n+ (- +n+)
           
           #(0.0 0.1 -0.9999)
           most-positive-single-float most-negative-single-float
@@ -106,6 +110,8 @@
             h)
 
           nil t 'get-universal-time 'zerop 'foobar
+          stmx:+unbound-tvar+ 
+          stmx.util::+empty-tcell+
           :compile-toplevel :load-toplevel :execute))
 
 
@@ -119,5 +125,5 @@
         
 
 
-(test tree
+(def-test tree (:compile-at :definition-time)
   (tree-test))

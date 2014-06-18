@@ -42,11 +42,95 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
 
 
 
+(defgeneric mlist-object-slots (object)
+  (:documentation
+   "List the persistent slots of an object. used by (msize-object-slots)
+\(mwrite-object-slots) and (mread-object-slots) to reflectively obtain
+the slots list from an object.
+Must return a list of either slot names or closer-mop:slot-definition.
+
+Default implementation for standard-objects is to call (closer-mop:class-slots (class-of object))"))
+
+
+(defmethod mlist-object-slots ((object standard-object))
+  (closer-mop:class-slots (class-of object)))
 
 
 
 
+(defun msize-object-slots (object index
+                           &key use-slot-names (slots (mlist-object-slots object)))
+  "Reflective implementation of (msize-object): loop on object's slots and call (msize) on each."
+  (declare (type standard-object object)
+           (type mem-size index)
+           (type boolean use-slot-names)
+           (type list slots))
+  (dolist (slot slots)
+    (let ((slot-name (if (symbolp slot)
+                         slot
+                         (closer-mop:slot-definition-name slot))))
+      (when use-slot-names
+        (setf index (msize slot-name index)))
 
+      (setf index (msize (slot-value object slot-name) index))))
+
+  (when use-slot-names
+    ;; reserve space for 'nil slot-name, used as end-of-slots marker
+    (setf index (msize nil index)))
+  index)
+
+
+(defun mwrite-object-slots (object ptr index end-index
+                            &key use-slot-names (slots (mlist-object-slots object)))
+  "Reflective implementation of (mwrite-object): loop on object's slots and call (mwrite) on each."
+  (declare (type standard-object object)
+           (type mem-size index end-index)
+           (type boolean use-slot-names)
+           (type list slots))
+  (dolist (slot slots)
+    (let ((slot-name (if (symbolp slot)
+                         slot
+                         (closer-mop:slot-definition-name slot))))
+      (when use-slot-names
+        (setf index (mwrite ptr index end-index slot-name)))
+
+      (setf index (mwrite ptr index end-index (slot-value object slot-name)))))
+
+  (when use-slot-names
+    ;; write 'nil slot-name, used as end-of-slots marker
+    (setf index (mwrite ptr index end-index nil)))
+
+  index)
+
+
+(defun mread-object-slots (object ptr index end-index
+                           &key use-slot-names (slots nil slots-p))
+  "Reflective implementation of (mread-object): loop on object's slots and call (mread) on each."
+  (declare (type standard-object object)
+           (type mem-size index end-index)
+           (type boolean use-slot-names)
+           (type list slots))
+
+  (if use-slot-names
+      (loop
+         (with-mread* (slot-name new-index) (ptr index end-index)
+           (setf index new-index)
+           (when (null slot-name) (return))
+
+           (with-mread* (value new-index) (ptr index end-index)
+             (setf index new-index
+                   (slot-value object slot-name) value))))
+
+      (dolist (slot (if slots-p slots (mlist-object-slots object)))
+        (let ((slot-name (if (symbolp slot)
+                             slot
+                             (closer-mop:slot-definition-name slot))))
+          (multiple-value-bind (value new-index)
+              (mread ptr index end-index)
+            (setf (slot-value object slot-name) value
+                  index new-index)))))
+
+  (values object index))
 
 
 

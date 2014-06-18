@@ -26,6 +26,7 @@
 
   (:use #:cl
         #:fiveam
+        #:stmx.util
         #:hyperluminal-mem
         #:hyperluminal-db)
 

@@ -109,7 +109,8 @@
   :components ((:module :test
                 :components ((:file "package")
                              (:file "mem"           :depends-on ("package"))
-                             (:file "abi"           :depends-on ("mem"))))))
+                             (:file "abi"           :depends-on ("mem"))
+                             (:file "stmx-objects"  :depends-on ("abi"))))))
 
 
 (defmethod asdf:perform ((op asdf:test-op) (system (eql (asdf:find-system :hyperluminal-db))))

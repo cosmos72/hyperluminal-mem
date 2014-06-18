@@ -310,7 +310,7 @@ Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
        (mem-size+1 index)
        (if-bind box-type (mdetect-box-type value)
            (msize-box value index box-type)
-           (msize-obj value #'msize index))))
+           (msize-obj value index))))
 
 
 (defun msize-rounded-up (value &optional (index 0))
