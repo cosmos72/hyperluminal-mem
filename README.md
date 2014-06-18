@@ -476,62 +476,62 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
               (make-instance 'point3d :x x :y y :z z)
               new-index)))))
 
-  An alternative approach to implement `msize-object`, `mread-object` and
-  `mwrite-object` for standard-objects is to take advantage of the generic
-  functions `mlist-objects-slots`, `msize-object-slots`, `mread-object-slots`
-  and `mwrite-object-slots`. See `MWRITE-OBJECT-SLOTS` for details.
+   An alternative approach to implement `msize-object`, `mread-object` and
+   `mwrite-object` for standard-objects is to take advantage of the generic
+   functions `mlist-objects-slots`, `msize-object-slots`, `mread-object-slots`
+   and `mwrite-object-slots`. See `MWRITE-OBJECT-SLOTS` for details.
 
 - `MLIST-OBJECT-SLOTS` is a generic function, useful to implement `msize-object`,
-  `mread-object` and `mwrite-object` when extending Hyperluminal-DB.
-  See `MWRITE-OBJECT-SLOTS` for details.
+   `mread-object` and `mwrite-object` when extending Hyperluminal-DB.
+   See `MWRITE-OBJECT-SLOTS` for details.
 
 - `MSIZE-OBJECT-SLOTS` is a generic function, useful to implement `msize-object`
-  when extending Hyperluminal-DB. See `MWRITE-OBJECT-SLOTS` for details.
+   when extending Hyperluminal-DB. See `MWRITE-OBJECT-SLOTS` for details.
 
 - `MREAD-OBJECT-SLOTS` is a generic function, useful to implement `mread-object`
-  when extending Hyperluminal-DB. See `MWRITE-OBJECT-SLOTS` for details.
+   when extending Hyperluminal-DB. See `MWRITE-OBJECT-SLOTS` for details.
 
 - `MWRITE-OBJECT-SLOTS` is a generic function, useful to implement `mwrite-object`
-  when extending Hyperluminal-DB. Details:
+   when extending Hyperluminal-DB. Details:
   
-  The mechanism described in `MWRITE-OBJECT` above is very powerful and general,
-  but sometimes all you need is to serialize/deserialize the slots of a standard-object:
-  in this case it surely feels overcomplicated.
+   The mechanism described in `MWRITE-OBJECT` above is very powerful and general,
+   but sometimes all you need is to serialize/deserialize the slots of a standard-object:
+   in this case it surely feels overcomplicated.
   
-  For such purpose, Hyperluminal-DB provides the functions
-  `msize-object-slots`, `mread-object-slots` and `mwrite-object-slots`
-  which automatically obtain the slots of an object (more details below) and call
-  the appropriate function among `msize`, `mread`, `mwrite` on each slot.
+   For such purpose, Hyperluminal-DB provides the functions
+   `msize-object-slots`, `mread-object-slots` and `mwrite-object-slots`
+   which automatically obtain the slots of an object (more details below) and call
+   the appropriate function among `msize`, `mread`, `mwrite` on each slot.
   
-  This allows programmers to implement `msize-object`, `mread-object`
-  and `mwrite-object` with the following six lines of code:
+   This allows programmers to implement `msize-object`, `mread-object`
+   and `mwrite-object` with the following six lines of code:
   
-  (defmethod msize-object ((object my-class) index)
-    (msize-object-slots object index))
+        (defmethod msize-object ((object point3d) index)
+          (msize-object-slots object index))
 
-  (defmethod mwrite-object ((object my-class) ptr index end-index)
-    (mwrite-object-slots object ptr index end-index))
+        (defmethod mwrite-object ((object point3d) ptr index end-index)
+          (mwrite-object-slots object ptr index end-index))
 
-  (defmethod mread-object ((type (eql 'my-class) ptr index end-index &key)
-    (mread-object-slots (make-instance 'my-class) ptr index end-index))
+        (defmethod mread-object ((type (eql 'point3d) ptr index end-index &key)
+          (mread-object-slots (make-instance 'point3d) ptr index end-index))
 
-  This simplified approach has some limitations:
+   This simplified approach has some limitations:
   
-  1. it only works on standard-objects, i.e. on classes defined with (defclass ...)
+   1. it only works on standard-objects, i.e. on classes defined with (defclass ...)
   
-  2. it can only serialize/deserialize (some or all) the object slots
-     with plain `mread` and `mwrite`, i.e. it is NOT possible to
-     specify a customized logic to serialize/deserialize the slots.
+   2. it can only serialize/deserialize (some or all) the object slots
+      with plain `msize`, `mread` and `mwrite`, i.e. it is NOT possible to
+      specify a customized logic to serialize/deserialize the slots.
      
-  3. by default, *all* slots are serialized/deserialized. To override this
-     behaviour, programmers can specialize the generic function `mlist-object-slots`,
-     which must return the list of slots (either slot names or closer-mop:slot-definition)
-     to be serialized/deserialized. The methods on `mlist-object-slots` have the form:
+   3. by default, *all* slots are serialized/deserialized. To override this
+      behaviour, programmers can specialize the generic function `mlist-object-slots`,
+      which must return the list of slots (either slot names or closer-mop:slot-definition)
+      to be serialized/deserialized. The methods on `mlist-object-slots` have the form:
   
-     (defmethod mlist-object-slots ((object my-class))
-       '(foo bar baz))
+           (defmethod mlist-object-slots ((object point3d))
+             '(x y z))
        
-     i.e. they must be specialized on objects, not on their class names.
+      i.e. they must be specialized on objects, not on their class names.
   
 
 - `MWRITE-MAGIC` to be documented...
