@@ -118,7 +118,7 @@
 (defun tree-test ()
   (let ((tree *tree*)
         (index 0))
-    (with-mem-words (ptr (* 2 (msize tree index)) end-index)
+    (with-mem-words (ptr (msize tree index) end-index)
       (dolist (e tree)
         (mwrite-mread-test ptr index end-index e))
       (mwrite-mread-test ptr index end-index tree))))

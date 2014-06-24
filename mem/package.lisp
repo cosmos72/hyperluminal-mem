@@ -25,7 +25,7 @@
 
   (:nicknames #:hlmem)
 
-  (:use #:cl)
+  (:use #:cl #:hyperluminal-ffi)
 
   (:import-from #:stmx.lang
 

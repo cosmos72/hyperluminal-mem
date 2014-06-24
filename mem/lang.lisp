@@ -135,10 +135,10 @@ and derive `+msizeof-word+` from it."
     ;; search for :hyperluminal-db/word-size/<INTEGER> in *features*
     (let ((size (or (find-hldb-option/integer 'word-size)
                     ;; default is pointer size
-                    (cffi-sys:%foreign-type-size :pointer)))
+                    (ffi-sizeof :pointer)))
           (types (loop for type in '(:unsigned-char :unsigned-short :unsigned-int
                                      :unsigned-long :unsigned-long-long)
-                      collect (cons (cffi-sys:%foreign-type-size type) type))))
+                      collect (cons (ffi-sizeof type) type))))
 
       (when-bind type (rest (assoc (the fixnum size) types))
         (return-from choose-word-type (the symbol type)))

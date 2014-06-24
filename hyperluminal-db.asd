@@ -28,8 +28,8 @@
   :description "Persistent, transactional object store. Also includes a serialization library."
 
   :depends-on (:log4cl
-               :cffi
-               :osicat
+               #-abcl :cffi
+               #-abcl :osicat
                :closer-mop
                :bordeaux-threads
                :stmx
@@ -37,12 +37,18 @@
 
   :components ((:static-file "hyperluminal-db.asd")
 
+               (:module :ffi
+                :components ((:file "package")
+                             (:file "ffi"            :depends-on ("package"))))
+                  
+                               
                (:module :mem
                 :components ((:file "package")
                              (:file "lang"           :depends-on ("package"))
                              (:file "version"        :depends-on ("lang"))
                              (:file "mem"            :depends-on ("lang"))
-                             (:file "constants"      :depends-on ("mem"))
+                             (:file "ffi-late"       :depends-on ("mem"))
+                             (:file "constants"      :depends-on ("ffi-late"))
                              (:file "symbols"        :depends-on ("constants"))
                              (:file "unboxed"        :depends-on ("symbols"))
                              (:file "box"            :depends-on ("version" "unboxed"))
@@ -85,7 +91,9 @@
                                                                   "box/string-base"
                                                                   "box/bit-vector"
                                                                   "box/symbol"
-                                                                  "object"))))
+                                                                  "object")))
+                :depends-on (:ffi))
+
                (:module :db
                 :components ((:file "package")
                              (:file "version"        :depends-on ("package"))

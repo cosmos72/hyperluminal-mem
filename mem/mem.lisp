@@ -20,26 +20,9 @@
 (in-package :hyperluminal-mem)
 
 (deftype ufixnum () '(and fixnum (integer 0)))
-(deftype maddress () 'cffi-sys:foreign-pointer)
-
-
-(define-constant-once +null-pointer+ (cffi-sys:null-pointer))
-
-
-
-(declaim (inline null-pointer?))
-
-(defun null-pointer? (ptr)
-  (declare (type maddress ptr))
-  (cffi-sys:null-pointer-p ptr))
 
 
 (eval-when (:compile-toplevel :load-toplevel)
-
-  (defun expr-is-constant? (expr)
-    (or (keywordp expr)
-        (and (consp expr)
-             (eq 'quote (first expr)))))
 
   (defun unquote (expr)
     (if (and (consp expr)
@@ -49,6 +32,9 @@
 
   (declaim (type keyword +chosen-word-type+))
   (defconstant +chosen-word-type+ (choose-word-type))
+
+  (defconstant +native-word-type+ (ffi-native-type-name +chosen-word-type+))
+  
 
   (defun parse-type (type)
     (case type
@@ -71,13 +57,13 @@
 
 (defmacro %msizeof (type)
   "Wrapper for (CFFI-SYS:%FOREIGN-TYPE-SIZE), interprets :SFLOAT :DFLOAT :BYTE AND :WORD"
-  `(cffi-sys:%foreign-type-size ,(if (expr-is-constant? type)
-                                     (parse-type type)
-                                     `(parse-type ,type))))
+  `(ffi-sizeof ,(if (constantp type)
+                    (parse-type type)
+                    `(parse-type ,type))))
 
 (defmacro msizeof (type)
-  "Wrapper for (%MSIZEOF), computes (CFFI:FOREIGN-TYPE-SIZE) at compile time whenever possible"
-  (if (expr-is-constant? type)
+  "Wrapper for (%MSIZEOF), computes (CFFI:%FOREIGN-TYPE-SIZE) at compile time whenever possible"
+  (if (constantp type)
       (%msizeof (unquote type))
       `(%msizeof ,type)))
 
@@ -92,10 +78,11 @@
 
 
 (defmacro %mget-t (type ptr &optional (offset 0))
-  `(cffi-sys:%mem-ref ,ptr ,(parse-type type) ,offset))
+  `(ffi-mem-get ,ptr ,(parse-type type) ,offset))
 
 (defmacro %mset-t (value type ptr &optional (offset 0))
-  `(cffi-sys:%mem-set ,value ,ptr ,(parse-type type) ,offset))
+  `(ffi-mem-set ,value ,ptr ,(parse-type type) ,offset))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -138,17 +125,17 @@ size of ~S is ~S bytes, expecting at least 4 bytes"
 
     (let ((bits-per-word 1))
     
-      (cffi-sys:with-foreign-pointer (p +msizeof-word+)
+      (with-ffi-mem (p +msizeof-word+)
         (loop for i = 1 then (logior (ash i 1) 1)
            for bits = 1 then (1+ bits)
            do
              (handler-case
                  (progn
-                   (%mset-t i :word p)
-                   
                    #+hyperluminal-db/debug
                    (log:debug "(i #x~X) (bits ~D) ..." i bits)
-                 
+
+                   (%mset-t i :word p)
+                   
                    (let ((j (%mget-t :word p)))
                      #+hyperluminal-db/debug
                      (log:debug " read back: #x~X ..." j)
@@ -161,7 +148,9 @@ size of ~S is ~S bytes, expecting at least 4 bytes"
 
                    (setf bits-per-word bits))
 
-               (condition ()
+               (condition (c)
+                 #+hyperluminal-db/debug
+                 (log:warn c)
                  (return-from %detect-bits-per-word bits-per-word)))))))
 
 
@@ -272,7 +261,7 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 (eval-when (:compile-toplevel :load-toplevel :execute)
 
   (defun %detect-endianity ()
-    (cffi-sys:with-foreign-pointer (p +msizeof-word+)
+    (with-ffi-mem (p +msizeof-word+)
       (let ((little-endian 0)
             (big-endian 0))
 
@@ -364,25 +353,6 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
        (setf value (logand #xFF (+ value increment)))))
 
 
-(declaim (notinline !memset !memcpy)
-	 (inline !mzero))
-           
-
-(defun !memset (ptr fill-byte start-byte end-byte)
-  (declare (type maddress ptr)
-           (type (unsigned-byte 8) fill-byte)
-           (type ufixnum start-byte end-byte))
-  (osicat-posix:memset (if (zerop start-byte)
-                           ptr
-                           (cffi-sys:inc-pointer ptr start-byte))
-                       fill-byte
-                       (- end-byte start-byte))
-  nil)
-
-(defun !mzero (ptr start-byte end-byte)
-  (declare (type maddress ptr)
-           (type ufixnum start-byte end-byte))
-  (!memset ptr 0 start-byte end-byte))
            
 
 (defun !mzero-words (ptr &optional (start-index 0) (end-index (1+ start-index)))
@@ -405,12 +375,6 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 
 
 
-(defun !memcpy (dst src n-bytes)
-  (declare (type maddress dst src)
-           (type ufixnum n-bytes))
-  (osicat-posix:memcpy dst src n-bytes))
-
-
 (declaim (inline memcpy-words))
 
 (defun memcpy-words (dst dst-index src src-index n-words)
@@ -421,18 +385,6 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
                    (mget-word src (the ufixnum (+ src-index i))))))
   
            
-(declaim (inline malloc mfree))
-
-(defun malloc (n-bytes)
-  "Allocate N-BYTES of raw memory and return raw pointer to it.
-The obtained memory must be freed manually: call MFREE on it when no longer needed."
-  (cffi-sys:%foreign-alloc n-bytes))
-
-(defun mfree (ptr)
-  "Deallocate a block of raw memory previously obtained with MALLOC."
-  (declare (type maddress ptr))
-  (cffi-sys:foreign-free ptr))
-
 
 (defmacro with-mem-words ((ptr n-words &optional n-words-var) &body body)
   "Bind PTR to N-WORDS words of raw memory while executing BODY.
@@ -440,14 +392,14 @@ Raw memory is automatically deallocated when BODY terminates."
 
   (when (and (null n-words-var) (constantp n-words))
     (return-from with-mem-words
-      `(cffi-sys:with-foreign-pointer (,ptr ,(eval (* n-words +msizeof-word+)))
+      `(with-ffi-mem (,ptr ,(eval (* n-words +msizeof-word+)))
          ,@body)))
       
   (unless n-words-var
     (setf n-words-var (gensym (symbol-name 'n-words))))
   
   `(let ((,n-words-var (the mem-size ,n-words)))
-     (cffi-sys:with-foreign-pointer
+     (with-ffi-mem
          (,ptr
           ,(if (constantp n-words)
                (eval `(* ,n-words +msizeof-word+))
