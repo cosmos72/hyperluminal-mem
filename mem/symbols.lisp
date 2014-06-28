@@ -22,9 +22,9 @@
 
 (eval-always
 
- (define-constant-once +package-keyword+          (find-package '#:keyword))
- (define-constant-once +package-common-lisp+      (find-package '#:common-lisp))
- (define-constant-once +package-common-lisp-user+ (find-package '#:common-lisp-user))
+ (define-global +package-keyword+          (find-package '#:keyword))
+ (define-global +package-common-lisp+      (find-package '#:common-lisp))
+ (define-global +package-common-lisp-user+ (find-package '#:common-lisp-user))
 
  (defun collect-symbols (package-designator &key expected-n-symbols start-with)
    "Return a sorted vector containing all external symbols of a package."
@@ -78,12 +78,13 @@
 
 ;; sorted vector of all external symbols in package COMMON-LISP
 #-(and)
-(define-constant-once +symbols-vector+
+(define-global +symbols-vector+
     (collect-symbols '#:common-lisp :expected-n-symbols 978 :start-with '(nil t)))
 
 
-(define-constant-once +symbols-vector+ #(
- nil t #.(load-time-value stmx::+unbound-tvar+ t)
+(define-global +symbols-vector+ (coerce `(
+ nil t  ,stmx::+unbound-tvar+ ,stmx.util::+empty-tcell+
+
  &allow-other-keys &aux &body &environment &key &optional &rest &whole
  * ** *** *break-on-signals* *compile-file-pathname* *compile-file-truename*
  *compile-print* *compile-verbose* *debug-io* *debugger-hook*
@@ -266,11 +267,9 @@
  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
  0 0 0 0 0 0 0 0 0 0 0 0
 
- #.(load-time-value stmx.util::+empty-tcell+ t)
-
- #.(load-time-value +package-common-lisp-user+ t) 
- #.(load-time-value +package-common-lisp+ t) 
- #.(load-time-value +package-keyword+ t) 
+ ,+package-common-lisp-user+
+ ,+package-common-lisp+
+ ,+package-keyword+
 
  :compile-toplevel :load-toplevel :execute ;; eval-when options
  :inherited :external :internal ;; intern options
@@ -279,11 +278,11 @@
  :case :common :local ;; make-pathname options
  :absolute :relative :wild :newest :unspecific :oldest :previous :installed ;; used inside pathnames
  :before :after :around ;; defmethod options
-))
+) 'vector))
 
 
 
-(define-constant-once +symbols-table+  (symbols-vector-to-table +symbols-vector+))
+(define-global +symbols-table+  (symbols-vector-to-table +symbols-vector+))
 
 (defconstant +mem-pkg/common-lisp-user+ 1021 "persistent representation of the package COMMON-LISP-USER")
 (defconstant +mem-pkg/common-lisp+   1022 "persistent representation of the package COMMON-LISP")
@@ -295,33 +294,37 @@
 (defconstant +mem-syms/last+ (+ +mem-syms/first+ (length +symbols-vector+) -1) "last value used for predefined symbols")
 
 
-(defconstant +mem-syms-user/first+  2048 "first value available for user-defined symbols")
+(defconstant +mem-syms-user/first+   2048 "first value available for user-defined symbols")
 
 
 
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
 
-  (loop for (sym . expected-pos) in '((nil     . #.+mem-sym/nil+)
-                                      (t       . #.+mem-sym/t+)
-                                      (&whole  .  10)
-                                      (and     .  85)
-                                      (car     . 181)
-                                      (cons    . 256)
-                                      (do      . 318)
-                                      (if      . 442)
-                                      (map     . 564)
-                                      (nth     . 632)
-                                      (setf    . 784)
-                                      (string  . 851)
-                                      (vector  . 948)
-                                      (zerop   . 978)
-                                      (:compile-toplevel . 1024)
-                                      (:around . 1054))
+  (loop for (sym . expected-pos)
+     in `((nil     . ,+mem-sym/nil+)
+          (t       . ,+mem-sym/t+)
+          (&whole  .  11)
+          (and     .  86)
+          (car     . 182)
+          (cons    . 257)
+          (do      . 319)
+          (if      . 443)
+          (map     . 565)
+          (nth     . 633)
+          (setf    . 785)
+          (string  . 852)
+          (vector  . 949)
+          (zerop   . 979)
+          (,+package-common-lisp-user+ . ,+mem-pkg/common-lisp-user+)
+          (,+package-common-lisp+      . ,+mem-pkg/common-lisp+)
+          (,+package-keyword+          . ,+mem-pkg/keyword+)
+          (:compile-toplevel           . 1024)
+          (:around                     . 1054))
      for pos = (gethash sym +symbols-table+)
      do
        (unless (eql pos expected-pos)
-         (error "HYPERLUMINAL-DB: unexpected contents of hash table ~S, cannot compile!
+         (error "HYPERLUMINAL-DB: unexpected contents of ~S, cannot compile!
 symbol ~S is associated to value ~S, it must be associated to value ~S instead"
                 '+symbols-table+ sym pos expected-pos))))
 
