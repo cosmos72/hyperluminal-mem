@@ -82,7 +82,9 @@
     (collect-symbols '#:common-lisp :expected-n-symbols 978 :start-with '(nil t)))
 
 
-(define-global +symbols-vector+ (coerce `(
+(eval-always
+ (define-global +symbols-vector+ (coerce `(
+
  nil t  ,stmx::+unbound-tvar+ ,stmx.util::+empty-tcell+
 
  &allow-other-keys &aux &body &environment &key &optional &rest &whole
@@ -278,11 +280,12 @@
  :case :common :local ;; make-pathname options
  :absolute :relative :wild :newest :unspecific :oldest :previous :installed ;; used inside pathnames
  :before :after :around ;; defmethod options
-) 'vector))
+) 'vector)))
 
 
 
-(define-global +symbols-table+  (symbols-vector-to-table +symbols-vector+))
+(eval-always
+  (define-global +symbols-table+  (symbols-vector-to-table +symbols-vector+)))
 
 (defconstant +mem-pkg/common-lisp-user+ 1021 "persistent representation of the package COMMON-LISP-USER")
 (defconstant +mem-pkg/common-lisp+   1022 "persistent representation of the package COMMON-LISP")
@@ -299,7 +302,7 @@
 
 
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
+(eval-always
 
   (loop for (sym . expected-pos)
      in `((nil     . ,+mem-sym/nil+)
