@@ -39,7 +39,8 @@
 
                (:module :ffi
                 :components ((:file "package")
-                             (:file "ffi"            :depends-on ("package"))))
+                             (:file "ffi"            :depends-on ("package"))
+                             (:file "os"             :depends-on ("ffi"))))
                   
                                
                (:module :mem

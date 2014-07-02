@@ -38,4 +38,9 @@
 
   (:export #:ffi-mem-get #:ffi-mem-set #:with-ffi-mem
            #:ffi-sizeof  #:ffi-native-type-name
-           #:+null-pointer+     #:null-pointer?     #:maddress))
+           #:+null-pointer+     #:null-pointer?     #:maddress
+
+           #:os-getpagesize #:fd #:+bad-fd+ #:bad-fd?
+           #:os-open-fd-rw  #:os-close-fd   #:os-stat-fd-size #:os-truncate-fd
+           #:os-mmap-fd-rw  #:os-munmap-ptr #:os-msync-ptr))
+

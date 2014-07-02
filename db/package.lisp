@@ -25,7 +25,7 @@
 
   (:nicknames #:hldb)
 
-  (:use #:cl #:hyperluminal-mem)
+  (:use #:cl #:hyperluminal-ffi)
 
   (:import-from #:stmx.lang
 
@@ -40,15 +40,16 @@
 
   (:import-from #:hyperluminal-mem
 
-                #:+null-pointer+ #:+most-positive-size+
+                #:+null-pointer+ #:+most-positive-size+ #:+msizeof-word+
                 #:+mem-box/min-words+    #:+mem-box/max-words+
                 #:+mem-box/header-words+ #:+mem-box/min-payload-words+
                 #:box-pointer->size #:size->box-pointer
+                #:box-realloc #:reuse-box #:make-box #:box-n-words #:box-index
 
-                #:mem-size+ #:mem-size+1 #:mem-size- #:mem-size-1
+                #:mem-size #:mem-size+ #:mem-size+1 #:mem-size- #:mem-size-1
                 #:mget-value
 
-                #:!mread #:!mwrite)
+                #:mread-magic #:mwrite-magic #:!mread #:!mwrite)
 
   (:export      #:hldb-version #:hldb-abi-version
                 #:hldb-open    #:hldb-close))
