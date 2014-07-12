@@ -62,6 +62,7 @@ Supported systems
 Hyperluminal-DB is currently tested on the following Common Lisp implementations:
 
 * [SBCL](http://sbcl.org/)
+  * version 1.1.20       (x86_64)   on Debian GNU/Linux jessie (x86_64)
   * version 1.1.15       (x86_64)   on Debian GNU/Linux jessie (x86_64)
   * version 1.1.14       (x86)      on Debian GNU/Linux jessie (x86_64)
   * version 1.1.14       (powerpc)  on Debian GNU/Linux jessie (powerpc) inside Qemu
