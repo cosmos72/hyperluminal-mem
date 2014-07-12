@@ -76,8 +76,8 @@ Hyperluminal-DB is currently tested on the following Common Lisp implementations
 * [ABCL](http://www.abcl.org/)
   * version 1.3.1        (x86_64)   on OpenJDK 1.7.0_55 (x86_64) on Debian GNU/Linux jessie (x86_64)
   
-  Note: on ABCL, memory buffers are implemented by java.nio.ByteBuffer instead of CFFI-SYS
-  raw memory pointers due to current compatibility problems between ABCL and CFFI.
+  Note: on ABCL, memory buffers are implemented by java.nio.ByteBuffer instead of CFFI
+  raw memory pointers due to currently limited compatibility between ABCL and CFFI.
   
 * [CMUCL](http://www.cons.org/cmucl/)
   * version 20d Unicode  (x86)      on Debian GNU/Linux jessie  (x86_64)
