@@ -76,8 +76,10 @@ Hyperluminal-DB is currently tested on the following Common Lisp implementations
 * [ABCL](http://www.abcl.org/)
   * version 1.3.1        (x86_64)   on OpenJDK 1.7.0_55 (x86_64) on Debian GNU/Linux jessie (x86_64)
   
-  Note: on ABCL, memory buffers are implemented by java.nio.ByteBuffer instead of CFFI
-  raw memory pointers due to currently limited compatibility between ABCL and CFFI.
+  Note: on ABCL, memory buffers are implemented using java.nio.ByteBuffer instead of CFFI-SYS
+  raw memory pointers due to currently limited compatibility between ABCL and CFFI/OSICAT libraries.
+  Memory-mapped files are supported, and internally use java.nio.channels.FileChannel.map()
+  instead of OSICAT-POSIX (mmap)
   
 * [CMUCL](http://www.cons.org/cmucl/)
   * version 20d Unicode  (x86)      on Debian GNU/Linux jessie  (x86_64)
@@ -88,10 +90,6 @@ Hyperluminal-DB is currently tested on the following Common Lisp implementations
   for details.
 
 ### Unsupported systems
-
-* [ABCL](http://abcl.org/) does not yet fully support CFFI and OSICAT, two libraries
-  required by Hyperluminal-DB. Once support for these two libraries improves,
-  Hyperluminal-DB can be tested on it too.
 
 * [ECL](http://ecls.sourceforge.net/) has some known issues with CFFI, OSICAT and STMX,
   three libraries required by Hyperluminal-DB. Once support for these three libraries improves,
