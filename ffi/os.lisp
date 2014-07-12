@@ -80,9 +80,8 @@
   (let ((fd (java:jcall "map" fd
                         (java:jfield "java.nio.channels.FileChannel$MapMode" "READ_WRITE")
                         offset-bytes
-                        length-bytes))
-        (native-endian (java:jstatic "nativeOrder" "java.nio.ByteOrder")))
-    (java:jcall "order" fd native-endian)
+                        length-bytes)))
+    (java:jcall +java-nio-bytebuffer-set-byteorder+ fd +java-nio-byteorder-native+)
     fd))
 
 
@@ -99,8 +98,8 @@
   #-abcl
   (osicat-posix:msync ptr length-bytes
                       (if sync
-                          #.(logior osicat-posix:ms-sync  osicat-posix:ms-invalidate)
-                          #.(logior osicat-posix:ms-async osicat-posix:ms-invalidate)))
+                          (logior osicat-posix:ms-sync  osicat-posix:ms-invalidate)
+                          (logior osicat-posix:ms-async osicat-posix:ms-invalidate)))
   #+abcl
   (java:jcall "force" ptr))
 

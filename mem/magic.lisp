@@ -53,7 +53,7 @@
     (remove-if (lambda (x) (member (second x) '(abi-minor-version abi-patch-version unused)))
                *magic-write-list*)
   "When opening an HLDB file or exchanging HLMEM serialized data with another process,
-we do not check FILE-MINOR-VERSION and FILE-PATCH-VERSION:
+we do not check ABI-MINOR-VERSION and ABI-PATCH-VERSION:
 they are allowed to differ between data and compiled library")
 
 

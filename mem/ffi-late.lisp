@@ -28,8 +28,7 @@
   "Allocate N-BYTES of raw memory and return raw pointer to it.
 The obtained memory must be freed manually: call MFREE on it when no longer needed."
   #-abcl (cffi-sys:%foreign-alloc n-bytes)
-  #+abcl (java:jnew-array +native-word-type+
-                          (ceiling n-bytes +msizeof-word+)))
+  #+abcl (java:jstatic "allocate" "java.nio.ByteBuffer" n-bytes))
 
 
 (defun mfree (ptr)
@@ -43,15 +42,15 @@ The obtained memory must be freed manually: call MFREE on it when no longer need
            (type (unsigned-byte 8) fill-byte)
            (type ufixnum start-byte end-byte))
   #-abcl
-  (osicat-posix:memset (if (zerop start-byte)
-                           ptr
-                           (cffi-sys:inc-pointer ptr start-byte))
-                       fill-byte
-                       (- end-byte start-byte))
-  #+abcl
-  (error "!MEMSET not implemented on ABCL. Use !MEMSET-WORDS instead")
+  (progn
+    (unless (zerop start-byte)
+      (setf ptr (cffi-sys:inc-pointer dst dst-start-byte)))
+    (osicat-posix:memset ptr fill-byte (- end-byte start-byte)))
 
-  nil)
+  #+abcl
+  (loop for offset from start-byte below end-byte do
+       (mset-byte ptr offset fill-byte)))
+
 
 
 (declaim (inline !mzero))
@@ -63,12 +62,19 @@ The obtained memory must be freed manually: call MFREE on it when no longer need
 
 
 
-(defun !memcpy (dst src n-bytes)
+(defun !memcpy (dst dst-start-byte src src-start-byte n-bytes)
   (declare (type maddress dst src)
-           (type ufixnum n-bytes))
+           (type ufixnum dst-start-byte src-start-byte n-bytes))
   #-abcl
-  (osicat-posix:memcpy dst src n-bytes)
+  (progn
+    (unless (zerop dst-start-byte)
+      (setf dst (cffi-sys:inc-pointer dst dst-start-byte)))
+    (unless (zerop src-start-byte)
+      (setf src (cffi-sys:inc-pointer src src-start-byte)))
+    (osicat-posix:memcpy dst src n-bytes))
 
   #+abcl
-  (error "!MEMCPY not implemented on ABCL. Use !MEMCPY-WORDS instead"))
+  (loop for i from 0 below n-bytes do
+       (mset-byte dst (the ufixnum (+ i dst-start-byte))
+                  (mget-byte src (the ufixnum (+ i src-start-byte))))))
 

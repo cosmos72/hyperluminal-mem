@@ -40,10 +40,11 @@
 
   (:import-from #:hyperluminal-mem
 
-                #:+null-pointer+ #:+most-positive-size+ #:+msizeof-word+
+                #:+null-pointer+         #:+mem-unallocated+
+                #:+most-positive-size+   #:+msizeof-word+
                 #:+mem-box/min-words+    #:+mem-box/max-words+
                 #:+mem-box/header-words+ #:+mem-box/min-payload-words+
-                #:box-pointer->size #:size->box-pointer
+                #:box-pointer->size      #:size->box-pointer
                 #:box-realloc #:reuse-box #:make-box #:box-n-words #:box-index
 
                 #:mem-size #:mem-size+ #:mem-size+1 #:mem-size- #:mem-size-1

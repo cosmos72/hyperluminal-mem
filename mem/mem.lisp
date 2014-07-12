@@ -315,7 +315,8 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
   `(%mget-t :byte ,ptr ,byte-index))
 
 (defmacro mset-byte (ptr byte-index value)
-  "Used only by MWRITE-MAGIC."
+  #-abcl "Used only by MWRITE-MAGIC."
+  #+abcl "Used only by MWRITE-MAGIC, !MEMSET and !MEMCPY."
   `(%mset-t ,value :byte ,ptr ,byte-index))
 
 (defsetf mget-byte mset-byte)
