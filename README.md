@@ -73,13 +73,19 @@ Hyperluminal-DB is currently tested on the following Common Lisp implementations
   * version 1.9-r15761   (linuxppc) on Debian GNU/Linux jessie (powerpc) inside Qemu
   * version 1.9-dev-r15475M-trunk (LinuxARM32) on Raspbian GNU/Linux (armhf) Raspberry Pi
 
+* [ABCL](http://www.abcl.org/)
+  * version 1.3.1        (x86_64)   on OpenJDK 1.7.0_55 (x86_64) on Debian GNU/Linux jessie (x86_64)
+  
+  Note: on ABCL, memory buffers are implemented by java.nio.ByteBuffer instead of CFFI-SYS
+  raw memory pointers due to current compatibility problems between ABCL and CFFI.
+  
 * [CMUCL](http://www.cons.org/cmucl/)
   * version 20d Unicode  (x86)      on Debian GNU/Linux jessie  (x86_64)
   * version 20c Unicode  (x86)      on Debian GNU/Linux jessie  (x86_64)
 
-CMUCL needs to be started with the option `-fpu x87` to run Hyperluminal-DB reliably, see 
-[STMX documentation](https://github.com/cosmos72/stmx/blob/master/doc/supported-systems.md)
-for details.
+  Note: CMUCL needs to be started with the option `-fpu x87` to run Hyperluminal-DB reliably,
+  see [STMX documentation](https://github.com/cosmos72/stmx/blob/master/doc/supported-systems.md)
+  for details.
 
 ### Unsupported systems
 
