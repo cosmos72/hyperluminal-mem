@@ -74,7 +74,7 @@ Hyperluminal-DB is currently tested on the following Common Lisp implementations
   * version 1.9-dev-r15475M-trunk (LinuxARM32) on Raspbian GNU/Linux (armhf) Raspberry Pi
 
 * [ABCL](http://www.abcl.org/)
-  * version 1.3.1        (x86_64)   on OpenJDK 1.7.0_55 (x86_64) on Debian GNU/Linux jessie (x86_64)
+  * version 1.3.1                   on OpenJDK 1.7.0_55 (x86_64) on Debian GNU/Linux jessie (x86_64)
   
   Note: on ABCL, memory buffers are implemented using java.nio.ByteBuffer instead of CFFI-SYS
   raw memory pointers due to currently limited compatibility between ABCL and CFFI/OSICAT libraries.
