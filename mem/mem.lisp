@@ -149,8 +149,8 @@ size of ~S is ~S bytes, expecting at least 4 bytes"
                    (setf bits-per-word bits))
 
                (condition (c)
-                 #+hyperluminal-db/debug
-                 (log:warn c)
+                 (declare (ignorable c))
+                 #+hyperluminal-db/debug (log:debug c)
                  (return-from %detect-bits-per-word bits-per-word)))))))
 
 

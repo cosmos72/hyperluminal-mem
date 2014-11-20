@@ -44,13 +44,16 @@
                 #:+most-positive-size+   #:+msizeof-word+
                 #:+mem-box/min-words+    #:+mem-box/max-words+
                 #:+mem-box/header-words+ #:+mem-box/min-payload-words+
-                #:box-pointer->size      #:size->box-pointer
-                #:box-realloc #:reuse-box #:make-box #:box-n-words #:box-index
 
                 #:mem-size #:mem-size+ #:mem-size+1 #:mem-size- #:mem-size-1
-                #:mget-value
+                #:incf-mem-size
+                #:mget-value #:mset-fulltag-and-value
 
-                #:mread-magic #:mwrite-magic #:!mread #:!mwrite)
+                #:mread-magic #:mwrite-magic #:!mread #:!mwrite #:!mzero-words
+
+                #:box-pointer->size          #:size->box-pointer
+                #:box         #:make-box     #:box-n-words
+                #:reuse-box   #:box-realloc  #:box-index  #:box-value)
 
   (:export      #:hldb-version #:hldb-abi-version
                 #:hldb-open    #:hldb-close))

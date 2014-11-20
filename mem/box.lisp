@@ -54,6 +54,81 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+(declaim (inline box-index   (setf box-index)
+                 box-n-words (setf box-n-words)
+                 box-value   (setf box-value)
+                 box-next    (setf box-next)
+                 reuse-box))
+
+
+;; wrapper for values that cannot be stored as unboxed
+
+#|
+(declaim (inline %make-box setf-box-value-index-n-words))
+(defstruct (box (:constructor %make-box))
+  (index   0 :type mem-size)
+  (n-words 0 :type mem-size)
+  (value   nil))
+
+
+(defun make-box (index n-words &optional value)
+  "Create a new box to wrap VALUE. Assumes VALUE will be stored at INDEX in memory store."
+  (declare (type mem-size index n-words))
+  (%make-box :index index :n-words n-words :value value))
+
+(defun reuse-box (box index n-words value)
+  (setf (box-value   box) value
+        (box-index   box) index
+        (box-n-words box) n-words)
+  box)
+|#
+
+(deftype box () 'cons)
+
+(defun make-box (index n-words &optional value)
+  "Create a new box to wrap VALUE. Assumes VALUE will be stored at INDEX in memory store."
+  (declare (type mem-size index n-words))
+  `(,value ,index . ,n-words))
+
+(defun box-value (box)
+  (declare (type box box))
+  (first box))
+
+(defun (setf box-value) (value box)
+  (declare (type box box))
+  (setf (first box) value))
+
+(defun box-index (box)
+  (declare (type box box))
+  (the mem-size (second box)))
+
+(defun (setf box-index) (index box)
+  (declare (type box box)
+           (type mem-size index))
+  (setf (second box) index))
+
+(defun box-n-words (box)
+  (declare (type box box))
+  (the mem-size (rest (rest box))))
+
+(defun (setf box-n-words) (n-words box)
+  (declare (type box box)
+           (type mem-size n-words))
+  (setf (rest (rest box)) n-words))
+
+(defun reuse-box (box index n-words value)
+  "Set BOX slots to specified values. Return BOX."
+  (declare (type box box)
+           (type mem-size index n-words))
+  (setf (box-value box) value)
+  (let ((tail (rest box)))
+    (setf (first tail)  index
+          (rest  tail)  n-words))
+  box)
+    
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (declaim (inline mwrite-box/header mwrite-box/box-header
                  mread-box/header  mread-box/box-header))
 
@@ -101,6 +176,45 @@ Return BOX and BOXED-TYPE as multiple values"
      (make-box index (box-pointer->size allocated-words/4))
      boxed-type)))
 
+
+(defun mwrite-box/box (ptr value &optional box)
+  "Write a boxed value into the object store, (re)allocating space if needed.
+Return the written box."
+  (declare (type maddress ptr)
+           (type (or null box) box))
+
+  (let* ((boxed-type (mdetect-box-type     value))
+         (n-words    (msize-box-rounded-up value boxed-type))
+         (allocated-n-words (if box (box-n-words box) 0)))
+    
+    (if (and (<= n-words allocated-n-words)
+             (>= n-words (ash allocated-n-words -1)))
+        ;; reuse the existing memory
+        (setf n-words allocated-n-words)
+        ;; we must (re)allocate memory
+        (setf box (box-realloc ptr box n-words)
+              ;; ABSOLUTELY NECESSARY! read back actually allocated
+	      ;; n-words (usually rounded up somewhat)
+              n-words (box-n-words box)))
+
+    (setf (box-value box) value)
+    (let ((index (box-index box)))
+      (mwrite-box ptr index (mem-size+ index n-words) value boxed-type))
+    box))
+
+
+(defun mread-box/box (ptr index box)
+  "Read a boxed value from the memory starting at (PTR+INDEX).
+Reuse box and return the boxed value."
+  (declare (type maddress ptr)
+           (type mem-size index)
+           (type box box))
+
+  (let1 end-index (mem-size+ index (box-n-words box))
+    (multiple-value-bind (value n-words) (mread-box ptr index end-index)
+      (reuse-box box index n-words value))))
+  
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defun box-type-error (ptr index boxed-type)
@@ -198,4 +312,34 @@ but only ~S word~P available at that location"
                           (values t mem-size &optional))
 		mread)
 	 (notinline mread))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defun !mzero-box (ptr box)
+  "Fill an allocated box with zeroes."
+  (declare (type maddress ptr)
+           (type box box))
+  (let* ((index   (box-index box))
+         (n-words (box-n-words box))
+         (start   index)
+         (end     (mem-size+ start n-words)))
+
+    (!mzero-words ptr start end)))
+
+
+
+(defun !mzero-fbox (ptr box)
+  "Fill a free box with zeroes."
+  (declare (type maddress ptr)
+           (type box box))
+  (let* ((index   (box-index box))
+         (n-words (box-n-words box))
+         ;; free boxes are written at the end of the free mmap area they represent!
+         (start   (mem-size- index (mem-size- n-words +mem-box/header-words+)))
+         (end     (mem-size+ start n-words)))
+    
+    (!mzero-words ptr start end)))
+
 

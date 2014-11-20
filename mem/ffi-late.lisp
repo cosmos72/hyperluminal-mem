@@ -44,7 +44,7 @@ The obtained memory must be freed manually: call MFREE on it when no longer need
   #-abcl
   (progn
     (unless (zerop start-byte)
-      (setf ptr (cffi-sys:inc-pointer dst dst-start-byte)))
+      (setf ptr (cffi-sys:inc-pointer ptr start-byte)))
     (osicat-posix:memset ptr fill-byte (- end-byte start-byte)))
 
   #+abcl

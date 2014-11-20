@@ -205,30 +205,6 @@ was concurrently modified while being written"
 
 
 
-(defun mwrite-box/box (ptr value &optional box)
-  "Write a boxed value into the object store, (re)allocating space if needed.
-Return the written box."
-  (declare (type maddress ptr)
-           (type (or null box) box))
-
-  (let* ((boxed-type (mdetect-box-type     value))
-         (n-words    (msize-box-rounded-up value boxed-type))
-         (allocated-n-words (if box (box-n-words box) 0)))
-    
-    (if (and (<= n-words allocated-n-words)
-             (>= n-words (ash allocated-n-words -1)))
-        ;; reuse the existing memory
-        (setf n-words allocated-n-words)
-        ;; we must (re)allocate memory
-        (setf box (box-realloc ptr box n-words)
-              ;; ABSOLUTELY NECESSARY! read back actually allocated
-	      ;; n-words (usually rounded up somewhat)
-              n-words (box-n-words box)))
-
-    (setf (box-value box) value)
-    (let ((index (box-index box)))
-      (mwrite-box ptr index (mem-size+ index n-words) value boxed-type))
-    box))
 
 
 
@@ -283,15 +259,6 @@ Return the value and the number of words actually read as multiple values."
 
 
 
-(defun mread-box/box (ptr index box)
-  "Read a boxed value from the memory starting at (PTR+INDEX).
-Return the boxed value."
-  (declare (type maddress ptr)
-           (type mem-size index)
-           (type box box))
-
-  (multiple-value-bind (value n-words) (%mread-box ptr index (mem-size+ index (box-n-words box)))
-    (reuse-box box index n-words value)))
 
 
 

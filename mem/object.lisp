@@ -19,6 +19,34 @@
 
 (in-package :hyperluminal-mem)
 
+
+(defmacro multiple-value-bind-chain2* ((var1 var2 &rest more-vars)
+                                       (func arg1 arg2 &rest more-args) &body body)
+  "Warning: this macro expands multiple references to FUNC, ARG1 and MORE-ARGS"
+  (if more-vars
+      (with-gensym tmp
+        `(multiple-value-bind (,var1 ,tmp) (,func ,arg1 ,arg2 ,@more-args)
+           (multiple-value-bind-chain2* (,var2 ,@more-vars) (,func ,arg1 ,tmp ,@more-args)
+             ,@body)))
+      `(multiple-value-bind (,var1 ,var2) (,func ,arg1 ,arg2 ,@more-args)
+         ,@body)))
+
+
+(defmacro with-mread* ((var1 var2 &rest more-vars)
+                                    (ptr index end-index) &body body)
+  "syntactic sugar for multiple calls to mread"
+  (if more-vars
+      (with-gensyms (ptr-var idx-var end-var)
+        `(let* ((,ptr-var ,ptr)
+                (,idx-var ,index)
+                (,end-var ,end-index))
+           (multiple-value-bind-chain2* (,var1 ,var2 ,@more-vars)
+               (mread ,ptr-var ,idx-var ,end-var)
+             ,@body)))
+      `(multiple-value-bind (,var1 ,var2) (mread ,ptr ,index ,end-index)
+         ,@body)))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;    dispatchers for object types                                         ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -171,30 +199,6 @@ Default implementation for standard-objects is to call (closer-mop:class-slots (
 
 
 
-(defmacro multiple-value-bind-chain2* ((var1 var2 &rest more-vars)
-                                       (func arg1 arg2 &rest more-args) &body body)
-  "Warning: this macro expands multiple references to FUNC, ARG1 and MORE-ARGS"
-  (if more-vars
-      (with-gensym tmp
-        `(multiple-value-bind (,var1 ,tmp) (,func ,arg1 ,arg2 ,@more-args)
-           (multiple-value-bind-chain2* (,var2 ,@more-vars) (,func ,arg1 ,tmp ,@more-args)
-             ,@body)))
-      `(multiple-value-bind (,var1 ,var2) (,func ,arg1 ,arg2 ,@more-args)
-         ,@body)))
-
-
-(defmacro with-mread* ((var1 var2 &rest more-vars)
-                       (ptr index end-index) &body body)
-  (if more-vars
-      (with-gensyms (ptr-var idx-var end-var)
-        `(let* ((,ptr-var ,ptr)
-                (,idx-var ,index)
-                (,end-var ,end-index))
-           (multiple-value-bind-chain2* (,var1 ,var2 ,@more-vars)
-               (mread ,ptr-var ,idx-var ,end-var)
-             ,@body)))
-      `(multiple-value-bind (,var1 ,var2) (mread ,ptr ,index ,end-index)
-         ,@body)))
 
 
 
