@@ -41,25 +41,56 @@ not including BOX header words."
 
 (defun %mwrite-base-string (ptr index string n-chars)
   "Write the first N-CHARS single-byte characters of STRING into the memory starting at (PTR+INDEX). Return T."
-  (declare (type maddress ptr)
+  (declare (optimize (speed 3) (debug 1) (safety 0))
+
+           (type maddress ptr)
            (type mem-size index)
            (type base-string string)
            (type ufixnum n-chars))
+ 
+  (let* ((n-chars-remainder (nth-value 1 (truncate n-chars +msizeof-word+)))
+         (n-chars-truncate  (- n-chars n-chars-remainder)))
+    (declare (type ufixnum n-chars-remainder n-chars-truncate))
 
-  (let ((offset (the mem-word (* index +msizeof-word+))))
+    (macrolet ((base-char-to-word (char-func i)
+                 `(the mem-byte
+                       (char-code (,char-func string (the fixnum ,i)))))
+               
+               (base-chars-to-word (char-func i)
+                 `(logior
+                   ,@(loop for j below +msizeof-word+ collect
+                          `(the mem-word
+                                (ash (base-char-to-word ,char-func (+ ,i ,j))
+                                     ,(* j +mem-byte/bits+))))))
 
-    (macrolet ((loop-write (char-func ptr offset string n-chars)
-                  (with-gensym i
-                    `(loop for ,i from 0 below ,n-chars do
-                          (%mset-t (the (unsigned-byte #.+mem-byte/bits+)
-                                     (char-code
-                                      (,char-func ,string ,i)))
-                                   :byte ,ptr (the mem-word (+ ,offset ,i)))))))
-    
+               (loop-write (char-func)
+                  (with-gensyms (i word)
+                    `(progn
+                       (let ((, i 0))
+                         (declare (type ufixnum ,i))
+                         (loop while (< ,i n-chars-truncate)
+                            do
+                              (let ((,word (base-chars-to-word ,char-func ,i)))
+                                (declare (type mem-word ,word))
+                                (mset-word ptr index ,word)
+                                (incf-mem-size index)
+                                (incf ,i +msizeof-word+))))
+                       
+                       (let ((,word 0))
+                         (declare (type mem-word ,word))
+                         (loop for ,i from 0 below n-chars-remainder do
+                              (setf
+                               ,word
+                               (logior ,word
+                                       (the mem-word
+                                            (ash (base-char-to-word
+                                                  ,char-func (+ ,i n-chars-truncate))
+                                                 (* ,i +mem-byte/bits+))))))
+                         (mset-word ptr index ,word))))))
+        
       (if (typep string 'simple-string)
-          (loop-write schar ptr offset string n-chars)
-          (loop-write char ptr offset string n-chars))))
-  
+          (loop-write schar)
+          (loop-write  char))))
   t)
 
 
@@ -95,18 +126,50 @@ actually read as multiple values.
 ABI: characters are read from memory using the compact, single-byte representation.
 For this reason only codes in the range 0 ... +most-positive-byte+ can be read
 \(typically 0 ... 255)"
-  (declare (type maddress ptr)
+  (declare (optimize (speed 3) (debug 1) (safety 0))
+
+           (type maddress ptr)
            (type mem-size index)
            (type simple-base-string result-string)
            (type ufixnum n-chars))
 
-  (let ((offset (the mem-word (* index +msizeof-word+))))
+  (let* ((n-chars-remainder (nth-value 1 (truncate n-chars +msizeof-word+)))
+         (n-chars-truncate  (- n-chars n-chars-remainder)))
+    (declare (type ufixnum n-chars-remainder n-chars-truncate))
 
-    (loop for i from 0 below n-chars do
-         (setf (schar result-string i)
-               (code-char
-                (the (unsigned-byte #.+mem-byte/bits+)
-                  (%mget-t :byte ptr (the mem-word (+ offset i)))))))))
+    (macrolet ((word-to-base-char (word)
+                 `(the base-char
+                       (code-char (logand ,word +base-char/mask+))))
+               
+               (word-to-base-chars (word char-func i)
+                 `(progn
+                   ,@(loop for j below +msizeof-word+ collect
+                          `(setf (,char-func result-string (+ ,i ,j))
+                                 (word-to-base-char
+                                  (ash ,word (- (* ,j +mem-byte/bits+))))))))
+
+
+               (loop-read (char-func)
+                  (with-gensyms (i word)
+                    `(progn
+                       (let ((, i 0))
+                         (declare (type ufixnum ,i))
+                         (loop while (< ,i n-chars-truncate)
+                            do
+                              (let ((,word (mget-word ptr index)))
+                                (declare (type mem-word ,word))
+                                (incf-mem-size index)
+                                (word-to-base-chars ,word ,char-func ,i)
+                                (incf ,i +msizeof-word+))))
+                       
+                       (let ((,word (mget-word ptr index)))
+                         (declare (type mem-word ,word))
+                         (loop for ,i from 0 below n-chars-remainder do
+                              (setf (,char-func result-string (+ ,i n-chars-truncate))
+                                    (word-to-base-char ,word))
+                              (setf ,word (ash ,word (- +mem-byte/bits+)))))))))
+      (loop-read schar))))
+      
 
 
 (defun mread-box/base-string (ptr index end-index)

@@ -292,7 +292,7 @@ Also rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
 ;; (declaim (ftype (...) mwrite)) is in box.lisp
 
-;; FIXME: move VALUE parameter to first place for uniformity with MWRITE-OBJECT
+;; note: unlike MWRITE-OBJECT, VALUE is last argument
 (defun mwrite (ptr index end-index value)
   "Write a value (boxed, unboxed or object) into the memory starting at (PTR+INDEX).
 Return the INDEX pointing to immediately after the value just written.

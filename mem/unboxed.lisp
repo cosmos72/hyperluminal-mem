@@ -29,10 +29,10 @@
 
 
 
-(deftype mem-word    () '(unsigned-byte #.+mem-word/bits+))
 (deftype mem-int     () '(  signed-byte #.+mem-int/bits+))
 (deftype mem-uint    () '(unsigned-byte #.+mem-int/value-bits+))
 
+(deftype mem-word    () '(unsigned-byte #.+mem-word/bits+))
 ;; only used internally
 (deftype mem-byte    () '(unsigned-byte #.+mem-byte/bits+))
 
