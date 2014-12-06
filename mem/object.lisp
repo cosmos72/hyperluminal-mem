@@ -70,6 +70,7 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
 
 
 
+  
 (defgeneric mlist-object-slots (object)
   (:documentation
    "List the persistent slots of an object. used by (msize-object-slots)
@@ -84,14 +85,12 @@ Default implementation for standard-objects is to call (closer-mop:class-slots (
   (closer-mop:class-slots (class-of object)))
 
 
-
-
 (defun msize-object-slots (object index
-                           &key use-slot-names (slots (mlist-object-slots object)))
+                           &key use-slot-names
+                             (slots (mlist-object-slots object)))
   "Reflective implementation of (msize-object): loop on object's slots and call (msize) on each."
   (declare (type standard-object object)
            (type mem-size index)
-           (type boolean use-slot-names)
            (type list slots))
   (dolist (slot slots)
     (let ((slot-name (if (symbolp slot)
@@ -108,21 +107,41 @@ Default implementation for standard-objects is to call (closer-mop:class-slots (
   index)
 
 
+(declaim (inline mwrite-object-slot))
+
+(defun mwrite-slot (ptr index end-index slot-value &optional slot-name)
+  (declare (type mem-size index end-index)
+           (type symbol slot-name))
+  
+  (when slot-name
+    (setf index (mwrite ptr index end-index slot-name)))
+
+  (mwrite ptr index end-index slot-value))
+
+
+
+(defmacro mwrite-object-slot (object ptr index end-index slot-name
+                              &key use-slot-names)
+  "note: slot-name MUST be quoted"
+  `(mwrite-slot ,ptr ,index ,end-index (slot-value ,object ,slot-name)
+                ,@(when use-slot-names `(,slot-name))))
+
+
 (defun mwrite-object-slots (object ptr index end-index
                             &key use-slot-names (slots (mlist-object-slots object)))
-  "Reflective implementation of (mwrite-object): loop on object's slots and call (mwrite) on each."
+  "Reflective implementation of (mwrite-object): loop on object's slots and call
+ (mwrite-slot) on each."
   (declare (type standard-object object)
            (type mem-size index end-index)
-           (type boolean use-slot-names)
            (type list slots))
   (dolist (slot slots)
     (let ((slot-name (if (symbolp slot)
                          slot
                          (closer-mop:slot-definition-name slot))))
-      (when use-slot-names
-        (setf index (mwrite ptr index end-index slot-name)))
-
-      (setf index (mwrite ptr index end-index (slot-value object slot-name)))))
+      
+      (setf index (mwrite-slot ptr index end-index
+                               (slot-value object slot-name)
+                               (when use-slot-name slot-name)))))
 
   (when use-slot-names
     ;; write 'nil slot-name, used as end-of-slots marker
@@ -131,12 +150,13 @@ Default implementation for standard-objects is to call (closer-mop:class-slots (
   index)
 
 
+
+
 (defun mread-object-slots (object ptr index end-index
                            &key use-slot-names (slots nil slots-p))
   "Reflective implementation of (mread-object): loop on object's slots and call (mread) on each."
   (declare (type standard-object object)
            (type mem-size index end-index)
-           (type boolean use-slot-names)
            (type list slots))
 
   (if use-slot-names
@@ -161,7 +181,118 @@ Default implementation for standard-objects is to call (closer-mop:class-slots (
   (values object index))
 
 
+(defun check-slot-names (slots)
+  (declare (type list slots))
+  (dolist (slot slots)
+    (check-type slot symbol))
+  t)
 
+
+(defmacro decl-msize-class (class-name &key use-slot-names
+                                         (slots nil slots-p)
+                                         (msize-object 'msize-object-slots))
+  "shortcut for (defmethod msize-object (...))"
+  (declare (type symbol msize-object))
+  (check-slot-names slots)
+  
+  (when (or slots msize-object)
+    (with-gensyms (obj index)
+      `(defmethod msize-object ((,obj ,class-name) ,index)
+         (declare (type mem-size ,index))
+         ,(if slots-p
+              `(msize* index ,@(loop for slot in slots
+                                  collect `(slot-value ,obj ',slot)))
+              `(,msize-object ,obj ,index
+                              :use-slot-names ,use-slot-names))))))
+
+
+
+(defmacro decl-mwrite-class (class-name &key use-slot-names
+                                          (slots nil slots-p)
+                                          (mwrite-object 'mwrite-object-slots))
+  "shortcut for (defmethod mwrite-object (...))"
+  (declare (type symbol mwrite-object))
+  (check-slot-names slots)
+  
+  (when (or slots mwrite-object)
+    (with-gensyms (obj ptr index end-index)
+      `(defmethod mwrite-object ((,obj ,class-name) ,ptr ,index ,end-index)
+         (declare (type mem-size ,index ,end-index))
+         ,(if slots-p
+              `(progn
+                 ,@(loop for slot in slots collect
+                        `(setf ,index (mwrite-object-slot
+                                       ,obj ,ptr ,index ,end-index ',slot
+                                       :use-slot-names ,use-slot-names)))
+                 ,index)
+                
+              `(,mwrite-object ,obj ,ptr ,index ,end-index
+                               :use-slot-names ,use-slot-names))))))
+  
+
+(defmacro decl-mread-class (class-name &key use-slot-names
+                                         (slots nil slots-p)
+                                         (mread-object 'mread-object-slots)
+                                         (new-instance  `(make-instance ',class-name)))
+  "shortcut for (defmethod mread-object (...))"
+  (declare (type symbol mread-object)
+           (type list new-instance))
+  (check-slot-names slots)
+  
+  (when (or slots mread-object)
+    (with-gensyms (class ptr index end-index)
+      `(defmethod mread-object ((,class (eql ',class-name)) ,ptr ,index ,end-index)
+         (declare (type mem-size ,index ,end-index))
+         ,(if slots-p
+              (error "macro (~S): explicit slot list NOT YET implemented!" 'decl-mread-class)
+              `(,mread-object ,new-instance ,ptr ,index ,end-index
+                              :use-slot-names ,use-slot-names))))))
+
+    
+(defmacro decl-serializable-class (class-name &key use-slot-names
+                                                (slots nil slots-p)
+                                                (msize-object  'msize-object-slots)
+                                                (mwrite-object 'mwrite-object-slots)
+                                                (mread-object  'mread-object-slots)
+                                                (new-instance  `(make-instance ',class-name)))
+  `(progn
+     ,@(when msize-object
+             `((decl-msize-class ,class-name :use-slot-names ,use-slot-names
+                                 ,@(when slots-p `(:slots ,slots))
+                                 :msize-object ,msize-object)))
+     
+     ,@(when mwrite-object
+             `((decl-mwrite-class ,class-name :use-slot-names ,use-slot-names
+                                  ,@(when slots-p `(:slots ,slots))
+                                  :mwrite-object ,mwrite-object)))
+
+     ,@(when mread-object
+             `((decl-mread-class ,class-name :use-slot-names ,use-slot-names
+                                 ,@(when slots-p `(:slots ,slots))
+                                 :mread-object ,mread-object
+                                 :new-instance ,new-instance)))))
+
+             
+
+
+
+#|
+(defmethod mwrite-object ((obj tstack) ptr index end-index)
+  (declare (type mem-size index end-index))
+
+  (mwrite ptr index end-index (_ obj top)))
+
+
+(defmethod mread-object ((type (eql 'tstack)) ptr index end-index &key)
+  (declare (type mem-size index end-index))
+
+  (multiple-value-bind (top index) (mread ptr index end-index)
+    (let ((obj (tstack)))
+      (setf (_ obj top) top)
+      (values obj index))))
+|#
+
+                                                
 
 
 (defmacro %msize* (index value &rest more-values)
@@ -224,7 +355,6 @@ including its header"
 Also serializes OBJECT header.
 The available memory ends immediately before (+ PTR END-INDEX)."
   (declare (type mem-size index end-index))
-
 
   ;; write OBJECT payload
   (let* ((index0 (mem-size+ index +mem-box/header-words+))

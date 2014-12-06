@@ -30,7 +30,8 @@
 
 (defun box-words/string-utf-8 (string index)
   "Return the number of words needed to store STRING in memory, not including BOX header."
-  (declare (type string string)
+  (declare (optimize (speed 3) (safety 0) (debug 1))
+           (type string string)
            (type mem-size index))
 
   (let ((n-bytes 0))
@@ -60,7 +61,8 @@
 
 
 (defun %unsigned->utf-8-word (n)
-  (declare (type (unsigned-byte #.+character/bits+) n))
+  (declare (optimize (speed 3) (safety 0) (debug 1))
+           (type (unsigned-byte #.+character/bits+) n))
 
   (let ((word 0)
         (bits 0))
@@ -99,7 +101,8 @@
 
 
 (defun %utf-8-word->unsigned (word)
-  (declare (type mem-word word))
+  (declare (optimize (speed 3) (safety 0) (debug 1))
+           (type mem-word word))
 
   (let ((n 0)
         (bits 0)
@@ -136,7 +139,8 @@
 (declaim (inline %utf-8-word->character))
 
 (defun %utf-8-word->character (word)
-  (declare (type mem-word word))
+  (declare (optimize (speed 3) (safety 0) (debug 1))
+           (type mem-word word))
 
   (multiple-value-bind (n bits) (%utf-8-word->unsigned word)
     (values (code-char (logand n +character/mask+)) bits)))
@@ -149,7 +153,8 @@
 Return the number of words actually written.
 
 ABI: characters will be stored using UTF-8 encoding."
-  (declare (type maddress ptr)
+  (declare (optimize (speed 3) (safety 0) (debug 1))
+           (type maddress ptr)
            (type mem-size index end-index)
            (type string string)
            (type ufixnum n-chars))

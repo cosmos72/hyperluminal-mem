@@ -53,24 +53,24 @@
          (setf ,word (logior ,word
                              (the mem-word
                                (ash (char-code (the character (,char-func ,string (+ ,i ,pos))))
-                                    (the fixnum (* ,i +character/bits+)))))))
+                                    (the ufixnum (* ,i +character/bits+)))))))
        ,word)))
 
 (defmacro %%mwrite-string-utf-21 (char-func ptr index string bulk-n-words tail-n-chars)
-  (with-gensyms (char-i word-i)
-    `(loop
-        for ,char-i from 0 by +characters-per-word+
-        for ,word-i from 0 below ,bulk-n-words
-        do (mset-word ,ptr ,index
-                      (%bulk-pack-string-utf-21 ,char-func ,string ,char-i))
-          (incf-mem-size ,index)
-
-        finally
-          (unless (zerop ,tail-n-chars)
+  (with-gensyms (char-i bulk-n-chars)
+    `(let ((,bulk-n-chars (* ,bulk-n-words +characters-per-word+)))
+       (loop
+          for ,char-i from 0 below ,bulk-n-chars by +characters-per-word+ do
             (mset-word ,ptr ,index
-                       (%tail-pack-string-utf-21 ,char-func ,string ,char-i ,tail-n-chars))
-            (incf-mem-size ,index))
-          (return index))))
+                       (%bulk-pack-string-utf-21 ,char-func ,string ,char-i))
+            (incf-mem-size ,index)
+            
+          finally
+            (unless (zerop ,tail-n-chars)
+              (mset-word ,ptr ,index
+                         (%tail-pack-string-utf-21 ,char-func ,string ,char-i ,tail-n-chars))
+              (incf-mem-size ,index))
+            (return ,index)))))
 
 
 (defun %mwrite-string-utf-21 (ptr index string n-chars)
@@ -78,7 +78,8 @@
 Return the number of words actually written.
 
 ABI: characters will be stored by packing as many as possible into words."
-  (declare (type maddress ptr)
+  (declare (optimize (speed 3) (safety 0) (debug 1))
+           (type maddress ptr)
            (type mem-size index)
            (type string string)
            (type ufixnum n-chars))
@@ -131,7 +132,8 @@ Note: increments POS!"
   "Read N-CHAR packed characters from the memory starting at (PTR+INDEX)
 and write them into RESULT-STRING.
 Return RESULT and number of words actually read as multiple values."
-  (declare (type maddress ptr)
+  (declare (optimize (speed 3) (safety 0) (debug 1))
+           (type maddress ptr)
            (type mem-size index)
            (type (and simple-string #?-hldb/base-char/eql/character (not base-string))
                  result)
