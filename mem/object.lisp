@@ -124,7 +124,9 @@ Default implementation for standard-objects is to call (closer-mop:class-slots (
                               &key use-slot-names)
   "note: slot-name MUST be quoted"
   `(mwrite-slot ,ptr ,index ,end-index (slot-value ,object ,slot-name)
-                ,@(when use-slot-names `(,slot-name))))
+                ,@(if (constantp use-slot-names)
+                      (when (eval use-slot-names) `(,slot-name))
+                      `((when use-slot-names ,slot-name)))))
 
 
 (defun mwrite-object-slots (object ptr index end-index
@@ -139,9 +141,9 @@ Default implementation for standard-objects is to call (closer-mop:class-slots (
                          slot
                          (closer-mop:slot-definition-name slot))))
       
-      (setf index (mwrite-slot ptr index end-index
-                               (slot-value object slot-name)
-                               (when use-slot-name slot-name)))))
+      (setf index (mwrite-object-slot
+                   object ptr index end-index
+                   slot-name :use-slot-names use-slot-names))))
 
   (when use-slot-names
     ;; write 'nil slot-name, used as end-of-slots marker
@@ -150,19 +152,27 @@ Default implementation for standard-objects is to call (closer-mop:class-slots (
   index)
 
 
-(defmacro mread-object-slots-using-names (object ptr index end-index)
-  (with-gensyms (slot-name value new-index)
-    `(progn
-       (loop
-	  (with-mread* (,slot-name ,new-index) (,ptr ,index ,end-index)
-	    (setf ,index ,new-index)
-	    (when (null ,slot-name) (return))
+(defun mread-object-slots-using-names (object ptr index end-index slots
+                                       &key validate-slots)
+  (declare (type standard-object object)
+           (type mem-size index end-index)
+           (type list slots))
+  (let ((slot-names (when validate-slots
+                      (loop for slot in slots collect
+                           (if (symbolp slot)
+                               slot
+                               (closer-mop:slot-definition-name slot))))))
+    (loop
+       (with-mread* (slot-name new-index) (ptr index end-index)
+         (setf index new-index)
+         (when (null slot-name) (return))
 
-	    (with-mread* (,value ,new-index) (,ptr ,index ,end-index)
-	      (setf ,index ,new-index
-		    (slot-value ,object ,slot-name) ,value))))
-       (values ,object ,index))))
-
+         (with-mread* (value new-index) (ptr index end-index)
+           (setf index new-index)
+           (when (or (not validate-slots) (member slot-name slot-names))
+             (setf (slot-value object slot-name) value)))))
+    (values object index)))
+       
 
 (defmacro mread-object-slot (object ptr index end-index slot-name)
   "Read an object slot previously written WITHOUT its name.
@@ -175,17 +185,17 @@ Note: slot-name will be evaluated - use 'foo, NOT foo"
 
 
 (defun mread-object-slots (object ptr index end-index
-                           &key use-slot-names (slots nil slots-p))
+                           &key use-slot-names (slots (mlist-object-slots object)))
   "Reflective implementation of (mread-object): loop on object's slots and call (mread) on each."
   (declare (type standard-object object)
            (type mem-size index end-index)
            (type list slots))
 
   (if use-slot-names
-      (mread-object-slots-using-names object ptr index end-index)
+      (mread-object-slots-using-names object ptr index end-index slots)
 
       (progn
-	(dolist (slot (if slots-p slots (mlist-object-slots object)))
+	(dolist (slot slots)
 	  (let ((slot-name (if (symbolp slot)
 			       slot
 			       (closer-mop:slot-definition-name slot))))
