@@ -53,8 +53,8 @@
     (check-type size mem-uint)
     (dotimes (i size)
       (with-mread* (key value new-index) (ptr index end-index)
-        (set-gmap obj key value)
-        (setf index new-index)))
+        (setf (get-gmap obj key) value
+              index new-index)))
   
     (values obj index)))
 
@@ -72,7 +72,7 @@
   (multiple-value-bind (pred index) (mread ptr index end-index)
 
     (unless (member pred +gmap-trusted-pred-list+)
-      (error "HYPERLUMINAL-DB: refusing to use untrusted ~S ~S value ~S,
+      (error "HYPERLUMINAL-MEM: refusing to use untrusted ~S ~S value ~S,
 expecting one of the trusted values ~S" type :pred pred +gmap-trusted-pred-list+))
 
     (mread-object (new type :pred pred) ptr index end-index)))

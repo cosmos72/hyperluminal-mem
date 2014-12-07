@@ -82,10 +82,10 @@
 
   (with-mread* (test hash size new-index) (ptr index end-index)
     (unless (member test +ghash-table-trusted-test-list+)
-      (error "HYPERLUMINAL-DB: refusing to use untrusted ~S ~S value ~S,
+      (error "HYPERLUMINAL-MEM: refusing to use untrusted ~S ~S value ~S,
 expecting one of the trusted values ~S" type :test test +ghash-table-trusted-test-list+))
     (unless (member hash +ghash-table-trusted-hash-list+)
-      (error "HYPERLUMINAL-DB: refusing to use untrusted ~S ~S value ~S,
+      (error "HYPERLUMINAL-MEM: refusing to use untrusted ~S ~S value ~S,
 expecting one of the trusted values ~S" type :hash hash +ghash-table-trusted-hash-list+))
                
     (check-type size mem-uint)

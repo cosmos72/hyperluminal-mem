@@ -24,7 +24,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+;; short version :)
+(decl-mserializable-class tstack
+                          :slots (stmx.util::top)
+                          :new-instance (tstack))
 
+;; medium version... for comparison
+#|
+(decl-msize-class  tstack :slots (stmx.util::top))
+
+(decl-mwrite-class tstack :slots (stmx.util::top))
+
+(decl-mread-class  tstack :slots (stmx.util::top) :new-instance (tstack))
+|#
+
+
+;; and long version too.
+#|
 (defmethod msize-object ((obj tstack) index)
   (declare (type mem-size index))
 
@@ -44,4 +60,4 @@
     (let ((obj (tstack)))
       (setf (_ obj top) top)
       (values obj index))))
-
+|#

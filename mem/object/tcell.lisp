@@ -24,7 +24,24 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+;; short version :)
+(decl-mserializable-class tcell
+                          :slots (stmx.util::value)
+                          :new-instance (tcell))
 
+
+;; medium version... for comparison
+#|
+(decl-msize-class  tcell :slots (stmx.util::value))
+
+(decl-mwrite-class tcell :slots (stmx.util::value))
+
+(decl-mread-class  tcell :slots (stmx.util::value) :new-instance (tcell))
+|#
+
+
+;; and long version too.
+#|
 (defmethod msize-object ((c tcell) index)
   (declare (type mem-size index))
 
@@ -42,4 +59,4 @@
 
   (multiple-value-bind (value index) (mread ptr index end-index)
     (values (tcell value) index)))
-
+|#

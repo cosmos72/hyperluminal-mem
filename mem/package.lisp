@@ -48,7 +48,7 @@
 
                 #:_ #:tcell #:tcons #:tlist #:tstack #:tfifo
 
-                #:tmap #:rbmap #:gmap #:gmap-pred #:gmap-count #:set-gmap #:do-gmap
+                #:tmap #:rbmap #:gmap #:gmap-pred #:gmap-count #:get-gmap #:set-gmap #:do-gmap
 
                 #:thash-table #:ghash-table #:ghash-table-test #:ghash-table-hash
                 #:ghash-table-count #:set-ghash #:do-ghash)
@@ -63,11 +63,16 @@
            #:mget-unboxed #:mset-unboxed   #:mset-fulltag-and-value
            #:msize        #:mwrite         #:mread
            #:msize*       #:mwrite*        #:with-mread*
-           #:msize-object #:mwrite-object  #:mread-object
 
            #:box          #:make-box       #:reuse-box
            #:mread-box    #:mwrite-box
-           
+
+           #:msize-object       #:mwrite-object        #:mread-object
            #:msize-object-slots #:mwrite-object-slots  #:mread-object-slots
+           #:mlist-object-slots #:mwrite-object-slot   #:mwrite-slot        
+           #:mread-object-slots-using-names
+                                                  
+           #:decl-msize-class   #:decl-mwrite-class    #:decl-mread-class
+           #:decl-mserializable-class
 
            #:!mdump #:!mdump-bytes #:!mdump-bytes-reverse #:!memset-words))

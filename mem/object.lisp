@@ -34,7 +34,8 @@
 
 (defmacro with-mread* ((var1 var2 &rest more-vars)
                                     (ptr index end-index) &body body)
-  "syntactic sugar for multiple calls to mread"
+  "syntactic sugar for multiple calls to mread. Last name in MORE-VARS
+will be bound to the new value of INDEX"
   (if more-vars
       (with-gensyms (ptr-var idx-var end-var)
         `(let* ((,ptr-var ,ptr)
@@ -119,14 +120,15 @@ Default implementation for standard-objects is to call (closer-mop:class-slots (
   (mwrite ptr index end-index slot-value))
 
 
+(declaim (inline mwrite-object-slot))
 
-(defmacro mwrite-object-slot (object ptr index end-index slot-name
+(defun mwrite-object-slot (object ptr index end-index slot-name
                               &key use-slot-names)
-  "note: slot-name MUST be quoted"
-  `(mwrite-slot ,ptr ,index ,end-index (slot-value ,object ,slot-name)
-                ,@(if (constantp use-slot-names)
-                      (when (eval use-slot-names) `(,slot-name))
-                      `((when use-slot-names ,slot-name)))))
+  (declare (type standard-object object)
+           (type mem-size index end-index)
+           (type symbol slot-name))
+  (mwrite-slot ptr index end-index (slot-value object slot-name)
+               (when use-slot-names slot-name)))
 
 
 (defun mwrite-object-slots (object ptr index end-index
@@ -152,12 +154,14 @@ Default implementation for standard-objects is to call (closer-mop:class-slots (
   index)
 
 
+
+
 (defun mread-object-slots-using-names (object ptr index end-index slots
-                                       &key validate-slots)
+                                       &key validate-slot-names)
   (declare (type standard-object object)
            (type mem-size index end-index)
            (type list slots))
-  (let ((slot-names (when validate-slots
+  (let ((slot-names (when validate-slot-names
                       (loop for slot in slots collect
                            (if (symbolp slot)
                                slot
@@ -169,14 +173,15 @@ Default implementation for standard-objects is to call (closer-mop:class-slots (
 
          (with-mread* (value new-index) (ptr index end-index)
            (setf index new-index)
-           (when (or (not validate-slots) (member slot-name slot-names))
+           (when (or (not validate-slot-names) (member slot-name slot-names))
              (setf (slot-value object slot-name) value)))))
     (values object index)))
        
 
 (defmacro mread-object-slot (object ptr index end-index slot-name)
   "Read an object slot previously written WITHOUT its name.
-Note: slot-name will be evaluated - use 'foo, NOT foo"
+Note: slot-name will be evaluated - use 'foo, NOT foo
+Note: updates INDEX"
   (with-gensyms (value new-index)
     `(multiple-value-bind (,value ,new-index)
 	 (mread ,ptr ,index ,end-index)
@@ -222,8 +227,8 @@ Note: slot-name will be evaluated - use 'foo, NOT foo"
       `(defmethod msize-object ((,obj ,class-name) ,index)
          (declare (type mem-size ,index))
          ,(if slots-p
-              `(msize* index ,@(loop for slot in slots
-                                  collect `(slot-value ,obj ',slot)))
+              `(msize* ,index ,@(loop for slot in slots
+                                   collect `(slot-value ,obj ',slot)))
               `(,msize-object ,obj ,index
                               :use-slot-names ,use-slot-names))))))
 
@@ -254,9 +259,9 @@ Note: slot-name will be evaluated - use 'foo, NOT foo"
 
 (defmacro decl-mread-class (class-name
 			    &key use-slot-names
-			    (slots nil slots-p)
-			    (mread-object 'mread-object-slots)
-			    (new-instance  `(make-instance ',class-name)))
+                              (slots nil slots-p)
+                              (mread-object 'mread-object-slots)
+                              (new-instance  `(make-instance ',class-name)))
   "shortcut for (defmethod mread-object (...))"
   (declare (type symbol mread-object)
            (type list new-instance))
@@ -264,7 +269,7 @@ Note: slot-name will be evaluated - use 'foo, NOT foo"
   
   (when (or slots mread-object)
     (with-gensyms (class ptr index end-index)
-      `(defmethod mread-object ((,class (eql ',class-name)) ,ptr ,index ,end-index)
+      `(defmethod mread-object ((,class (eql ',class-name)) ,ptr ,index ,end-index &key)
          (declare (type mem-size ,index ,end-index))
          ,(cond
 	   (use-slot-names
@@ -284,13 +289,14 @@ Note: slot-name will be evaluated - use 'foo, NOT foo"
 			    :use-slot-names ,use-slot-names)))))))
 	 
     
-(defmacro decl-serializable-class (class-name
-				   &key use-slot-names
-				   (slots nil slots-p)
-				   (msize-object  'msize-object-slots)
-				   (mwrite-object 'mwrite-object-slots)
-				   (mread-object  'mread-object-slots)
-				   (new-instance  `(make-instance ',class-name)))
+(defmacro decl-mserializable-class (class-name
+                                    &key use-slot-names
+                                      (slots nil slots-p)
+                                      (msize-object  'msize-object-slots)
+                                      (mwrite-object 'mwrite-object-slots)
+                                      (mread-object  'mread-object-slots)
+                                      (new-instance  `(make-instance ',class-name)))
+  "shortcut for (decl-msize-class ...) (decl-mwrite-class ...) (decl-mread-class ...)"
   `(progn
      ,@(when msize-object
              `((decl-msize-class ,class-name :use-slot-names ,use-slot-names
