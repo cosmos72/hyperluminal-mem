@@ -107,14 +107,11 @@ Assumes BOX header was already read."
 
     (incf-mem-size index)
 
-    (let ((mread #'mread)
-          (htable (make-hash-table :test (svref +hash-table-tests+ test-index)
+    (let ((htable (make-hash-table :test (svref +hash-table-tests+ test-index)
                                    :size len)))
       (loop for i from 0 below len
-	 do (multiple-value-bind (k k-index) (funcall mread ptr index end-index)
-              (declare (type mem-size k-index))
-              (multiple-value-bind (v v-index) (funcall mread ptr k-index end-index)
-                (setf index (the mem-size v-index))
-                (setf (gethash k htable) v))))
+	 do (with-mread* (k v new-index) (ptr index end-index)
+              (setf index (the mem-size new-index)
+                    (gethash k htable) v)))
 
       (values htable index))))

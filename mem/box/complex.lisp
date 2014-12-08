@@ -148,8 +148,7 @@ Assumes BOX header was already read."
 Does not count the space needed by BOX header."
   (declare (type complex-rational value))
 
-  (let1 index (msize (realpart value) index)
-    (msize (imagpart value) index)))
+  (msize* index (realpart value) (imagpart value)))
      
 
   
@@ -162,9 +161,7 @@ ABI: Writes real part, then imaginary part."
            (type mem-size index end-index)
            (type complex-rational value))
 
-  (let ((mwrite #'mwrite))
-    (setf index (funcall mwrite ptr index end-index (realpart value)))
-    (funcall mwrite ptr index end-index (imagpart value))))
+  (mwrite* ptr index end-index (realpart value) (imagpart value)))
 
 
 (defun mread-box/complex-rational (ptr index end-index)
@@ -173,10 +170,8 @@ Assumes BOX header is already read."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
-  (let ((mread #'mread))
-    (multiple-value-bind (realpart index) (funcall mread ptr index end-index)
-      (multiple-value-bind (imagpart index) (funcall mread ptr index end-index)
-        (values
-         (complex realpart imagpart)
-         index)))))
+  (with-mread* (realpart imagpart index) (ptr index end-index)
+    (values
+     (complex realpart imagpart)
+     index)))
 

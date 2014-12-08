@@ -317,6 +317,70 @@ but only ~S word~P available at that location"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+(defmacro multiple-value-bind-chain2* ((var1 var2 &rest more-vars)
+                                       (func arg1 arg2 &rest more-args) &body body)
+  "Warning: this macro expands multiple references to FUNC, ARG1 and MORE-ARGS"
+  (if more-vars
+      (with-gensym tmp
+        `(multiple-value-bind (,var1 ,tmp) (,func ,arg1 ,arg2 ,@more-args)
+           (multiple-value-bind-chain2* (,var2 ,@more-vars) (,func ,arg1 ,tmp ,@more-args)
+             ,@body)))
+      `(multiple-value-bind (,var1 ,var2) (,func ,arg1 ,arg2 ,@more-args)
+         ,@body)))
+
+
+(defmacro with-mread* ((var1 var2 &rest more-vars)
+                                    (ptr index end-index) &body body)
+  "syntactic sugar for multiple calls to mread. Last name in MORE-VARS
+will be bound to the new value of INDEX"
+  (if more-vars
+      (with-gensyms (ptr-var idx-var end-var)
+        `(let* ((,ptr-var ,ptr)
+                (,idx-var ,index)
+                (,end-var ,end-index))
+           (multiple-value-bind-chain2* (,var1 ,var2 ,@more-vars)
+               (mread ,ptr-var ,idx-var ,end-var)
+             ,@body)))
+      `(multiple-value-bind (,var1 ,var2) (mread ,ptr ,index ,end-index)
+         ,@body)))
+
+
+(defmacro %msize* (index value &rest more-values)
+  "Warning: this macro expands VALUE *before* INDEX"
+  (if more-values
+      (with-gensym new-index
+        `(let1 ,new-index (msize ,value ,index)
+           (%msize* ,new-index ,@more-values)))
+      `(msize ,value ,index)))
+
+
+(defmacro msize* (index value &rest more-values)
+  (with-gensym old-index
+    `(let1 ,old-index ,index
+       (%msize* ,old-index ,value ,@more-values))))
+  
+
+(defmacro %mwrite* (ptr index end-index value &rest more-values)
+  "Warning: this macro expands multiple references to PTR and END-INDEX"
+  (if more-values
+      (with-gensyms (new-index)
+        `(let1 ,new-index (mwrite ,ptr ,index ,end-index ,value)
+           (%mwrite* ,ptr ,new-index ,end-index ,@more-values)))
+      `(mwrite ,ptr ,index ,end-index ,value)))
+
+
+(defmacro mwrite* (ptr index end-index value &rest more-values)
+  (if more-values
+      (with-gensyms (ptr-var idx-var end-var)
+        `(let* ((,ptr-var ,ptr)
+                (,idx-var ,index)
+                (,end-var ,end-index))
+           (%mwrite* ,ptr-var ,idx-var ,end-var ,value ,@more-values)))
+      `(mwrite ,ptr ,index ,end-index ,value)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 (defun !mzero-box (ptr box)
   "Fill an allocated box with zeroes."
   (declare (type maddress ptr)

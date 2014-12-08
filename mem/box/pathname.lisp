@@ -32,20 +32,16 @@ not including BOX header."
   (declare (type pathname path)
            (type mem-size index))
 
-  (let ((msize #'msize)
-        (host (pathname-host path :case :common))
+  (let ((host (pathname-host path :case :common))
         (default-host (pathname-host *default-pathname-defaults* :case :common)))
 
-    (macrolet ((msize (value index)
-                 `(the mem-size (funcall msize ,value ,index))))
-      
-      (setf index (msize (if (eq host default-host) nil host) index)
-            index (msize (pathname-device path :case :common) index)
-            index (msize (pathname-directory path :case :common) index)
-            index (msize (pathname-name path :case :common) index)
-            index (msize (pathname-type path :case :common) index)
-            index (msize (pathname-version path) index))
-      index)))
+    (msize* index
+            (if (eq host default-host) nil host)
+            (pathname-device path :case :common)
+            (pathname-directory path :case :common) 
+            (pathname-name path :case :common) 
+            (pathname-type path :case :common) 
+            (pathname-version path))))
 
 
 
@@ -55,20 +51,19 @@ not including BOX header."
   "write pathname PATH into the memory starting at (PTR+INDEX).
 Assumes BOX header is already written."
   (declare (type maddress ptr)
-           (type mem-size index)
+           (type mem-size index end-index)
            (type pathname path))
 
-  (let ((mwrite #'mwrite)
-        (host (pathname-host path :case :common))
+  (let ((host (pathname-host path :case :common))
         (default-host (pathname-host *default-pathname-defaults* :case :common)))
 
-    (setf index (funcall mwrite ptr index end-index (if (eq host default-host) nil host)))
-    (setf index (funcall mwrite ptr index end-index (pathname-device path :case :common)))
-    (setf index (funcall mwrite ptr index end-index (pathname-directory path :case :common)))
-    (setf index (funcall mwrite ptr index end-index (pathname-name path :case :common)))
-    (setf index (funcall mwrite ptr index end-index (pathname-type path :case :common)))
-    (setf index (funcall mwrite ptr index end-index (pathname-version path)))
-    index))
+    (mwrite* ptr index end-index
+             (if (eq host default-host) nil host)
+             (pathname-device path :case :common)
+             (pathname-directory path :case :common)
+             (pathname-name path :case :common)
+             (pathname-type path :case :common)
+             (pathname-version path))))
 
 
 (defun mread-box/pathname (ptr index end-index)
@@ -77,16 +72,10 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))
   
-  (let ((mread #'mread))
-    (multiple-value-bind (host index) (funcall mread ptr index end-index)
-      (multiple-value-bind (device index) (funcall mread ptr index end-index)
-        (multiple-value-bind (directory index) (funcall mread ptr index end-index)
-          (multiple-value-bind (name index) (funcall mread ptr index end-index)
-            (multiple-value-bind (type index) (funcall mread ptr index end-index)
-              (multiple-value-bind (version index) (funcall mread ptr index end-index)
-                (values
-                 (make-pathname
-                  :host (or host (pathname-host *default-pathname-defaults* :case :common))
-                  :device device :directory directory
-                  :name name :type type :version version :case :common)
-                 index)))))))))
+  (with-mread* (host device directory name type version new-index) (ptr index end-index)
+    (values
+     (make-pathname
+      :host (or host (pathname-host *default-pathname-defaults* :case :common))
+      :device device :directory directory
+      :name name :type type :version version :case :common)
+     new-index)))
