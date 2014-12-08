@@ -30,6 +30,12 @@
         #:hyperluminal-mem
         #:hyperluminal-db)
 
+  (:import-from #:hyperluminal-mem
+                #:!mdump)
+
+  (:import-from #:hyperluminal-db
+                #:hldb-open #:hldb-close #:*p*)
+
   (:export #:suite))
 
 

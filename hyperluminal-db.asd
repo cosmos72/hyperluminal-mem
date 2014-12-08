@@ -71,7 +71,8 @@
                              (:file "box/symbol"     :depends-on ("box"))
 
                              (:file "mvar"           :depends-on ("box"))
-                             (:file "object"         :depends-on ("mvar"))
+                             (:file "struct"         :depends-on ("mvar"))
+                             (:file "object"         :depends-on ("struct"))
                              (:file "object/gmap"    :depends-on ("object"))
                              (:file "object/ghash-table" :depends-on ("object"))
                              (:file "object/tcell"   :depends-on ("object"))
