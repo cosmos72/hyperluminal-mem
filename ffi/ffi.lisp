@@ -189,13 +189,28 @@
 
 
 
-(defmacro with-ffi-mem ((var-name bytes) &body body)
+(defmacro with-ffi-mem ((var-name n-bytes) &body body)
   #-abcl
-  `(cffi-sys:with-foreign-pointer (,var-name ,bytes)
+  `(cffi-sys:with-foreign-pointer (,var-name ,n-bytes)
      ,@body)
   #+abcl
-  `(let ((,var-name (java:jstatic +java-nio-bytebuffer-allocate+ nil ,bytes)))
+  `(let ((,var-name (java:jstatic +java-nio-bytebuffer-allocate+ nil ,n-bytes)))
      (java:jcall +java-nio-bytebuffer-set-byteorder+ ,var-name +java-nio-byteorder-native+)
      ,@body))
 
 
+
+#+sbcl
+(defmacro with-simple-array-mem ((var-name simple-array) &body body)
+  (let* ((word-size (cffi-sys:%foreign-type-size :pointer))
+         (lisp-object-address-mask (* -2 word-size))
+         (array (gensym (symbol-name 'array))))
+    `(let ((,array ,simple-array))
+       (declare (type simple-array ,array))
+       (sb-sys:with-pinned-objects (,array)
+         (let ((,var-name (cffi-sys:make-pointer 
+                           (the sb-ext:word
+                                (+ ,(* 2 word-size) ; skip header and array length
+                                   (logand ,lisp-object-address-mask
+                                           (sb-kernel:get-lisp-obj-address ,array)))))))
+           ,@body)))))
