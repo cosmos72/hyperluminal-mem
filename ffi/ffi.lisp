@@ -200,13 +200,17 @@
 
 
 
-#+sbcl
-(defmacro with-simple-array-mem ((var-name simple-array) &body body)
-  (let* ((word-size (cffi-sys:%foreign-type-size :pointer))
+(defmacro with-vector-mem ((var-name vector) &body body)
+  #+(and)
+  `(cffi-sys:with-pointer-to-vector-data (,var-name ,vector)
+     ,@body)
+    
+  #-(and)
+  (let* ((word-size #.(cffi-sys:%foreign-type-size :pointer))
          (lisp-object-address-mask (* -2 word-size))
          (array (gensym (symbol-name 'array))))
-    `(let ((,array ,simple-array))
-       (declare (type simple-array ,array))
+    `(let ((,array ,vector))
+       (declare (type simple-array-vector ,array))
        (sb-sys:with-pinned-objects (,array)
          (let ((,var-name (cffi-sys:make-pointer 
                            (the sb-ext:word

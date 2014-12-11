@@ -45,7 +45,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defconstant +pagesize+ (os-getpagesize))
+(eval-always
+  (defconstant +pagesize+ (os-getpagesize)))
 
 
 (defvar *fd* +bad-fd+)
