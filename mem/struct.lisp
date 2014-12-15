@@ -36,7 +36,7 @@ not including its header"))
 Assumes OBJECT header was already written.
 The available memory ends immediately before (+ PTR END-INDEX)."))
 
-(defgeneric mread-object (type ptr index end-index &key)
+(defgeneric mread-object (type ptr index end-index &key &allow-other-keys)
   (:documentation
    "Deserialize an object of type TYPE by reading it from the memory starting at (+ PTR INDEX).
 Assumes OBJECT header was already read.

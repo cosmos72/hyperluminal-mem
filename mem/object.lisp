@@ -219,7 +219,8 @@ Note: updates INDEX"
   
   (when (or slots mread-object)
     (with-gensyms (class ptr index end-index)
-      `(defmethod mread-object ((,class (eql ',class-name)) ,ptr ,index ,end-index &key)
+      `(defmethod mread-object ((,class (eql ',class-name)) ,ptr ,index ,end-index
+                                &key &allow-other-keys)
          (declare (type mem-size ,index ,end-index))
          ,(cond
 	   (use-slot-names

@@ -99,7 +99,8 @@ expecting one of the trusted values ~S" type :hash hash +ghash-table-trusted-has
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defmethod mread-object ((type (eql 'ghash-table)) ptr index end-index &key)
+(defmethod mread-object ((type (eql 'ghash-table)) ptr index end-index
+                         &key &allow-other-keys)
   (declare (type mem-size index end-index))
 
   (mread-object/ghash-table type ptr index end-index))
@@ -109,7 +110,8 @@ expecting one of the trusted values ~S" type :hash hash +ghash-table-trusted-has
 ;;;;   read THASH-TABLE                                                      ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmethod mread-object ((type (eql 'thash-table)) ptr index end-index &key)
+(defmethod mread-object ((type (eql 'thash-table)) ptr index end-index
+                         &key &allow-other-keys)
   (declare (type mem-size index end-index))
 
   (mread-object/ghash-table type ptr index end-index))

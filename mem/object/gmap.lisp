@@ -44,7 +44,8 @@
   index)
 
 
-(defmethod mread-object ((obj gmap) ptr index end-index &key)
+(defmethod mread-object ((obj gmap) ptr index end-index
+                         &key &allow-other-keys)
   "Warning: this method expects the caller to have already read the serialized
 :PRED argument and instantiated a GMAP or a subclass"
   (declare (type mem-size index end-index))
@@ -86,7 +87,8 @@ expecting one of the trusted values ~S" type :pred pred +gmap-trusted-pred-list+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defmethod mread-object ((type (eql 'rbmap)) ptr index end-index &key)
+(defmethod mread-object ((type (eql 'rbmap)) ptr index end-index
+                         &key &allow-other-keys)
   (declare (type mem-size index end-index))
 
   (mread-object/gmap type ptr index end-index))
@@ -96,7 +98,8 @@ expecting one of the trusted values ~S" type :pred pred +gmap-trusted-pred-list+
 ;;;;   read TMAP                                                             ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmethod mread-object ((type (eql 'tmap)) ptr index end-index &key)
+(defmethod mread-object ((type (eql 'tmap)) ptr index end-index
+                         &key &allow-other-keys)
   (declare (type mem-size index end-index))
 
   (mread-object/gmap type ptr index end-index))
