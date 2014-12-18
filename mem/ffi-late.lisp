@@ -53,7 +53,7 @@ The obtained memory must be freed manually: call MFREE on it when no longer need
 
 
 
-(declaim (inline !mzero))
+(declaim (inline !mzero !mzero-words))
 
 (defun !mzero (ptr start-byte end-byte)
   (declare (type maddress ptr)
@@ -61,6 +61,26 @@ The obtained memory must be freed manually: call MFREE on it when no longer need
   (!memset ptr 0 start-byte end-byte))
 
 
+(defun !mzero-words (ptr &optional (start-index 0) (end-index (1+ start-index)))
+  (declare (type maddress ptr)
+           (type ufixnum start-index end-index))
+
+  (if (> 100 (- end-index start-index))
+      (!mzero ptr
+              (the ufixnum (* start-index +msizeof-word+))
+              (the ufixnum (* end-index   +msizeof-word+)))
+      (!memset-words ptr 0 start-index end-index)))
+
+
+(declaim (inline memcpy-words))
+
+(defun memcpy-words (dst dst-index src src-index n-words)
+  (declare (type maddress dst src)
+           (type ufixnum dst-index src-index n-words))
+  (loop for i from 0 below n-words
+     do (mset-word dst (the ufixnum (+ dst-index i))
+                   (mget-word src (the ufixnum (+ src-index i))))))
+  
 
 (defun !memcpy (dst dst-start-byte src src-start-byte n-bytes)
   (declare (type maddress dst src)

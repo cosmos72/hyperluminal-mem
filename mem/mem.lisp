@@ -64,7 +64,7 @@
 (defmacro msizeof (type)
   "Wrapper for (%MSIZEOF), computes (CFFI:%FOREIGN-TYPE-SIZE) at compile time whenever possible"
   (if (constantp type)
-      (%msizeof (unquote type))
+      (%msizeof (eval type))
       `(%msizeof ,type)))
 
 
@@ -355,36 +355,37 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 
 
            
-
-(defun !mzero-words (ptr &optional (start-index 0) (end-index (1+ start-index)))
-  "!mzero-words is only used for debugging."
-  (declare (type maddress ptr)
-           (type ufixnum start-index end-index))
-        
-  (loop for index from start-index below end-index
-       do (mset-word ptr index 0)))
-
-
-(defun !memset-words (ptr fill-word &optional (start-index 0) (end-index (1+ start-index)))
+(defun !memset-words (ptr &optional (fill-word 0) (start-index 0) (end-index (1+ start-index)))
   "!memset-words is only used for debugging."
-  (declare (type maddress ptr)
-	   (type mem-word fill-word)
+  (declare (optimize (speed 3) (safety 0) (debug 1))
+           (type maddress ptr)
+           (type mem-word fill-word)
            (type ufixnum start-index end-index))
-        
-  (loop for index from start-index below end-index
-       do (mset-word ptr index fill-word)))
 
+  (let* ((i   (logand +mem-word/mask+ (* start-index +msizeof-word+)))
+         (end (logand +mem-word/mask+ (* end-index   +msizeof-word+)))
+         ;; 32-bit x86 is register-starved...
+         #-x86 (bulk-end (logand end (* -4 +msizeof-word+))))
+    (declare (type mem-word i end #-x86 bulk-end))
 
+    #-x86
+    (loop while (< i bulk-end)
+       do
+         (let ((i1 (the mem-word (+ i (* 1 +msizeof-word+))))
+               (i2 (the mem-word (+ i (* 2 +msizeof-word+))))
+               (i3 (the mem-word (+ i (* 3 +msizeof-word+)))))
+           (%mset-t fill-word :word ptr i)
+           (%mset-t fill-word :word ptr i1)
+           (%mset-t fill-word :word ptr i2)
+           (%mset-t fill-word :word ptr i3)
+           (incf i (* 4 +msizeof-word+))))
+    
+    (loop while (< i end)
+       do
+         (%mset-t fill-word :word ptr i)
+         (incf i +msizeof-word+))))
+         
 
-(declaim (inline memcpy-words))
-
-(defun memcpy-words (dst dst-index src src-index n-words)
-  (declare (type maddress dst src)
-           (type ufixnum dst-index src-index n-words))
-  (loop for i from 0 below n-words
-     do (mset-word dst (the ufixnum (+ dst-index i))
-                   (mget-word src (the ufixnum (+ src-index i))))))
-  
            
 
 (defmacro with-mem-words ((ptr n-words &optional n-words-var) &body body)

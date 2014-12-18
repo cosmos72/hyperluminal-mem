@@ -40,6 +40,7 @@
                (:module :ffi
                 :components ((:file "package")
                              (:file "ffi"            :depends-on ("package"))
+                             (:file "struct"         :depends-on ("ffi"))
                              (:file "os"             :depends-on ("ffi"))))
                   
                                
@@ -99,6 +100,7 @@
                (:module :db
                 :components ((:file "package")
                              (:file "version"        :depends-on ("package"))
+                             (:file "ffi-btree"      :depends-on ("version"))
                              (:file "box"            :depends-on ("version"))
                              (:file "alloc"          :depends-on ("box"))
                              (:file "store"          :depends-on ("alloc")))

@@ -101,7 +101,7 @@ count and expect memory lengths in words, not in bytes."
   (the mem-int (- a b)))
 
 
-(declaim (inline mem-size+ mem-size+1 mem-size+2 mem-size- mem-size-1))
+(declaim (inline mem-size+ mem-size+1 mem-size+2 mem-size- mem-size-1 mem-size*))
 
 (defun mem-size+ (a &optional (b 0) (c 0))
   (declare (type mem-size a b c))
@@ -119,6 +119,11 @@ count and expect memory lengths in words, not in bytes."
 
 (defun mem-size-1 (a)
   (mem-size- a 1))
+
+
+(defun mem-size* (a b)
+  (declare (type mem-size a b))
+  (the mem-size (* a b)))
 
 
 

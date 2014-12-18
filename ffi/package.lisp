@@ -37,10 +37,12 @@
                 #:log.debug    #:log.trace     #:log.make-logger)
 
   (:export #:ffi-mem-get     #:ffi-mem-set
-           #:with-ffi-mem    #+sbcl #:with-simple-array-mem
+           #:with-ffi-mem    #:with-vector-mem
            #:ffi-sizeof      #:ffi-native-type-name
            #:+null-pointer+  #:null-pointer?     #:maddress
 
+           #:ffi-defstruct
+           
            #:os-getpagesize #:fd #:+bad-fd+ #:bad-fd?
            #:os-open-fd-rw  #:os-close-fd   #:os-stat-fd-size #:os-truncate-fd
            #:os-mmap-fd-rw  #:os-munmap-ptr #:os-msync-ptr))

@@ -38,6 +38,10 @@
                 #:when-bind    #:if-bind       #:awhen    #:aif 
                 #:log.debug    #:log.trace     #:log.make-logger)
 
+  (:import-from #:hyperluminal-ffi
+
+                #:os-getpagesize #:ffi-defstruct)
+                
   (:import-from #:hyperluminal-mem
 
                 #:+null-pointer+         #:+mem-unallocated+
@@ -45,8 +49,11 @@
                 #:+mem-box/min-words+    #:+mem-box/max-words+
                 #:+mem-box/header-words+ #:+mem-box/min-payload-words+
 
+                #:+native-word-type+   #:msizeof    #:mget-t    #:mset-t
+                #:mem-word
+                
                 #:mem-size #:mem-size+ #:mem-size+1 #:mem-size- #:mem-size-1
-                #:incf-mem-size
+                #:incf-mem-size        #:mem-size*
                 #:mget-value #:mset-fulltag-and-value
 
                 #:mread-magic #:mwrite-magic #:!mread #:!mwrite #:!mzero-words
