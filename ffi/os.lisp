@@ -104,3 +104,24 @@
   (java:jcall "force" ptr))
 
 
+(declaim (ftype (function () fixnum) os-fork))
+
+#-abcl
+(defun os-fork ()
+  (osicat-posix:fork))
+
+#-abcl
+(defun os-fork-process (func)
+  (check-type func function)
+  (let ((pid (os-fork)))
+    (if (zerop pid)
+        ;; child: call FUNC
+        (let ((exit-code -1))
+          (declare (type fixnum exit-code))
+          (unwind-protect
+               (let ((result (funcall func)))
+                 (when (typep result 'fixnum)
+                   (setf exit-code result)))
+            (osicat-posix:exit exit-code)))
+        ;; parent: return child pid
+        pid)))

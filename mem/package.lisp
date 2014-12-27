@@ -51,7 +51,7 @@
                 #:tmap #:rbmap #:gmap #:gmap-pred #:gmap-count #:get-gmap #:set-gmap #:do-gmap
 
                 #:thash-table #:ghash-table #:ghash-table-test #:ghash-table-hash
-                #:ghash-table-count #:set-ghash #:do-ghash)
+                #:ghash-table-count #:get-ghash #:set-ghash #:do-ghash)
                 
 
   (:export #:hlmem-version #:hlmem-abi-version

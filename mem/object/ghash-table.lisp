@@ -50,29 +50,13 @@
   index)
 
 
-(defmethod mread-object ((obj ghash-table) ptr index end-index
-                         &key size &allow-other-keys)
-  "Warning: this method expects the caller to have already read the serialized
-:TEST, :HASH and :SIZE values and instantiated a GHASH-TABLE or a subclass"
-  (declare (type mem-size index end-index)
-           (type mem-uint size))
-
-  (dotimes (i size)
-    (with-mread* (key value new-index) (ptr index end-index)
-      (set-ghash obj key value)
-      (setf index new-index)))
-  
-  (values obj index))
-
-
-
 ;; we currently do NOT allow deserializing arbitrary functions as GHASH-TABLE predicates:
 ;; it would allow a malicious remote user to execute arbitrary code!
-(define-constant-once +ghash-table-trusted-test-list+
-    '(eq eql equal equalp = fixnum= char= string-equal))
+(define-global +ghash-table-trusted-test-list+
+    '(eq eql equal equalp = fixnum= char= char-equal string= string-equal))
 
 
-(define-constant-once +ghash-table-trusted-hash-list+
+(define-global +ghash-table-trusted-hash-list+
     '(sxhash identity))
 
 
@@ -80,18 +64,26 @@
   (declare (type symbol type)
            (type mem-size index end-index))
 
-  (with-mread* (test hash size new-index) (ptr index end-index)
-    (unless (member test +ghash-table-trusted-test-list+)
+  (with-mread* (test hash n index) (ptr index end-index)
+
+    (unless (member test +ghash-table-trusted-test-list+ :test #'eq)
       (error "HYPERLUMINAL-MEM: refusing to use untrusted ~S ~S value ~S,
 expecting one of the trusted values ~S" type :test test +ghash-table-trusted-test-list+))
-    (unless (member hash +ghash-table-trusted-hash-list+)
+    (unless (member hash +ghash-table-trusted-hash-list+ :test #'eq)
       (error "HYPERLUMINAL-MEM: refusing to use untrusted ~S ~S value ~S,
 expecting one of the trusted values ~S" type :hash hash +ghash-table-trusted-hash-list+))
                
-    (check-type size mem-uint)
+    (check-type n mem-uint)
 
-    (mread-object (new type :test test :hash hash :initial-capacity size)
-                  ptr new-index end-index :size size)))
+    (let ((obj (new type :test test :hash hash :initial-capacity n)))
+      (declare (type ghash-table obj))
+
+      (dotimes (i n)
+        (with-mread* (key value new-index) (ptr index end-index)
+          (setf (get-ghash obj key) value)
+          (setf index new-index)))
+  
+      (values obj index))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

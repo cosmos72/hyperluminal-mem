@@ -27,6 +27,15 @@
   (pushnew :hyperluminal-db/debug *features*)
 
 
+  (defun eval-compile-constant (name form)
+    (unless (constantp form)
+      (error "~S must be a compile-time constant, found ~S" name form))
+    (eval form))
+
+  (defmacro check-compile-constant (form)
+    `(eval-compile-constant ',form ,form))
+
+
   (defmacro define-constant-once (name value &optional documentation)
     "If global constant NAME is not yet defined, define it as VALUE.
 Otherwise keep its current value."
@@ -34,16 +43,43 @@ Otherwise keep its current value."
        (if (boundp ',name) (symbol-value ',name) ,value)
        ,@(when documentation `(,documentation))))
 
+  (defun or-func (&rest args)
+    (dolist (arg args nil)
+      (when arg
+        (return t))))
 
-  (defun concat-symbols-to-string (&rest syms)
-    "Concatenate the names of specified symbols. Returns a string."
-    (the string (apply #'concatenate 'string (mapcar #'symbol-name syms))))
+  (defun and-func (&rest args)
+    (dolist (arg args t)
+      (unless arg
+        (return nil))))
 
-  (defun concat-symbols (&rest syms)
-    "Concatenate the names of specified symbols. Returns a symbol."
-    (intern (apply #'concatenate 'string (mapcar #'symbol-name syms))))
+  (defun unwrap-list-1 (list)
+    "If LIST contains a single element which is itself a list, return that element.
+Otherwise return the whole LIST"
+    (declare (type list list))
+    (let ((first (first list)))
+      (if (and (listp first) (null (rest list)))
+          first
+          list)))
 
+  (defun %to-string-list (syms-and-strings-list)
+    (declare (type list syms-and-strings-list))
+    (loop for s in (unwrap-list-1 syms-and-strings-list)
+       collect (if (symbolp s)
+                   (symbol-name s)
+                   s)))
+  
+  (defun stringify (&rest syms-and-strings)
+    "Concatenate the strings and/or names of specified symbols. Returns a string"
+    (the string
+         (apply #'concatenate 'string (%to-string-list syms-and-strings))))
 
+  (defun concat-symbols (&rest syms-and-strings)
+    "Concatenate the strings and/or names of specified symbols.
+Returns a symbol interned in current package"
+    (intern (apply #'stringify syms-and-strings)))
+
+  
   (defmacro check-vector-index (vector index &rest error-message-and-args)
     (with-gensyms (len idx)
       `(let* ((,len (length (the vector ,vector)))
@@ -56,7 +92,7 @@ Otherwise keep its current value."
 
   (defun find-hldb-option/string (prefix)
     (declare (type symbol prefix))
-    (let* ((prefix-name (concat-symbols-to-string 'hyperluminal-db/ prefix '/))
+    (let* ((prefix-name (stringify 'hyperluminal-db/ prefix '/))
            (prefix-len (length prefix-name)))
       (loop for f in *features*
          for fname = (if (symbolp f) (symbol-name f) "")

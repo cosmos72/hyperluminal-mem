@@ -32,16 +32,24 @@
 
 ;; medium version... for comparison
 #|
-(decl-msize-class  tcell :slots (stmx.util::value))
-
-(decl-mwrite-class tcell :slots (stmx.util::value))
-
-(decl-mread-class  tcell :slots (stmx.util::value) :new-instance (tcell))
+(undecl-mlist-class-direct-slots 'tcell)
+(decl-mlist-class-slots tcell :slots (stmx.util::value))
+(decl-msize-class       tcell :slots (stmx.util::value))
+(decl-mwrite-class      tcell :slots (stmx.util::value))
+(decl-mread-class       tcell :slots (stmx.util::value) :new-instance (tcell))
 |#
 
 
 ;; and long version too.
 #|
+;; remove the optional method MLIST-CLASS-DIRECT-SLOTS,
+;; invoked only at compile time by DECL-M...-CLASS macros
+(undecl-mlist-class-direct-slots 'tcell)
+
+(defmethod mlist-class-slots ((class (eql 'tcell)))
+  "Optional method, invoked only at compile time by DECL-M...-CLASS macros"
+  '(stmx.util::value))
+
 (defmethod msize-object ((c tcell) index)
   (declare (type mem-size index))
 

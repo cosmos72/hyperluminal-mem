@@ -128,21 +128,20 @@ Note: increments POS!"
                          ,pos  (the ufixnum (1+ ,pos))))))
 
 
-(defun %mread-string-utf-21 (ptr index result n-chars)
+(defun %mread-string-utf-21 (ptr index n-chars)
   "Read N-CHAR packed characters from the memory starting at (PTR+INDEX)
 and write them into RESULT-STRING.
 Return RESULT and number of words actually read as multiple values."
   (declare (optimize (speed 3) (safety 0) (debug 1))
            (type maddress ptr)
            (type mem-size index)
-           (type (and simple-string #?-hldb/base-char/eql/character (not base-string))
-                 result)
            (type ufixnum n-chars))
 
   (multiple-value-bind (bulk-n-words tail-n-chars) (truncate n-chars +characters-per-word+)
 
     (let ((char-i 0) ;; incremented by (%bulk-unpack-string-utf-21)
-          (bulk-end (mem-size+ index bulk-n-words)))
+          (bulk-end (mem-size+ index bulk-n-words))
+          (result (make-string n-chars :element-type 'character)))
 
       (declare (type ufixnum char-i)
                (type mem-size bulk-end))
@@ -151,17 +150,17 @@ Return RESULT and number of words actually read as multiple values."
          do
            (let ((word (mget-word ptr index)))
              (%bulk-unpack-string-utf-21 word result char-i) ;; increments char-i
-             (incf (the mem-size index))))
+             (incf-mem-size index)))
 
       (unless (zerop tail-n-chars)
         (let ((word (mget-word ptr bulk-end)))
           (loop while (< char-i n-chars)
              do (setf (schar result char-i) (code-char (logand +character/mask+ word))
                       word   (the mem-word (ash word #.(- +character/bits+)))
-                      char-i (the fixnum (1+ char-i))))
-          (incf (the mem-size index))))))
+                      char-i (the ufixnum (1+ char-i))))
+          (incf-mem-size index)))
 
-  (values result index))
+      (values result index))))
 
 
 
@@ -179,6 +178,4 @@ Assumes BOX header was already read."
     (check-array-length ptr index 'string n-chars)
     (check-mem-length ptr index end-index n-words)
 
-    (let ((string (make-string n-chars :element-type 'character)))
-
-      (%mread-string-utf-21 ptr (mem-size+1 index) string n-chars))))
+    (%mread-string-utf-21 ptr (mem-size+1 index) n-chars)))

@@ -118,17 +118,16 @@ The available memory ends immediately before (+ PTR END-INDEX)."
 
 
 
-(defun check-accessor-names (accessor-names)
-  (declare (type simple-vector accessor-names))
-  (loop for accessor-name across accessor-names do
-       (check-type accessor-name symbol))
-  t)
+(defun check-reader-names (reader-names)
+  (declare (type list reader-names))
+  (dolist (reader-name reader-names t)
+    (check-type reader-name symbol)))
 
 
-(defun accessor-name-to-keyword (struct-name accessor-name)
+(defun reader-name-to-keyword (struct-name reader-name)
   (let* ((prefix (concatenate 'string (symbol-name struct-name) "-"))
          (prefix-len (length prefix))
-         (name (symbol-name accessor-name))
+         (name (symbol-name reader-name))
          (name-len   (length name)))
 
     (intern
@@ -139,13 +138,13 @@ The available memory ends immediately before (+ PTR END-INDEX)."
      :keyword)))
 
 
-(defun check-decl-mserializable-struct-args (accessor-names accessor-names-p mfunc mfunc-name)
+(defun check-decl-mserializable-struct-args (reader-names reader-names-p mfunc mfunc-name)
   
-  (when (eq (null accessor-names-p) (null mfunc))
+  (when (eq (null reader-names-p) (null mfunc))
     (error "error while invoking ~S~S~S:~%  exactly one of ~S or ~S~S must be specified"
-           'decl- mfunc-name '-struct 'accessor-names mfunc-name '-struct))
+           'decl- mfunc-name '-struct 'reader-names mfunc-name '-struct))
        
-  (check-accessor-names accessor-names))
+  (check-reader-names reader-names))
 
 
 (defun make-make-struct (struct-name)
@@ -159,77 +158,77 @@ The available memory ends immediately before (+ PTR END-INDEX)."
 
 
 
-(defmacro decl-msize-struct (struct-name &key (accessor-names #() accessor-names-p)
+(defmacro decl-msize-struct (struct-name &key (reader-names nil reader-names-p)
                                            msize-struct)
   "shortcut for (defmethod msize-object (...))"
-  (declare (type simple-vector accessor-names)
+  (declare (type list reader-names)
            (type symbol msize-struct))
 
-  (check-decl-mserializable-struct-args accessor-names accessor-names-p
+  (check-decl-mserializable-struct-args reader-names reader-names-p
                                         msize-struct 'msize)
   
   (with-gensyms (obj index)
     `(defmethod msize-object ((,obj ,struct-name) ,index)
        (declare (type mem-size ,index))
      
-       ,(if accessor-names-p
-            `(msize* ,index ,@(loop for accessor-name across accessor-names
-                                 collect `(,accessor-name ,obj)))
+       ,(if reader-names-p
+            `(msize* ,index ,@(loop for reader-name in reader-names
+                                 collect `(,reader-name ,obj)))
 
             `(,msize-struct ,obj ,index)))))
 
 
 
 
-(defmacro decl-mwrite-struct (struct-name &key (accessor-names #() accessor-names-p)
+(defmacro decl-mwrite-struct (struct-name &key (reader-names nil reader-names-p)
                                             mwrite-struct)
   "shortcut for (defmethod mwrite-object (...))"
-  (declare (type simple-vector accessor-names)
+  (declare (type list reader-names)
            (type symbol mwrite-struct))
 
-  (check-decl-mserializable-struct-args accessor-names accessor-names-p
+  (check-decl-mserializable-struct-args reader-names reader-names-p
                                         mwrite-struct 'mwrite)
     
   (with-gensyms (obj ptr index end-index)
     `(defmethod mwrite-object ((,obj ,struct-name) ,ptr ,index ,end-index)
        (declare (type mem-size ,index ,end-index))
      
-       ,(if accessor-names-p
+       ,(if reader-names-p
             `(mwrite* ,ptr ,index ,end-index
-                      ,@(loop for accessor-name across accessor-names
-                           collect `(,accessor-name ,obj)))
+                      ,@(loop for reader-name in reader-names
+                           collect `(,reader-name ,obj)))
 
             `(,mwrite-struct ,obj ,index)))))
 
 
 
-(defmacro decl-mread-struct (struct-name &key (accessor-names #() accessor-names-p)
+(defmacro decl-mread-struct (struct-name &key (reader-names nil reader-names-p)
                                            mread-struct
                                            (make-struct `,(make-make-struct struct-name)))
   "shortcut for (defmethod mread-object (...))"
-  (declare (type simple-vector accessor-names)
+  (declare (type list reader-names)
            (type symbol mread-struct))
 
-  (check-decl-mserializable-struct-args accessor-names accessor-names-p
+  (check-decl-mserializable-struct-args reader-names reader-names-p
                                         mread-struct 'mread)
     
   (with-gensyms (type ptr index end-index new-index)
     `(defmethod mread-object ((,type (eql ',struct-name)) ,ptr ,index ,end-index &key)
        (declare (type mem-size ,index ,end-index))
      
-       ,(if accessor-names-p
-            (let ((vars (loop for accessor-name across accessor-names
-                           collect (gensym (symbol-name accessor-name))))
+       ,(if reader-names-p
+            (let ((vars (loop for reader-name in reader-names
+                           collect (gensym (symbol-name reader-name))))
                   (keywords (if (listp make-struct) (rest make-struct) nil))
                   (maker    (if (listp make-struct) (first make-struct) make-struct)))
               
               `(with-mread* (,@vars ,new-index) (,ptr ,index ,end-index)
                  (values
-                  (,maker ,@(loop for accessor-name across accessor-names
+                  (,maker ,@(loop for reader-name in reader-names
                                for var in vars
                                for ks = keywords then (rest ks)
                                collect (or (first ks)
-                                           (accessor-name-to-keyword struct-name accessor-name))
+                                           (reader-name-to-keyword struct-name reader-name))
                                collect var))
                   ,new-index)))
 
@@ -238,23 +237,23 @@ The available memory ends immediately before (+ PTR END-INDEX)."
 
 
 (defmacro decl-mserializable-struct (struct-name
-                                     &key (accessor-names #() accessor-names-p)
+                                     &key (reader-names nil reader-names-p)
                                        msize-struct mwrite-struct mread-struct
                                        (make-struct `,(make-make-struct struct-name)))
   "shortcut for (decl-msize-struct ...) (decl-mwrite-struct ...) (decl-mread-struct ...)"
   `(progn
      ,@(when msize-struct
              `((decl-msize-struct ,struct-name
-                                  ,@(when accessor-names-p `(:accessor-names ,accessor-names))
+                                  ,@(when reader-names-p `(:reader-names ,reader-names))
                                   :msize-struct ,msize-struct)))
      
      ,@(when mwrite-struct
              `((decl-mwrite-struct ,struct-name
-                                  ,@(when accessor-names-p `(:accessor-names ,accessor-names))
-                                  :mwrite-struct ,mwrite-struct)))
+                                   ,@(when reader-names-p `(:reader-names ,reader-names))
+                                   :mwrite-struct ,mwrite-struct)))
 
      ,@(when mread-struct
              `((decl-mread-struct ,struct-name
-                                  ,@(when accessor-names-p `(:accessor-names ,accessor-names))
-                                 :mread-struct ,mread-struct
-                                 :make-struct ,make-struct)))))
+                                  ,@(when reader-names-p `(:reader-names ,reader-names))
+                                  :mread-struct ,mread-struct
+                                  :make-struct ,make-struct)))))

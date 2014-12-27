@@ -31,16 +31,22 @@
 
 ;; medium version... for comparison
 #|
-(decl-msize-class  tstack :slots (stmx.util::top))
-
-(decl-mwrite-class tstack :slots (stmx.util::top))
-
-(decl-mread-class  tstack :slots (stmx.util::top) :new-instance (tstack))
+(undecl-mlist-class-direct-slots 'tstack)
+(decl-mlist-class-slots tstack :slots (stmx.util::top))
+(decl-msize-class       tstack :slots (stmx.util::top))
+(decl-mwrite-class      tstack :slots (stmx.util::top))
+(decl-mread-class       tstack :slots (stmx.util::top) :new-instance (tstack))
 |#
 
 
 ;; and long version too.
 #|
+(undecl-mlist-class-direct-slots 'tstack)
+
+(defmethod mlist-class-slots ((class (eql 'tstack)))
+  "Optional method, invoked only at compile time by DECL-M...-CLASS macros"
+  '(stmx.util::top))
+
 (defmethod msize-object ((obj tstack) index)
   (declare (type mem-size index))
 
