@@ -55,7 +55,7 @@
    (:module :sbcl
     :components ((:file "package")
 		 (:file "compiler"       :depends-on ("package"))
-		 #+x86
+		 #+(or x86 x86-64)
 		 (:file "x86"            :depends-on ("compiler"))
 		 #+x86-64
 		 (:file "x86-64"         :depends-on ("compiler")))

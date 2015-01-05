@@ -32,8 +32,7 @@
 	   #:with-ffi-fast-mem  #:with-vector-fast-mem
 	   #:+fixnum-zero-mask+1+
 	   #:fast-mread/4 #:fast-mwrite/4
-	   #+x86-64 #:fast-mread/8
-	   #+x86-64 #:fast-mwrite/8))
+	   #+x86-64 #:fast-mread/8 #+x86-64 #:fast-mwrite/8))
 
 
 (defpackage #:hyperluminal-assem
@@ -43,5 +42,4 @@
 	   #:with-ffi-fast-mem  #:with-vector-fast-mem
 	   #:+fixnum-zero-mask+1+
 	   #:fast-mread/4 #:fast-mwrite/4
-	   #+x86-64 #:fast-mread/8
-	   #+x86-64 #:fast-mwrite/8))
+	   #+x86-64 #:fast-mread/8 #+x86-64 #:fast-mwrite/8))
