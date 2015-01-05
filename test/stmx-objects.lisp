@@ -62,11 +62,7 @@
 
     (with-mem-words (ptr (msize h index) end-index)
       (mwrite-mread-test ptr index end-index h
-                         :comparator
-                         #-(and) #'equalp-ghash-table
-                         (lambda (&rest args)
-                           (declare (ignore args))
-                           t)))))
+			 :comparator #'equalp-ghash-table))))
 
 
 (defun %gmap-test ()

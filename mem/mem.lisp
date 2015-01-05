@@ -19,16 +19,12 @@
 
 (in-package :hyperluminal-mem)
 
+(enable-#?-syntax)
+
 (deftype ufixnum () '(and fixnum (integer 0)))
 
 
 (eval-when (:compile-toplevel :load-toplevel)
-
-  (defun unquote (expr)
-    (if (and (consp expr)
-             (eq 'quote (first expr)))
-        (second expr)
-        expr))
 
   (declaim (type keyword +chosen-word-type+))
   (defconstant +chosen-word-type+ (choose-word-type))
@@ -69,28 +65,154 @@
 
 
 
-
-
-(defconstant +msizeof-sfloat+  (msizeof :sfloat))
-(defconstant +msizeof-dfloat+  (msizeof :dfloat))
-(defconstant +msizeof-byte+    (msizeof :byte))
-(defconstant +msizeof-word+    (msizeof :word))
-
-
-(defmacro %mget-t (type ptr &optional (offset 0))
-  `(ffi-mem-get ,ptr ,(parse-type type) ,offset))
-
-(defmacro %mset-t (value type ptr &optional (offset 0))
-  `(ffi-mem-set ,value ,ptr ,(parse-type type) ,offset))
+(eval-always
+  (defconstant +msizeof-sfloat+  (msizeof :sfloat))
+  (defconstant +msizeof-dfloat+  (msizeof :dfloat))
+  (defconstant +msizeof-byte+    (msizeof :byte))
+  (defconstant +msizeof-word+    (msizeof :word)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+(eval-always
+  (defconstant +fast-mread-symbol+
+    (concat-symbols 'fast-mread/ +msizeof-word+))
+  (defconstant +fast-mwrite-symbol+
+    (concat-symbols 'fast-mwrite/ +msizeof-word+)))
+
+(eval-always
+  (if (and (have-symbol? 'hl-assem +fast-mread-symbol+)
+	   (have-symbol? 'hl-assem +fast-mwrite-symbol+))
+      (set-feature 'hldb/fast-mem)
+      (rem-feature 'hldb/fast-mem)))
+      
+
+#?+hldb/fast-mem
+(eval-always
+  (let ((pkg (find-package (symbol-name 'hl-assem))))
+
+    (defconstant +fast-mread+  (intern (symbol-name +fast-mread-symbol+)  pkg))
+    (defconstant +fast-mwrite+ (intern (symbol-name +fast-mwrite-symbol+) pkg))))
+
+
+
+(deftype maddress ()
+  #?+hldb/fast-mem 'hl-assem:fast-sap
+  #?-hldb/fast-mem 'hl-ffi:ffi-address)
+	 
+
+(defmacro with-mem-bytes ((var-name n-bytes) &body body)
+  `(#?+hldb/fast-mem hl-assem:with-ffi-fast-mem
+    #?-hldb/fast-mem hl-ffi:with-ffi-mem
+    (,var-name ,n-bytes)
+    ,@body))
+
+
+(defmacro with-mem-words ((ptr n-words &optional n-words-var)
+			      &body body)
+  "Bind PTR to N-WORDS words of raw memory while executing BODY.
+Raw memory is automatically deallocated when BODY terminates."
+
+  (when (and (null n-words-var) (constantp n-words))
+    (return-from with-mem-words
+      `(with-mem-bytes (,ptr ,(eval (* n-words +msizeof-word+)))
+         ,@body)))
+      
+  (unless n-words-var
+    (setf n-words-var (gensym (symbol-name 'n-words))))
+  
+  `(let ((,n-words-var (the mem-size ,n-words)))
+     (with-mem-bytes
+         (,ptr
+          ,(if (constantp n-words)
+               (eval `(* ,n-words +msizeof-word+))
+               `(the mem-word (* ,n-words-var +msizeof-word+))))
+       ,@body)))
+
+
+(defmacro with-vector-mem ((var-name vector) &body body)
+  `(#?+hldb/fast-mem hl-assem:with-vector-fast-mem
+    #?-hldb/fast-mem hl-ffi:with-vector-mem
+    (,var-name ,vector)
+    ,@body))
+
+
+(defmacro %mget-t (type ptr &optional (byte-offset 0))
+  `(ffi-mem-get #?+hldb/fast-mem (hl-assem:fast-sap=>sap ,ptr)
+		#?-hldb/fast-mem ,ptr
+		,(parse-type type) ,byte-offset))
+
+
+(defmacro %mset-t (value type ptr &optional (byte-offset 0))
+  `(ffi-mem-set ,value
+		#?+hldb/fast-mem (hl-assem:fast-sap=>sap ,ptr)
+		#?-hldb/fast-mem ,ptr
+		,(parse-type type) ,byte-offset))
+
+
+
+#?+hldb/fast-mem
+(progn
+  (defmacro fast-mget-word (ptr index &key
+			    (scale +msizeof-word+) (offset 0))
+    `(,+fast-mread+ ,ptr ,index :scale ,scale :disp ,offset))
+
+  (defmacro fast-mset-word (value ptr index &key
+			    (scale +msizeof-word+) (offset 0))
+    (with-gensym val
+      `(let ((,val ,value))
+	 (,+fast-mwrite+ ,val ,ptr ,index :scale ,scale :disp ,offset)
+	 ,val))))
+
+			 
+			    
 (defmacro mget-t (type ptr word-index)
-  `(%mget-t ,type ,ptr (logand +mem-word/mask+ (* ,word-index +msizeof-word+))))
+  #?+hldb/fast-mem
+  (when (eq +chosen-word-type+ (parse-type type))
+    (return-from mget-t
+      `(fast-mget-word ,ptr ,word-index)))
+  ;; common case
+  `(%mget-t ,type ,ptr (logand +mem-word/mask+
+			       (* ,word-index +msizeof-word+))))
+
 
 (defmacro mset-t (value type ptr word-index)
-  `(%mset-t ,value ,type ,ptr (logand +mem-word/mask+ (* ,word-index +msizeof-word+))))
+  #?+hldb/fast-mem
+  (when (eq +chosen-word-type+ (parse-type type))
+    (return-from mset-t
+      `(fast-mset-word ,value ,ptr ,word-index)))
+  ;; common case
+  `(%mset-t ,value ,type ,ptr (logand +mem-word/mask+
+				      (* ,word-index +msizeof-word+))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defmacro mget-word (ptr word-index)
+  `(mget-t :word ,ptr ,word-index))
+
+(defmacro mset-word (ptr word-index value)
+  `(mset-t ,value :word ,ptr ,word-index))
+
+(defsetf mget-word mset-word)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defmacro mget-byte (ptr byte-index)
+  "Used only by MREAD-MAGIC."
+  `(%mget-t :byte ,ptr ,byte-index))
+
+(defmacro mset-byte (ptr byte-index value)
+  #-abcl "Used only by MWRITE-MAGIC and and %DETECT-ENDIANITY."
+  #+abcl "Used only by MWRITE-MAGIC, and %DETECT-ENDIANITY,
+!MEMSET and !MEMCPY."
+  `(%mset-t ,value :byte ,ptr ,byte-index))
+
+(defsetf mget-byte mset-byte)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -125,7 +247,7 @@ size of ~S is ~S bytes, expecting at least 4 bytes"
 
     (let ((bits-per-word 1))
     
-      (with-ffi-mem (p +msizeof-word+)
+      (with-mem-words (p 1)
         (loop for i = 1 then (logior (ash i 1) 1)
            for bits = 1 then (1+ bits)
            do
@@ -134,9 +256,9 @@ size of ~S is ~S bytes, expecting at least 4 bytes"
                    #+hyperluminal-db/debug
                    (log:debug "(i #x~X) (bits ~D) ..." i bits)
 
-                   (%mset-t i :word p)
+                   (mset-word p 0 i)
                    
-                   (let ((j (%mget-t :word p)))
+                   (let ((j (mget-word p 0)))
                      #+hyperluminal-db/debug
                      (log:debug " read back: #x~X ..." j)
                      
@@ -261,7 +383,7 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 (eval-when (:compile-toplevel :load-toplevel :execute)
 
   (defun %detect-endianity ()
-    (with-ffi-mem (p +msizeof-word+)
+    (with-mem-words (p 1)
       (let ((little-endian 0)
             (big-endian 0))
 
@@ -271,9 +393,9 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
              (setf little-endian (logior little-endian (ash bits (* i +mem-byte/bits+)))
                    big-endian    (logior bits (ash big-endian +mem-byte/bits+)))
 
-             (%mset-t bits :byte p i))
+             (mset-byte p i bits))
 
-        (let ((endianity (%mget-t :word p)))
+        (let ((endianity (mget-word p 0)))
           (unless (or (eql endianity little-endian)
                       (eql endianity big-endian))
             (error "cannot build HYPERLUMINAL-DB: unsupported architecture.
@@ -294,33 +416,6 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defmacro mget-word (ptr word-index)
-  `(mget-t :word ,ptr ,word-index))
-
-(defmacro mset-word (ptr word-index value)
-  `(mset-t ,value :word ,ptr ,word-index))
-
-(defsetf mget-word mset-word)
-
-
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defmacro mget-byte (ptr byte-index)
-  "Used only by MREAD-MAGIC."
-  `(%mget-t :byte ,ptr ,byte-index))
-
-(defmacro mset-byte (ptr byte-index value)
-  #-abcl "Used only by MWRITE-MAGIC."
-  #+abcl "Used only by MWRITE-MAGIC, !MEMSET and !MEMCPY."
-  `(%mset-t ,value :byte ,ptr ,byte-index))
-
-(defsetf mget-byte mset-byte)
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;      debugging utilities       ;;;;
@@ -332,14 +427,14 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
   (declare (type maddress ptr)
            (type fixnum start-byte end-byte))
   (loop for offset from start-byte below end-byte do
-       (format stream "~2,'0X" (%mget-t :byte ptr offset))))
+       (format stream "~2,'0X" (mget-byte ptr offset))))
 
 (defun !mdump-bytes-reverse (stream ptr &optional (start-byte 0) (end-byte (1+ start-byte)))
   "mdump-bytes-reverse is only used for debugging. it assumes sizeof(byte) == 1"
   (declare (type maddress ptr)
            (type fixnum start-byte end-byte))
   (loop for offset from end-byte above start-byte do
-       (format stream "~2,'0X" (%mget-t :byte ptr (1- offset)))))
+       (format stream "~2,'0X" (mget-byte ptr (1- offset)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -350,7 +445,7 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
            (type ufixnum n-bytes)
            (type (unsigned-byte 8) value increment))
   (loop for offset from 0 below n-bytes do
-       (%mset-t value :byte ptr offset)
+       (mset-byte ptr offset value)
        (setf value (logand #xFF (+ value increment)))))
 
 
@@ -362,6 +457,31 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
            (type mem-word fill-word)
            (type ufixnum start-index end-index))
 
+  #?+hldb/fast-mem
+  (let* ((n-words      (the ufixnum (- end-index start-index)))
+	 (n-bulk-words (the ufixnum (logand -8 n-words)))
+	 (i            (the ufixnum start-index))
+	 (bulk-end     (the ufixnum (+ i n-bulk-words))))
+    (loop while (< i bulk-end)
+       do
+	 (let ((i (the ufixnum i)))
+	   (fast-mset-word fill-word ptr i :offset (* 0 +msizeof-word+))
+	   (fast-mset-word fill-word ptr i :offset (* 1 +msizeof-word+))
+	   (fast-mset-word fill-word ptr i :offset (* 2 +msizeof-word+))
+	   (fast-mset-word fill-word ptr i :offset (* 3 +msizeof-word+))
+	   (fast-mset-word fill-word ptr i :offset (* 4 +msizeof-word+))
+	   (fast-mset-word fill-word ptr i :offset (* 5 +msizeof-word+))
+	   (fast-mset-word fill-word ptr i :offset (* 6 +msizeof-word+))
+	   (fast-mset-word fill-word ptr i :offset (* 7 +msizeof-word+)))
+	 (incf i 8))
+
+    (loop while (< i end-index)
+       do
+         (fast-mset-word fill-word ptr i)
+         (incf i)))
+    
+    
+  #?-hldb/fast-mem
   (let* ((i   (logand +mem-word/mask+ (* start-index +msizeof-word+)))
          (end (logand +mem-word/mask+ (* end-index   +msizeof-word+)))
          ;; 32-bit x86 is register-starved...
@@ -387,27 +507,6 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
          
 
            
-
-(defmacro with-mem-words ((ptr n-words &optional n-words-var) &body body)
-  "Bind PTR to N-WORDS words of raw memory while executing BODY.
-Raw memory is automatically deallocated when BODY terminates."
-
-  (when (and (null n-words-var) (constantp n-words))
-    (return-from with-mem-words
-      `(with-ffi-mem (,ptr ,(eval (* n-words +msizeof-word+)))
-         ,@body)))
-      
-  (unless n-words-var
-    (setf n-words-var (gensym (symbol-name 'n-words))))
-  
-  `(let ((,n-words-var (the mem-size ,n-words)))
-     (with-ffi-mem
-         (,ptr
-          ,(if (constantp n-words)
-               (eval `(* ,n-words +msizeof-word+))
-               `(the mem-word (* ,n-words-var +msizeof-word+))))
-       ,@body)))
-
 
 (defun !hex (n)
   (format t "#x~x" n))

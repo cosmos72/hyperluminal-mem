@@ -86,13 +86,13 @@
 
 
 (defun os-munmap-ptr (ptr length-bytes)
-  (declare (type maddress ptr))
+  (declare (type ffi-address ptr))
   #-abcl (osicat-posix:munmap ptr length-bytes)
   #+abcl nil) ;; MappedByteBuffer javadoc say it is unmapped when garbage collected.
 
 
 (defun os-msync-ptr (ptr length-bytes sync)
-  (declare (type maddress ptr)
+  (declare (type ffi-address ptr)
            (type (integer 0) length-bytes))
 
   #-abcl

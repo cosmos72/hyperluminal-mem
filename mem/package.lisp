@@ -23,7 +23,7 @@
 
 (defpackage #:hyperluminal-mem
 
-  (:nicknames #:hlmem)
+  (:nicknames #:hl-mem)
 
   (:use #:cl #:hyperluminal-ffi)
 
@@ -32,7 +32,7 @@
                 #:eval-always  #:enable-#?-syntax
 
                 #:set-feature  #:set-features #:default-feature #:default-features
-                #:get-feature  #:all-features?
+                #:get-feature  #:rem-feature #:all-features?
 
                 #:define-global                #:define-constant-once
                 #:with-gensym  #:with-gensyms  #:new      #:let1
@@ -55,9 +55,9 @@
                 
 
   (:export #:hlmem-version #:hlmem-abi-version
-           
+	   
            #:maddress     #:mem-word       #:mem-size    #:+msizeof-word+
-           #:malloc       #:malloc-words   #:mfree       #:with-mem-words
+           #:malloc       #:malloc-words   #:mfree       
            #:mread-magic  #:mwrite-magic
 
            #:mget-unboxed #:mset-unboxed   #:mset-fulltag-and-value
@@ -71,7 +71,9 @@
            #:msize-object-slots #:mwrite-object-slots  #:mread-object-slots
            #:mlist-object-slots #:mwrite-object-slot   #:mwrite-slot        
            #:mread-object-slots-using-names
-                                                  
+
+           #:with-mem-bytes     #:with-mem-words       #:with-vector-mem
+
            #:decl-msize-class   #:decl-mwrite-class    #:decl-mread-class
            #:decl-mserializable-class
 

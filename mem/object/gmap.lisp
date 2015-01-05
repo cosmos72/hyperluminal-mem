@@ -46,7 +46,7 @@
 
 ;; we currently do NOT allow deserializing arbitrary functions as RBMAP predicates:
 ;; it would allow a malicious remote user to execute arbitrary code!
-(define-global +gmap-trusted-pred-list+
+(define-global *gmap-trusted-pred-list*
     '(< > fixnum< fixnum> char< char> string< string>))
 
 
@@ -58,9 +58,9 @@
 
   (with-mread* (pred n index) (ptr index end-index)
 
-    (unless (member pred +gmap-trusted-pred-list+ :test #'eq)
+    (unless (member pred *gmap-trusted-pred-list* :test #'eq)
       (error "HYPERLUMINAL-MEM: refusing to use untrusted ~S ~S value ~S,
-expecting one of the trusted values ~S" type :pred pred +gmap-trusted-pred-list+))
+expecting one of the trusted values ~S" type :pred pred *gmap-trusted-pred-list*))
 
     (check-type n mem-uint)
     

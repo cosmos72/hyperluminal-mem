@@ -117,7 +117,8 @@ followed by an array of words containing N in two's complement."
     (if (typep n 'fixnum)
         (%mwrite-bignum-loop ptr index n-words n)
         (sb-sys:with-pinned-objects (n)
-          (let ((src (cffi-sys:make-pointer 
+          (let ((src (#?+hldb/fast-mem hl-sbcl::%word=>fast-sap
+		      #?-hldb/fast-mem cffi-sys:make-pointer 
                       (the sb-ext:word
                         (+ +lisp-object-header-length+
                            (logand +lisp-object-address-mask+
@@ -128,7 +129,6 @@ followed by an array of words containing N in two's complement."
     #-sbcl
     (%mwrite-bignum-recurse ptr index n-words n)))
     
-
 
 
 

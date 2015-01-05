@@ -77,9 +77,15 @@ The obtained memory must be freed manually: call MFREE on it when no longer need
 (defun memcpy-words (dst dst-index src src-index n-words)
   (declare (type maddress dst src)
            (type ufixnum dst-index src-index n-words))
-  (loop for i from 0 below n-words
-     do (mset-word dst (the ufixnum (+ dst-index i))
-                   (mget-word src (the ufixnum (+ src-index i))))))
+
+  (let ((src-end (the ufixnum (+ src-index n-words))))
+    (loop while (< src-index src-end)
+       do
+	 (mset-word dst dst-index (mget-word src src-index))
+	 (incf src-index)
+	 (incf dst-index))))
+
+
   
 
 (defun !memcpy (dst dst-start-byte src src-start-byte n-bytes)

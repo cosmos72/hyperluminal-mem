@@ -19,7 +19,10 @@
 
 (in-package :hyperluminal-ffi)
 
-(deftype maddress () #-abcl 'cffi-sys:foreign-pointer #+abcl 'java:java-object)
+(deftype ffi-address ()
+  #-abcl 'cffi-sys:foreign-pointer
+  #+abcl 'java:java-object)
+
 
 #+abcl
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -92,7 +95,7 @@
 (declaim (inline null-pointer?))
 
 (defun null-pointer? (ptr)
-  (declare (type maddress ptr))
+  (declare (type ffi-address ptr))
   #-abcl (cffi-sys:null-pointer-p ptr)
   #+abcl (java:jnull-ref-p ptr))
 

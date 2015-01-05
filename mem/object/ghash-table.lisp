@@ -52,11 +52,11 @@
 
 ;; we currently do NOT allow deserializing arbitrary functions as GHASH-TABLE predicates:
 ;; it would allow a malicious remote user to execute arbitrary code!
-(define-global +ghash-table-trusted-test-list+
+(define-global *ghash-table-trusted-test-list*
     '(eq eql equal equalp = fixnum= char= char-equal string= string-equal))
 
 
-(define-global +ghash-table-trusted-hash-list+
+(define-global *ghash-table-trusted-hash-list*
     '(sxhash identity))
 
 
@@ -66,12 +66,12 @@
 
   (with-mread* (test hash n index) (ptr index end-index)
 
-    (unless (member test +ghash-table-trusted-test-list+ :test #'eq)
+    (unless (member test *ghash-table-trusted-test-list* :test #'eq)
       (error "HYPERLUMINAL-MEM: refusing to use untrusted ~S ~S value ~S,
-expecting one of the trusted values ~S" type :test test +ghash-table-trusted-test-list+))
-    (unless (member hash +ghash-table-trusted-hash-list+ :test #'eq)
+expecting one of the trusted values ~S" type :test test *ghash-table-trusted-test-list*))
+    (unless (member hash *ghash-table-trusted-hash-list* :test #'eq)
       (error "HYPERLUMINAL-MEM: refusing to use untrusted ~S ~S value ~S,
-expecting one of the trusted values ~S" type :hash hash +ghash-table-trusted-hash-list+))
+expecting one of the trusted values ~S" type :hash hash *ghash-table-trusted-hash-list*))
                
     (check-type n mem-uint)
 

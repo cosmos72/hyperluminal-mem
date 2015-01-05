@@ -23,7 +23,7 @@
 
 (defpackage #:hyperluminal-ffi
 
-  (:nicknames #:hlffi)
+  (:nicknames #:hl-ffi)
 
   (:use #:cl)
 
@@ -39,7 +39,7 @@
   (:export #:ffi-mem-get     #:ffi-mem-set
            #:with-ffi-mem    #:with-vector-mem
            #:ffi-sizeof      #:ffi-native-type-name
-           #:+null-pointer+  #:null-pointer?     #:maddress
+           #:+null-pointer+  #:null-pointer?     #:ffi-address
 
            #:ffi-defstruct
            
