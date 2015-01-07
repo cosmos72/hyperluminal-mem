@@ -20,9 +20,9 @@
 
 (in-package :cl-user)
 
-(defpackage #:hyperluminal-test
+(defpackage #:hyperluminal-db.test
 
-  (:nicknames #:hl-test)
+  (:nicknames #:hldb.test)
 
   (:use #:cl
         #:fiveam
@@ -34,13 +34,13 @@
                 #:!mdump)
 
   (:import-from #:hyperluminal-db
-                #:hldb-open #:hldb-close #:*p*)
+                #:hldb-open #:hldb-close)
 
   (:export #:suite))
 
 
 
 
-(in-package :hyperluminal-test)
+(in-package :hyperluminal-db.test)
 
 (fiveam:def-suite suite)

@@ -17,7 +17,7 @@
 ;; along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-(in-package :hyperluminal-test)
+(in-package :hyperluminal-db.test)
 
 
 (defun mset-int-test (ptr index &optional (num-threads 8) (iterations 300000000))
