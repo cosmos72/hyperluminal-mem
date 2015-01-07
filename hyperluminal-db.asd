@@ -125,8 +125,8 @@
     :depends-on (:mem))))
 
 
-(asdf:defsystem :hyperluminal-db.test
-  :name "HYPERLUMINAL-DB.TEST"
+(asdf:defsystem :hyperluminal-test
+  :name "HYPERLUMINAL-TEST"
   :version "0.4.0"
   :author "Massimiliano Ghilardi"
   :license "GPLv3"
@@ -144,5 +144,5 @@
 
 
 (defmethod asdf:perform ((op asdf:test-op) (system (eql (asdf:find-system :hyperluminal-db))))
-  (asdf:load-system :hyperluminal-db.test)
-  (eval (read-from-string "(fiveam:run! 'hyperluminal-db.test:suite)")))
+  (asdf:load-system :hyperluminal-test)
+  (eval (read-from-string "(fiveam:run! 'hyperluminal-test:suite)")))

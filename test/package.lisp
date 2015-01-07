@@ -20,9 +20,9 @@
 
 (in-package :cl-user)
 
-(defpackage #:hyperluminal-db.test
+(defpackage #:hyperluminal-test
 
-  (:nicknames #:hldb.test)
+  (:nicknames #:hl-test)
 
   (:use #:cl
         #:fiveam
@@ -41,6 +41,6 @@
 
 
 
-(in-package :hyperluminal-db.test)
+(in-package :hyperluminal-test)
 
 (fiveam:def-suite suite)

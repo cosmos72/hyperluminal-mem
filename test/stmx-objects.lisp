@@ -17,7 +17,7 @@
 ;; along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-(in-package :hyperluminal-db.test)
+(in-package :hyperluminal-test)
 
 (def-suite stmx-objects-suite :in suite)
 (in-suite stmx-objects-suite)
