@@ -51,21 +51,20 @@
     :depends-on (:lang))
                   
                                
-   #+(and sbcl (or x86 x86-64))
+   #+(and sbcl (or x86 x86-64 #|... other archs here ...|#))
    (:module :sbcl
     :components ((:file "package")
 		 (:file "compiler"       :depends-on ("package"))
 		 #+(or x86 x86-64)
-		 (:file "x86"            :depends-on ("compiler"))
-		 #+x86-64
-		 (:file "x86-64"         :depends-on ("compiler")))
+		 (:file "x86"            :depends-on ("compiler")))
     :depends-on (:ffi))
                   
    (:module :mem
     :components ((:file "package")
 		 (:file "lang"           :depends-on ("package"))
 		 (:file "version"        :depends-on ("lang"))
-		 (:file "mem"            :depends-on ("lang"))
+		 (:file "defs"           :depends-on ("lang"))
+		 (:file "mem"            :depends-on ("defs"))
 		 (:file "ffi-late"       :depends-on ("mem"))
 		 (:file "constants"      :depends-on ("ffi-late"))
 		 (:file "symbols"        :depends-on ("constants"))

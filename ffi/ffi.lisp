@@ -192,12 +192,15 @@
 
 
 
-(defmacro with-ffi-mem ((var-name n-bytes) &body body)
+(defmacro with-ffi-mem ((var-name n-bytes &optional n-bytes-var) &body body)
   #-abcl
-  `(cffi-sys:with-foreign-pointer (,var-name ,n-bytes)
+  `(cffi-sys:with-foreign-pointer (,var-name ,n-bytes ,@(when n-bytes-var `(,n-bytes-var)))
      ,@body)
   #+abcl
-  `(let ((,var-name (java:jstatic +java-nio-bytebuffer-allocate+ nil ,n-bytes)))
+  `(let* (,@(when n-bytes-var `((,n-bytes-var ,n-bytes)))
+          (,var-name (java:jstatic +java-nio-bytebuffer-allocate+ nil
+                                   ,(if n-bytes-var `,n-bytes-var `,n-bytes))))
+
      (java:jcall +java-nio-bytebuffer-set-byteorder+ ,var-name +java-nio-byteorder-native+)
      ,@body))
 

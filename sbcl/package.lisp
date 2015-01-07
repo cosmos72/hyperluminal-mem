@@ -29,17 +29,17 @@
                 #:eval-always  #:with-gensym  #:with-gensyms)
 
   (:export #:fast-sap #:sap=>fast-sap #:fast-sap=>sap
-	   #:with-ffi-fast-mem  #:with-vector-fast-mem
 	   #:+fixnum-zero-mask+1+
 	   #:fast-mread/4 #:fast-mwrite/4
-	   #+x86-64 #:fast-mread/8 #+x86-64 #:fast-mwrite/8))
+	   #+x86-64 #:fast-mread/8
+           #+x86-64 #:fast-mwrite/8))
 
 
 (defpackage #:hyperluminal-assem
   (:nicknames #:hl-assem)
   (:use #:hyperluminal-sbcl)
   (:export #:fast-sap #:sap=>fast-sap #:fast-sap=>sap
-	   #:with-ffi-fast-mem  #:with-vector-fast-mem
 	   #:+fixnum-zero-mask+1+
 	   #:fast-mread/4 #:fast-mwrite/4
-	   #+x86-64 #:fast-mread/8 #+x86-64 #:fast-mwrite/8))
+	   #+x86-64 #:fast-mread/8
+           #+x86-64 #:fast-mwrite/8))
