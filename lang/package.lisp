@@ -28,7 +28,6 @@
   (:use #:cl)
 
   (:export #:eval-compile-constant #:check-compile-constant
-	   #:define-constant-once
 	   #:or-func  #:and-func
 	   #:stringify #:concat-symbols 
 	   #:have-symbol? #:check-vector-index))

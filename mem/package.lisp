@@ -23,9 +23,9 @@
 
 (defpackage #:hyperluminal-mem
 
-  (:nicknames #:hl-mem)
+  (:nicknames #:hl-mem #:hlmem)
 
-  (:use #:cl #:hyperluminal-ffi)
+  (:use #:cl #:hyperluminal-lang #:hyperluminal-ffi)
 
   (:import-from #:stmx.lang
 

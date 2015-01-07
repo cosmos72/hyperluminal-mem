@@ -23,7 +23,7 @@
 
 (defpackage #:hyperluminal-db
 
-  (:nicknames #:hldb)
+  (:nicknames #:hl-db #:hldb)
 
   (:use #:cl #:hyperluminal-ffi)
 

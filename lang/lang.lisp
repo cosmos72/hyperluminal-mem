@@ -37,13 +37,6 @@
 
 
 
-(defmacro define-constant-once (name value &optional documentation)
-  "If global constant NAME is not yet defined, define it as VALUE.
-Otherwise keep its current value."
-  `(defconstant ,name 
-     (if (boundp ',name) (symbol-value ',name) ,value)
-     ,@(when documentation `(,documentation))))
-
 (defun or-func (&rest args)
   (dolist (arg args nil)
     (when arg
