@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -205,7 +205,7 @@
      ,@body))
 
 
-
+#-abcl
 (defmacro with-vector-mem ((var-name vector) &body body)
   #+(and)
   `(cffi-sys:with-pointer-to-vector-data (,var-name ,vector)

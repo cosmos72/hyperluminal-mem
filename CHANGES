@@ -1,2 +1,13 @@
+Changes in Hyperluminal-MEM 0.5.2:
+* Moved from Hyperluminal-DB and created a separate project.
+* Changed Hyperluminal-MEM license from GPLv3 to LLGPL.
+  Note that Hyperluminal-DB is still GPLv3.
+
+Changes in Hyperluminal-DB 0.5.0:
+* Last release bundling together Hyperluminal-MEM and Hyperluminal-DB under GPL license.
+
+Changes in Hyperluminal-DB 0.0.2:
+* Renamed from Superluminal-DB to Hyperluminal-DB
+
 Changes in Superluminal-DB 0.0.1:
 * Moved from STMX and created a separate project

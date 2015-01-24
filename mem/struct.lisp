@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -54,7 +54,7 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
 
 
 
-
+(declaim (notinline msize-obj mwrite-obj mread-obj))
 
 (defun msize-obj (object &optional (index 0))
   "Compute and return the number of memory words needed to serialize OBJECT,
@@ -72,7 +72,8 @@ including its header"
   "Serialize OBJECT by writing it into the memory starting at (+ PTR INDEX).
 Also serializes OBJECT header.
 The available memory ends immediately before (+ PTR END-INDEX)."
-  (declare (type mem-size index end-index))
+  (declare (type maddress ptr)
+           (mem-size index end-index))
 
   ;; write OBJECT payload
   (let* ((index0 (mem-size+ index +mem-box/header-words+))
@@ -81,10 +82,10 @@ The available memory ends immediately before (+ PTR END-INDEX)."
          (actual-words (mem-size- index2 index)))
          
     (when (> index2 end-index)
-      (error "HYPERLUMINAL-DB internal error!
+      (error "HYPERLUMINAL-MEM internal error!
 wrote ~S word~P at address ~S + ~S,
 but only ~S words were available at that location.
-Either this is a bug in hyperluminal-db, or some object
+Either this is a bug in hyperluminal-mem, or some object
 was concurrently modified while being written"
              actual-words actual-words ptr index (mem-size- end-index index)))
 
@@ -97,7 +98,8 @@ was concurrently modified while being written"
   "Deserialize an object of type TYPE by reading it from the memory starting at (+ PTR INDEX).
 Also deserializes OBJECT header.
 The available memory ends immediately before (+ PTR END-INDEX)."
-  (declare (type mem-size index end-index))
+  (declare (type maddress ptr)
+           (type mem-size index end-index))
   
   ;; skip BOX header
   (incf index +mem-box/header-words+)

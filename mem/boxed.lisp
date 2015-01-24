@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -89,7 +89,7 @@
 
 (defmacro call-box-func (funcs boxed-type &rest args)
   `(progn
-     (log.debug 'funcall ,boxed-type ,@args)
+     #-(and) (log:debug 'funcall ,boxed-type ,@args)
      (funcall (get-box-func ,funcs ,boxed-type) ,@args)))
 
 
@@ -124,10 +124,10 @@
       (symbol       +mem-box/symbol+) ;; it would be the last one... out of order for speed.
 
       (hash-table   (ecase (hash-table-test value)
-                      (eq +mem-box/hash-table-eq+)
-                      (eql +mem-box/hash-table-eq+)
-                      (equal +mem-box/hash-table-equal+)
-                      (equalp +mem-box/hash-table-equal+)))
+                      ((eq    #+clisp ext:fasthash-eq)      +mem-box/hash-table-eq+)
+                      ((eql   #+clisp ext:fasthash-eql)     +mem-box/hash-table-eq+)
+                      ((equal #+clisp ext:fasthash-equal)   +mem-box/hash-table-equal+)
+                      ((equalp)                             +mem-box/hash-table-equal+)))
                               
       (pathname     +mem-box/pathname+))))
 
@@ -142,7 +142,7 @@
 	  #.(lognot (1- +mem-box/min-words+))))
 
 
-(declaim (inline msize-box))
+(declaim (notinline msize-box))
 
 (defun msize-box (value &optional (index 0) (boxed-type (mdetect-box-type value)))
   "Return the number of words needed to store boxed VALUE in memory,
@@ -152,7 +152,7 @@ Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
   (declare (type mem-size index)
            (type mem-box-type boxed-type))
 
-  (log.trace value boxed-type)
+  #-(and) (log:trace value boxed-type)
 
   (call-box-func +msize-box-funcs+ boxed-type value
                  (mem-size+ +mem-box/header-words+ index)))
@@ -176,7 +176,7 @@ Rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 (declaim (ftype (function (maddress mem-size mem-size t mem-box-type)
 			  (values mem-size &optional))
 		 mwrite-box)
-	 (inline mwrite-box))
+	 (notinline mwrite-box))
 
 (defun mwrite-box (ptr index end-index value boxed-type)
   "Write a boxed value into the mmap memory starting at (PTR+INDEX).
@@ -193,10 +193,10 @@ Also writes BOX header. Returns INDEX pointing to immediately after written valu
          (actual-words (mem-size- new-index index)))
          
     (when (> new-index end-index)
-      (error "HYPERLUMINAL-DB internal error!
+      (error "HYPERLUMINAL-MEM internal error!
 wrote ~S word~P at address ~S + ~S,
 but only ~S words were available at that location.
-Either this is a bug in hyperluminal-db, or some object
+Either this is a bug in hyperluminal-mem, or some object
 was concurrently modified while being written"
              actual-words actual-words ptr index (mem-size- end-index index)))
 
@@ -208,7 +208,8 @@ was concurrently modified while being written"
 
 
 
-(declaim (inline %mread-box mread-box))
+(declaim (inline %mread-box)
+         (notinline mread-box2 mread-box))
 
 (defun %mread-box (ptr index end-index boxed-type)
   "Read a boxed value from the memory starting at (PTR+INDEX) and return it.
@@ -265,6 +266,8 @@ Return the value and the number of words actually read as multiple values."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; mid-level functions accepting both boxed and unboxed values             ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; (declaim (ftype (...) msize)) is in box.lisp
 
 (defun msize (value &optional (index 0))
   "Compute and return the number of CPU words needed to store VALUE.
@@ -330,7 +333,7 @@ Return multiple values:
     (let* ((n-words (box-pointer->size value))
            (end-box (mem-size+ index n-words))
            (end-index (min end-index end-box)))
-      (if (<= boxed-type +mem-box/last+)
+      (if (<= (the fixnum boxed-type) +mem-box/last+)
           (mread-box2 ptr index end-index boxed-type)
           (mread-obj ptr index end-index)))))
 

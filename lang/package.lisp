@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 ;; along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-;;;; * HYPERLUMINAL-DB
+;;;; * HYPERLUMINAL-MEM
 
 (in-package :cl-user)
 

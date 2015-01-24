@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -45,7 +45,7 @@ nor the N-WORDS prefix."
   (let ((words (%bignum-words n))
         (words-left (mem-size- +mem-bignum/max-words+ index)))
     (unless (< words words-left)
-      (error "HYPERLUMINAL-DB: not enough free space in object store for bignum:
+      (error "HYPERLUMINAL-MEM: not enough free space in object store for bignum:
 it requires ~S words, but only ~S words currently available"
              (1+ words) words-left))
 
@@ -74,7 +74,7 @@ it requires ~S words, but only ~S words currently available"
            (type mem-size index n-words)
            (type integer n))
 
-  (log.trace "index: ~S n-words: ~S n: #x~X" index n-words n)
+  #-(and) (log:trace "index: ~S n-words: ~S n: #x~X" index n-words n)
 
   (if (<= n-words 16)
       (%mwrite-bignum-loop ptr index n-words n)
@@ -190,7 +190,7 @@ followed by an array of words containing N in two's complement."
 
              (high-shift (the fixnum (* n-words-low +mem-word/bits+))))
 
-        (log.trace "n-low: #x~X n-high: #x~X" n-low n-high)
+        #-(and) (log:trace "n-low: #x~X n-high: #x~X" n-low n-high)
 
         (logior n-low (ash n-high high-shift)))))
 

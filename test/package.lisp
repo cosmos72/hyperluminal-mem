@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -16,31 +16,27 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-;;;; * HYPERLUMINAL-DB.TEST
+;;;; * HYPERLUMINAL-MEM.TEST
 
 (in-package :cl-user)
 
-(defpackage #:hyperluminal-db.test
+(defpackage #:hyperluminal-mem.test
 
-  (:nicknames #:hldb.test)
+  (:nicknames #:hlmem.test)
 
   (:use #:cl
         #:fiveam
         #:stmx.util
-        #:hyperluminal-mem
-        #:hyperluminal-db)
+        #:hyperluminal-mem)
 
   (:import-from #:hyperluminal-mem
                 #:!mdump)
-
-  (:import-from #:hyperluminal-db
-                #:hldb-open #:hldb-close)
 
   (:export #:suite))
 
 
 
 
-(in-package :hyperluminal-db.test)
+(in-package :hyperluminal-mem.test)
 
 (fiveam:def-suite suite)

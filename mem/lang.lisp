@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -25,7 +25,7 @@
 
   (defun find-hldb-option/string (prefix)
     (declare (type symbol prefix))
-    (let* ((prefix-name (stringify 'hyperluminal-db/ prefix '/))
+    (let* ((prefix-name (stringify 'hyperluminal-mem/ prefix '/))
            (prefix-len (length prefix-name)))
       (loop for f in *features*
          for fname = (if (symbolp f) (symbol-name f) "")
@@ -44,7 +44,7 @@
   (defun choose-word-type ()
     "Choose the file format and ABI between 32 or 64 bit - and possibly more in the future.
 
-By default, Hyperluminal-DB file format and ABI is autodetected to match
+By default, Hyperluminal-MEM file format and ABI is autodetected to match
 Lisp idea of CFFI-SYS pointers:
 * 32 bit when CFFI-SYS pointers are 32 bit,
 * 64 bit when CFFI-SYS pointers are 64 bit,
@@ -55,19 +55,19 @@ of underlying CPU registers (exposed through CFFI-SYS foreign-type :pointer)
 and `+msizeof-word+` is set accordingly.
 
 It is possible to override such autodetection by adding an appropriate entry
-in the global variable `*FEATURES*` **before** compiling and loading Hyperluminal-DB.
-Doing so disables autodetection and either tells Hyperluminal-DB the desired size
+in the global variable `*FEATURES*` **before** compiling and loading Hyperluminal-MEM.
+Doing so disables autodetection and either tells Hyperluminal-MEM the desired size
 of `mem-word`, in alternative, the CFFI-SYS type it should use for `mem-word`.
 
 For example, to force 64 bit (= 8 bytes) file format and ABI even on 32-bit systems,
-execute the following form before compiling and loading Hyperluminal-DB:
-    (pushnew :hyperluminal-db/word-size/8 *features*)
+execute the following form before compiling and loading Hyperluminal-MEM:
+    (pushnew :hyperluminal-mem/word-size/8 *features*)
 
 on the other hand, to force 32 bit (= 4 bytes) file format and ABI,
 execute the form
-    (pushnew :hyperluminal-db/word-size/4 *features*)
+    (pushnew :hyperluminal-mem/word-size/4 *features*)
 
-in both cases, the Hyperluminal-DB internal function (choose-word-type)
+in both cases, the Hyperluminal-MEM internal function (choose-word-type)
 will recognize the override and define `mem-word` and `+msizeof-word+`
 to match a CFFI-SYS unsigned integer type having the specified size
 among the following candidates:
@@ -80,7 +80,7 @@ In case it does not find a type with the requested size, it will raise an error.
 
 Forcing the same value that would be autodetected is fine and harmless.
 Also, the chosen type must be 32 bits wide or more, but there is no upper limit:
-Hyperluminal-DB is designed to automatically support 64 bits systems,
+Hyperluminal-MEM is designed to automatically support 64 bits systems,
 128 bit systems, and anything else that will exist in the future.
 It even supports 'unusual' configurations where the size of `mem-word`
 is not a power of two (ever heard of 36-bit CPUs?).
@@ -89,19 +89,19 @@ For the far future (which arrives surprisingly quickly in software)
 where CFFI-SYS will know about further unsigned integer types,
 it is also possible to explicitly specify the type to use
 by executing a form like
-  (pushnew :hyperluminal-db/word-type/<SOME-CFFI-SYS-TYPE> *features*)
+  (pushnew :hyperluminal-mem/word-type/<SOME-CFFI-SYS-TYPE> *features*)
 as for example:
-  (pushnew :hyperluminal-db/word-type/unsigned-long-long *features*)
+  (pushnew :hyperluminal-mem/word-type/unsigned-long-long *features*)
 
-Hyperluminal-DB will honour such override, intern the type name
+Hyperluminal-MEM will honour such override, intern the type name
 to convert it to a keyword, use it as the definition of `mem-word`,
 and derive `+msizeof-word+` from it."
 
-    ;;search for :hyperluminal-db/word-type/<SOME-CFFI-SYS-TYPE> in *features*
+    ;;search for :hyperluminal-mem/word-type/<SOME-CFFI-SYS-TYPE> in *features*
     (when-bind type (find-hldb-option/keyword 'word-type)
       (return-from choose-word-type (the symbol type)))
 
-    ;; search for :hyperluminal-db/word-size/<INTEGER> in *features*
+    ;; search for :hyperluminal-mem/word-size/<INTEGER> in *features*
     (let ((size (or (find-hldb-option/integer 'word-size)
                     ;; default is pointer size
                     (ffi-sizeof :pointer)))
@@ -112,7 +112,7 @@ and derive `+msizeof-word+` from it."
       (when-bind type (rest (assoc (the fixnum size) types))
         (return-from choose-word-type (the symbol type)))
           
-      (error "Hyperluminal-DB: failed to find a CFFI-SYS unsigned integer type
+      (error "Hyperluminal-MEM: failed to find a CFFI-SYS unsigned integer type
 having size = ~S. Tried the following types: ~S" size types))))
 
 

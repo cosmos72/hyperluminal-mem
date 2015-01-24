@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -24,7 +24,7 @@
 (eval-always
   (when (< +most-positive-pointer+ +most-positive-character+)
     
-    (error "cannot compile HYPERLUMINAL-DB: assuming ~S-bit characters (i.e. Unicode),
+    (error "cannot compile HYPERLUMINAL-MEM: assuming ~S-bit characters (i.e. Unicode),
     cannot fit them in the ~S bits reserved by ABI." +character/bits+ +mem-pointer/bits+)))
 
 
@@ -44,7 +44,7 @@
 ;; makes them point to the next object of the same type
 (deftype mem-pointer () '(unsigned-byte #.+mem-pointer/bits+))
 
-;; pointer offsets used internally by HYPERLUMINAL-DB. They are in units of a CPU word,
+;; pointer offsets used internally by HYPERLUMINAL-MEM. They are in units of a CPU word,
 ;; so to convert from mem-pointer to mem-size you must multiply by the number of words
 ;; required to store the object pointed to.
 (deftype mem-size    () '(unsigned-byte #.(- +mem-word/bits+ (integer-length (1- +msizeof-word+)))))
@@ -84,7 +84,7 @@
 
 (defun malloc-words (n-words)
   "Allocate N-WORDS words of raw memory and return it just like MALLOC.
-Usually more handy than MALLOC since almost all Hyperluminal-DB functions
+Usually more handy than MALLOC since almost all Hyperluminal-MEM functions
 count and expect memory lengths in words, not in bytes."
   (declare (type mem-size n-words))
   (malloc (* n-words +msizeof-word+)))
@@ -362,7 +362,7 @@ ignoring any sign bit"
       (if +mem/little-endian+
           `(mget-float-0 ,type ,ptr ,index)
           `(mget-float-N ,type ,ptr ,index))
-      `(error "HYPERLUMINAL-DB: cannot use inline ~As on this architecture" ,(cffi-type-name type))))
+      `(error "HYPERLUMINAL-MEM: cannot use inline ~As on this architecture" ,(cffi-type-name type))))
 
 (defmacro mset-float/inline (type ptr index value)
   (declare (type (member :float :double :sfloat :dfloat) type))
@@ -370,7 +370,7 @@ ignoring any sign bit"
       (if +mem/little-endian+
           `(mset-float-0 ,type ,ptr ,index ,value)
           `(mset-float-N ,type ,ptr ,index ,value))
-      `(error "HYPERLUMINAL-DB: cannot use inline ~As on this architecture" ,(cffi-type-name type))))
+      `(error "HYPERLUMINAL-MEM: cannot use inline ~As on this architecture" ,(cffi-type-name type))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

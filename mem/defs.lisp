@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -82,8 +82,8 @@
 
 (eval-always
   (set-feature 'hldb/fast-mem
-               (and (have-symbol? 'hl-assem +fast-mread-symbol+)
-                    (have-symbol? 'hl-assem +fast-mwrite-symbol+))))
+               (and (have-symbol? 'hl-asm +fast-mread-symbol+)
+                    (have-symbol? 'hl-asm +fast-mwrite-symbol+))))
       
 
 

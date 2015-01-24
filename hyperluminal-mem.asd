@@ -1,42 +1,35 @@
 ;; -*- lisp -*-
 
-;; This file is part of HYPERLUMINAL-DB.
-;; Copyright (c) 2013 Massimiliano Ghilardi
+;; This file is part of HYPERLUMINAL-MEM.
+;; Copyright (c) 2013-2015 Massimiliano Ghilardi
 ;;
-;; This program is free software: you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
+;; This library is free software: you can redistribute it and/or
+;; modify it under the terms of the Lisp Lesser General Public License
+;; (http://opensource.franz.com/preamble.html), known as the LLGPL.
 ;;
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-;; GNU General Public License for more details.
-;;
-;; You should have received a copy of the GNU General Public License
-;; along with this program. If not, see <http://www.gnu.org/licenses/>.
+;; This library is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty
+;; of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+;; See the Lisp Lesser General Public License for more details.
+
 
 
 
 (in-package :cl-user)
 
-(asdf:defsystem :hyperluminal-db
-  :name "HYPERLUMINAL-DB"
-  :version "0.5.1"
-  :license "GPLv3"
+(asdf:defsystem :hyperluminal-mem
+  :name "HYPERLUMINAL-MEM"
+  :version "0.5.2"
+  :license "LLGPL"
   :author "Massimiliano Ghilardi"
-  :description "Persistent, transactional object store. Also includes a serialization library."
+  :description "High-performance serialization library, designed for untrusted data"
 
-  :depends-on (:log4cl
-               #-abcl :cffi
+  :depends-on (#-abcl :cffi
                #-abcl :osicat
-               :closer-mop
-               :bordeaux-threads
-               :stmx
-               :trivial-garbage)
+               :stmx)
 
   :components
-  ((:static-file "hyperluminal-db.asd")
+  ((:static-file "hyperluminal-mem.asd")
 	       
    (:module :lang
     :components ((:file "package")
@@ -112,28 +105,20 @@
 						      "box/symbol"
 						      "object")))
     :depends-on (:ffi
-		 #+(and sbcl (or x86 x86-64)) :sbcl))
-
-   (:module :db
-    :components ((:file "package")
-		 (:file "version"        :depends-on ("package"))
-		 (:file "ffi-btree"      :depends-on ("version"))
-		 (:file "box"            :depends-on ("version"))
-		 (:file "alloc"          :depends-on ("box"))
-		 (:file "store"          :depends-on ("alloc")))
-    :depends-on (:mem))))
+		 #+(and sbcl (or x86 x86-64)) :sbcl))))
 
 
-(asdf:defsystem :hyperluminal-db.test
-  :name "HYPERLUMINAL-DB.TEST"
-  :version "0.5.1"
+
+(asdf:defsystem :hyperluminal-mem.test
+  :name "HYPERLUMINAL-MEM.TEST"
+  :version "0.5.2"
   :author "Massimiliano Ghilardi"
-  :license "GPLv3"
-  :description "test suite for hyperluminal-db"
+  :license "LLGPL"
+  :description "test suite for hyperluminal-mem"
 
   :depends-on (:log4cl
                :fiveam
-               :hyperluminal-db)
+               :hyperluminal-mem)
 
   :components ((:module :test
                 :components ((:file "package")
@@ -142,6 +127,6 @@
                              (:file "stmx-objects"  :depends-on ("abi"))))))
 
 
-(defmethod asdf:perform ((op asdf:test-op) (system (eql (asdf:find-system :hyperluminal-db))))
-  (asdf:load-system :hyperluminal-db.test)
-  (eval (read-from-string "(fiveam:run! 'hyperluminal-db.test:suite)")))
+(defmethod asdf:perform ((op asdf:test-op) (system (eql (asdf:find-system :hyperluminal-mem))))
+  (asdf:load-system :hyperluminal-mem.test)
+  (eval (read-from-string "(fiveam:run! 'hyperluminal-mem.test:suite)")))

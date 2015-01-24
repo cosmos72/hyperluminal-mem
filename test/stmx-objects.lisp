@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 ;; along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-(in-package :hyperluminal-db.test)
+(in-package :hyperluminal-mem.test)
 
 (def-suite stmx-objects-suite :in suite)
 (in-suite stmx-objects-suite)
@@ -36,22 +36,41 @@
   (let ((hash (ghash-table-hash h1))
         (test (ghash-table-test h1)))
     
-    (unless (and (eql (ghash-table-count h1) (ghash-table-count h2))
-                 (eq hash (ghash-table-hash h2))
-                 (eq test (ghash-table-test h2)))
-      (return-from equalp-ghash-table nil))
+    (let ((n1 (ghash-table-count h1))
+          (n2 (ghash-table-count h2))
+          (hash2 (ghash-table-hash h2))
+          (test2 (ghash-table-test h2)))
+
+      (unless (eql n1 n2)
+        (format *terminal-io* "hash-table H1 and H2 are not equal!
+  H1 has ~S elements, while H2 has ~S elements~%" n1 n2)
+        (return-from equalp-ghash-table nil))
+
+      (unless (and (eq hash hash2)
+                   (eq test test2))
+        (format *terminal-io* "hash-table H1 and H2 are not equal!
+  H1 uses TEST ~S and HASH ~S, while H2 uses TEST ~S and hash ~S~%"
+                test hash test2 hash2)
+        (return-from equalp-ghash-table nil)))
+
     
     (do-ghash (key val1) h1
       (multiple-value-bind (val2 present2) (get-ghash h2 key)
         (unless (and present2
                      (equalp val1 val2))
+          (if present2
+              (format t "hash-table H1 and H2 are not equal!
+  H1 contains ~S ~S, while H2 contains ~S ~S~%" key val1 key val2)
+              (format t "hash-table H1 and H2 are not equal!
+  H1 contains ~S ~S, while H2 does not contain ~S~%" key val1 key))
+              
           (return-from equalp-ghash-table nil)))))
   t)
 
 
 (defun %ghash-table-test ()
   (let ((h (make-instance 'ghash-table :test 'equalp))
-        (tree *tree*)
+        (tree *abi-tree*)
         (index 0))
     
     (loop for key = (pop tree)
@@ -67,7 +86,7 @@
 
 (defun %gmap-test ()
   (let ((m (make-instance 'rbmap :pred 'fixnum<))
-        (tree *tree*)
+        (tree *abi-tree*)
         (index 0))
     
     (loop for key = 0 then (the fixnum (1+ key))
@@ -80,7 +99,7 @@
       (mwrite-mread-test ptr index end-index m :comparator #'equalp-gmap))))
         
 
-
+;; this fails on ABCL because (sxhash #0A42) returns different values at each call
 (def-test ghash-table (:compile-at :definition-time)
   (%ghash-table-test))
 

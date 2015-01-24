@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -299,19 +299,19 @@ but only ~S word~P available at that location"
 ;; kind of forward declaration for (msize) defined in boxed.lisp
 (declaim (ftype (function (t &optional mem-size) (values mem-size &optional))
 		msize)
-	 (notinline msize))
+	 (inline msize))
 
 ;; kind of forward declaration for (mwrite) defined in boxed.lisp
 (declaim (ftype (function (maddress mem-size mem-size t)
                           (values mem-size &optional))
 		mwrite)
-	 (notinline mwrite))
+	 (inline mwrite))
 
 ;; kind of forward declaration for (mread) defined in boxed.lisp
 (declaim (ftype (function (maddress mem-size mem-size)
                           (values t mem-size &optional))
 		mread)
-	 (notinline mread))
+	 (inline mread))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

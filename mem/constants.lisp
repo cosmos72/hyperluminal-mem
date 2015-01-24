@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -28,11 +28,14 @@
 ;; 16 bits reserved for type tags on 64-bit architectures
 ;; ...
 ;; the rest of each CPU word is used for pointer index or value
-(defconstant +mem-fulltag/bits+ (truncate +mem-word/bits+ 4))
-(defconstant +mem-pointer/bits+ (- +mem-word/bits+ +mem-fulltag/bits+))
+(eval-always
+  (defconstant +mem-fulltag/bits+ (truncate +mem-word/bits+ 4)))
+(eval-always
+  (defconstant +mem-pointer/bits+ (- +mem-word/bits+ +mem-fulltag/bits+)))
 
 ;; integers (actually, mem-int) are one bit less than CPU words
-(defconstant +mem-int/bits+      (1-  +mem-word/bits+))
+(eval-always
+  (defconstant +mem-int/bits+      (1-  +mem-word/bits+)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -47,50 +50,71 @@
 ;;;; type tags and pointers ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defconstant +mem-fulltag/shift+     +mem-pointer/bits+)
-(defconstant +mem-fulltag/mask+      (1- (ash 1 +mem-fulltag/bits+)))
-(defconstant +most-positive-fulltag+ +mem-fulltag/mask+)
+(eval-always
+  (defconstant +mem-fulltag/shift+     +mem-pointer/bits+))
+(eval-always
+  (defconstant +mem-fulltag/mask+      (1- (ash 1 +mem-fulltag/bits+))))
+(eval-always
+  (defconstant +most-positive-fulltag+ +mem-fulltag/mask+))
 
 ;; reserve most significant fulltag bit to mark integers
 ;; fulltags larger than +most-positive-tag+ indicate an integer (actually, mem-int) value
-(defconstant +mem-tag/bits+          (1- +mem-fulltag/bits+))
-(defconstant +mem-tag/mask+          (1- (ash 1 +mem-tag/bits+)))
-(defconstant +most-positive-tag+      +mem-tag/mask+)
+(eval-always
+  (defconstant +mem-tag/bits+          (1- +mem-fulltag/bits+)))
+(eval-always
+  (defconstant +mem-tag/mask+          (1- (ash 1 +mem-tag/bits+))))
+(eval-always
+  (defconstant +most-positive-tag+      +mem-tag/mask+))
 
 ;; pointer offsets stored in MMAP area. To better use the available bits,
 ;; they are in units of the type pointed to, i.e. increasing them by 1
 ;; makes them point to the next object of the same type
-(defconstant +mem-pointer/shift+     0)
-(defconstant +mem-pointer/mask+      (1- (ash 1 +mem-pointer/bits+)))
-(defconstant +most-positive-pointer+ +mem-pointer/mask+)
+(eval-always
+  (defconstant +mem-pointer/shift+     0))
+(eval-always
+  (defconstant +mem-pointer/mask+      (1- (ash 1 +mem-pointer/bits+))))
+(eval-always
+  (defconstant +most-positive-pointer+ +mem-pointer/mask+))
 
-;; pointer offsets used internally by HYPERLUMINAL-DB. They are in units of a CPU word,
+;; pointer offsets used internally by HYPERLUMINAL-MEM. They are in units of a CPU word,
 ;; so to convert from mem-pointer to mem-size you must multiply by the number of words
 ;; required to store the object pointed to.
-(defconstant +mem-size/bits+         (- +mem-word/bits+ (integer-length (1- +msizeof-word+))))
-(defconstant +mem-size/mask+         (1- (ash 1 +mem-size/bits+)))
-(defconstant +most-positive-size+    +mem-size/mask+)
+(eval-always
+  (defconstant +mem-size/bits+         (- +mem-word/bits+ (integer-length (1- +msizeof-word+)))))
+(eval-always
+  (defconstant +mem-size/mask+         (1- (ash 1 +mem-size/bits+))))
+(eval-always
+  (defconstant +most-positive-size+    +mem-size/mask+))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;    integers, i.e. mem-int    ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defconstant +mem-int/mask+          (1- (ash 1 +mem-int/bits+)))
-;; bits in a word that exceed a mem-int. if all set to one,
-;; it means the rest of the word must be interpreted as a mem-int
-(defconstant +mem-int/flag+          (- +mem-word/mask+ +mem-int/mask+))
+(eval-always
+  (defconstant +mem-int/mask+          (1- (ash 1 +mem-int/bits+))))
+(eval-always
+  ;; bits in a word that exceed a mem-int. if all set to one,
+  ;; it means the rest of the word must be interpreted as a mem-int
+  (defconstant +mem-int/flag+          (- +mem-word/mask+ +mem-int/mask+)))
 
-;; values are the lowest bits in a mem-int
-(defconstant +mem-int/value-bits+    (1-  +mem-int/bits+))
-(defconstant +mem-int/value-mask+    (ash +mem-int/mask+ -1))
-;; sign is the top bit in a mem-int
-(defconstant +mem-int/sign-bits+     1)
-(defconstant +mem-int/sign-shift+    +mem-int/value-bits+)
-(defconstant +mem-int/sign-mask+     (1+ +mem-int/value-mask+))
+(eval-always
+  ;; values are the lowest bits in a mem-int
+  (defconstant +mem-int/value-bits+    (1-  +mem-int/bits+)))
+(eval-always
+  (defconstant +mem-int/value-mask+    (ash +mem-int/mask+ -1)))
+(eval-always
+  ;; sign is the top bit in a mem-int
+  (defconstant +mem-int/sign-bits+     1))
+(eval-always
+  (defconstant +mem-int/sign-shift+    +mem-int/value-bits+))
+(eval-always
+  (defconstant +mem-int/sign-mask+     (1+ +mem-int/value-mask+)))
 
-(defconstant +most-positive-int+     (ash +mem-int/mask+ -1))
-(defconstant +most-negative-int+     (lognot +most-positive-int+))
+(eval-always
+  (defconstant +most-positive-int+     (ash +mem-int/mask+ -1)))
+(eval-always
+  (defconstant +most-negative-int+     (lognot +most-positive-int+)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -109,10 +133,12 @@
 ;;;; single-float and double-foat ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defconstant +mem-sfloat/bits+ (* +msizeof-sfloat+ +mem-byte/bits+))
-(defconstant +mem-dfloat/bits+ (* +msizeof-dfloat+ +mem-byte/bits+))
+(eval-always
+  (defconstant +mem-sfloat/bits+ (* +msizeof-sfloat+ +mem-byte/bits+)))
+(eval-always
+  (defconstant +mem-dfloat/bits+ (* +msizeof-dfloat+ +mem-byte/bits+)))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
+(eval-always
 
   (defun %mem-float/inline? (type)
     (declare (type (member :float :double :sfloat :dfloat type)))
@@ -124,8 +150,9 @@
         (%mem-float/inline? type)
         `(%mem-float/inline? ,type))))
 
-(defconstant +mem-sfloat/inline?+ (mem-float/inline? :sfloat))
-(defconstant +mem-dfloat/inline?+ (mem-float/inline? :dfloat))
+(eval-always
+  (defconstant +mem-sfloat/inline?+ (mem-float/inline? :sfloat))
+  (defconstant +mem-dfloat/inline?+ (mem-float/inline? :dfloat)))
 
 (eval-always
  (set-feature 'hldb/sfloat/inline +mem-sfloat/inline?+)
@@ -136,22 +163,24 @@
 ;;;;        boxed values          ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defconstant +mem-box/min-words+    4 "boxed values are allocated
-    in multiples of 4 CPU-words. This value must be a power of two.")
-(defconstant +mem-box/max-words+    (* (1+ +most-positive-pointer+) +mem-box/min-words+))
-(defconstant +mem-box/header-words+ 1 "boxed values have a 1 CPU-word header")
-
-(defconstant +mem-box/min-payload-words+ (- +mem-box/min-words+ +mem-box/header-words+))
-(defconstant +mem-box/max-payload-words+ (- +mem-box/max-words+ +mem-box/header-words+))
-
+(eval-always
+  (defconstant +mem-box/min-words+    4 "boxed values are allocated
+    in multiples of 4 CPU-words. This value must be a power of two."))
 
 (eval-always
+  (defconstant +mem-box/max-words+    (* (1+ +most-positive-pointer+) +mem-box/min-words+))
+  (defconstant +mem-box/header-words+ 1 "boxed values have a 1 CPU-word header"))
 
- (unless (zerop (logand +mem-box/min-words+ (1- +mem-box/min-words+)))
-   (error "+mem-box/min-words+ is ~S, instead it must be a power of two!" +mem-box/min-words+))
+(eval-always
+  (defconstant +mem-box/min-payload-words+ (- +mem-box/min-words+ +mem-box/header-words+))
+  (defconstant +mem-box/max-payload-words+ (- +mem-box/max-words+ +mem-box/header-words+)))
 
- (set-feature 'hldb/box/header-words +mem-box/header-words+)
- (set-feature 'hldb/box/min-words    +mem-box/min-words+))
+(eval-always
+  (unless (zerop (logand +mem-box/min-words+ (1- +mem-box/min-words+)))
+    (error "+mem-box/min-words+ is ~S, instead it must be a power of two!" +mem-box/min-words+))
+
+  (set-feature 'hldb/box/header-words +mem-box/header-words+)
+  (set-feature 'hldb/box/min-words    +mem-box/min-words+))
 
 
 

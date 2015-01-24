@@ -1,52 +1,37 @@
-Hyperluminal-DB
+Hyperluminal-MEM
 ===============
 
 Summary
 -------
-Hyperluminal-DB is a high-performance, memory-mapped object database for Common Lisp.
-
-It can also be used as a serialization/deserialization library.
+Hyperluminal-MEM is a high-performance serialization/deserialization library
+for Common Lisp.
 
 Features
 --------
-Hyperluminal-DB is designed and optimized for the following scenarios:
-- adding persistence and transactions to Lisp objects through an easy-to-use
-  API, without an external relational database.
-- suitable for very large datasets that can exceed available RAM.
-- perfectly suited for fast storage as RAID or Solid State Disks (SSD).
-- designed to allow high concurrency, i.e. hundreds or thousands of threads
-  that simultaneously access the same dataset.
-- designed and optimized for extremely fast transactions - as of 2013,
-  theoretical peak is approx. **400 millions** concurrent transactions
-  per second, on a fast desktop computer (Intel Core i7 4770, which
-  supports hardware memory transactions) running 64 bit SBCL.
-  - on the same hardware, micro-benchmarks exceeding **200 millions**
-    concurrent transactions per second have been already measured in
-    practice.
-    The speed difference is largely due to the need to make hardware
-    transactions compatible with software ones.
-- designed for safety: it can be used on untrusted and possibly malicious data,
+Hyperluminal-MEM is designed and optimized for the following objectives:
+- speed: serializing and deserializing data can have sustained rates
+  exceeding 1GB/s on a single CPU core.
+- safety: it can be used on untrusted and possibly malicious data,
   as for example serialized packets or files received from the internet.
-- fairly portable file format, independent from the Lisp implementation.
-  File format only depends on endianity (small or big endian)
+- portability: the serialization format is fairly portable.
+  It is independent from the Lisp implementation,
+  and only depends on endianity (small or big endian)
   and on user's choice between 32 and 64 bit formats.
-  Conversion between small and big endian file format is trivial.
-- optimized for 64 bit systems, where dataset is limited only by `mmap()`
-  maximum size (on Linux 3.x, the limit is about 128 terabytes).
-- usable on 32 bit systems, either retaining 64 bit file format
-  (with some performance loss), or using native 32 bit file format - fast,
-  but has the following limitations:
-  - 100 user-defined persistent classes
-  - 16 millions instances per user-defined persistent class
-  - 256 megabytes storage per user-defined persistent class
-  
-  In any case, on 32 bit systems the dataset size is limited by `mmap()`
-  maximum size, usually around 1 gigabyte
+  Conversion between small and big endian format is trivial.
+- ease of use: adding support for user-defined types is usually
+  straightforward.
 
-### Latest news, 9th February 2014
+### Latest news, 24th January 2014
 
+Released version 0.5.2. License change from GPLv3 to LLGPL!
+
+Older versions were bundled together with Hyperluminal-DB in a single GPLv3 package.
+Hyperluminal-DB is now a separate project, still under GPLv3.
+
+### News, 9th February 2014
+ 
 Released version 0.5.0.
-
+ 
 The serialization library is tested, documented and ready to use.
 It may still contain some rough edges and small bugs.
 
@@ -59,81 +44,68 @@ is in the early-implementation stage, not yet ready for general use.
 
 Supported systems
 -----------------
-Hyperluminal-DB is currently tested on the following Common Lisp implementations:
+Hyperluminal-MEM is currently tested on the following Common Lisp implementations:
 
 * [SBCL](http://sbcl.org/)
-  * version 1.1.20       (x86_64)   on Debian GNU/Linux jessie (x86_64)
+  * version 1.2.6        (x86_64)   on Debian GNU/Linux jessie (x86_64)
   * version 1.1.15       (x86_64)   on Debian GNU/Linux jessie (x86_64)
   * version 1.1.14       (x86)      on Debian GNU/Linux jessie (x86_64)
   * version 1.1.14       (powerpc)  on Debian GNU/Linux jessie (powerpc) inside Qemu
-  * version 1.0.57       (x86)      on Debian Ubuntu Linux 12.04LTS (x86)
-
-* [CCL](http://ccl.clozure.com/)
-  * version 1.9-r15769   (x86_64)   on Debian GNU/Linux jessie (x86_64)
-  * version 1.9-r15769M  (x86)      on Debian GNU/Linux jessie (x86_64)
-  * version 1.9-r15761   (linuxppc) on Debian GNU/Linux jessie (powerpc) inside Qemu
-  * version 1.9-dev-r15475M-trunk (LinuxARM32) on Raspbian GNU/Linux (armhf) Raspberry Pi
-
+  * version 1.2.1        (armhf)    on Raspbian GNU/Linux (armhf) Raspberry Pi
+  
 * [ABCL](http://www.abcl.org/)
-  * version 1.3.1                   on OpenJDK 1.7.0_55 (x86_64) on Debian GNU/Linux jessie (x86_64)
+  * version 1.3.1 on OpenJDK 1.7.0_65 (x86_64) on Debian GNU/Linux jessie (x86_64)
   
   Note: on ABCL, memory buffers are implemented using java.nio.ByteBuffer instead of CFFI-SYS
   raw memory pointers due to currently limited compatibility between ABCL and CFFI/OSICAT libraries.
   Memory-mapped files are supported, and internally use java.nio.channels.FileChannel.map()
   instead of OSICAT-POSIX (mmap)
+
+* [CCL](http://ccl.clozure.com/)
+  * version 1.10         (x86_64)   on Debian GNU/Linux jessie (x86_64)
+  * version 1.10         (x86)      on Debian GNU/Linux jessie (x86_64)
+
+* [CLISP](http://www.clisp.org/)
+  * version 2.49         (x86_64)   on Debian GNU/Linux jessie (x86_64)
   
 * [CMUCL](http://www.cons.org/cmucl/)
   * version 20d Unicode  (x86)      on Debian GNU/Linux jessie  (x86_64)
-  * version 20c Unicode  (x86)      on Debian GNU/Linux jessie  (x86_64)
 
-  Note: CMUCL needs to be started with the option `-fpu x87` to run Hyperluminal-DB reliably,
-  see [STMX documentation](https://github.com/cosmos72/stmx/blob/master/doc/supported-systems.md)
-  for details.
 
 ### Unsupported systems
 
 * [ECL](http://ecls.sourceforge.net/) has some known issues with CFFI, OSICAT and STMX,
-  three libraries required by Hyperluminal-DB. Once support for these three libraries improves,
-  Hyperluminal-DB can be tested on it too.
+  three libraries required by Hyperluminal-MEM. Once support for these three libraries improves,
+  Hyperluminal-MEM can be tested on it too.
 
 ### Other systems
 
-Hyperluminal-DB requires several libraries to work: LOG4CL, CLOSER-MOP, TRIVIAL-GARBAGE,
-BORDEAUX-THREADS, CFFI, OSICAT and STMX. The last four, while reasonably portable,
-exploit features well beyond ANSI Common Lisp and their support for the various Common Lisp
+Hyperluminal-MEM requires CFFI, OSICAT and STMX libraries to work. While reasonably portable,
+they exploit features well beyond ANSI Common Lisp and their support for the various Common Lisp
 implementations varies widely.
 
-For this reason no general guarantees can be given: Hyperluminal-DB
+For this reason no general guarantees can be given: Hyperluminal-MEM
 may or **may not** work on other, untested Common Lisp implementations.
 
 Installation and loading
 ------------------------
 
-Hyperluminal-DB is available from [GitHub](https://github.com/cosmos72/hyperluminal-db).
+Hyperluminal-MEM is available from [GitHub](https://github.com/cosmos72/hyperluminal-mem).
 The simplest way to obtain it is to first install [Quicklisp](http://www.quicklisp.org)
-then download Hyperluminal-DB into your Quicklisp local-projects folder.
+then download Hyperluminal-MEM into your Quicklisp local-projects folder.
 Open a shell and run the commands:
 
     $ cd ~/quicklisp/local-projects
-    $ git clone git://github.com/cosmos72/hyperluminal-db.git
+    $ git clone git://github.com/cosmos72/hyperluminal-mem.git
 
 then open a REPL and run:
 
-    CL-USER> (ql:quickload "hyperluminal-db")
+    CL-USER> (ql:quickload "hyperluminal-mem")
     ;; lots of output...
     CL-USER> (use-package :hlmem)
-    CL-USER> (use-package :hldb)
      
-If all goes well, this will load Hyperluminal-DB and its dependencies:
-
-- `log4cl`
-- `closer-mop`
-- `trivial-garbage`
-- `bordeaux-threads`
-- `cffi`
-- `osicat`
-- `stmx`
-
+If all goes well, this will load Hyperluminal-MEM and its dependencies,
+CFFI, OSICAT and STMX.
 
 ### Troubleshooting
 
@@ -142,49 +114,37 @@ In case you get errors:
 - check that Quicklisp is installed correctly, for example by
   executing at REPL:
 
-        CL-USER> (ql:quickload "closer-mop")
+        CL-USER> (ql:quickload "osicat")
+        CL-USER> (ql:quickload "stmx")
 
-- check that you downloaded Hyperluminal-DB creating an `hyperluminal-db/` folder inside
+- check that you downloaded Hyperluminal-MEM creating an `hyperluminal-mem/` folder inside
   your Quicklisp local-projects folder, usually `~/quicklisp/local-projects`
 
 
 ### Testing that it works
 
-After loading Hyperluminal-DB for the first time, it is recommended to run both
-STMX and Hyperluminal-DB test suites to check that everything works as expected.
-From the REPL, run:
+After loading Hyperluminal-MEM for the first time, it is recommended to run
+the test suite to check that everything works as expected. From the REPL, run:
 
-    CL-USER> (ql:quickload "stmx.test")
+    CL-USER> (ql:quickload "hyperluminal-mem.test")
     ;; lots of output...
 
-    CL-USER> (fiveam:run! 'stmx.test:suite)
-    ;; even more output...
-     Did 7133 checks.
-        Pass: 7133 (100%)
-        Skip: 0 ( 0%)
-        Fail: 0 ( 0%)
-
-    CL-USER> (ql:quickload "hyperluminal-db.test")
-    ;; lots of output...
-
-    CL-USER> (fiveam:run! 'hyperluminal-db.test:suite)
+    CL-USER> (fiveam:run! 'hyperluminal-mem.test:suite)
     ;; even more output...
      Did 2505 checks.
         Pass: 2505 (100%)
         Skip: 0 ( 0%)
         Fail: 0 ( 0%)
         
-Note: `(ql:quickload "stmx.test")` and `(ql:quickload "hyperluminal-db.test")`
-intentionally work only **after** `(ql:quickload "hyperluminal-db")`
-has completed successfuly.
+Note: `(ql:quickload "hyperluminal-mem.test")` intentionally works only
+**after** `(ql:quickload "hyperluminal-mem")` has completed successfuly.
 
-Both test suites should report zero Skip and zero Fail; the number of Pass may vary.
+The test suite should report zero Skip and zero Fail; the number of Pass may vary.
 You are welcome to report any failure you get while running the test suites,
 please include in the report:
 - operating system name and version (example: Debian GNU/Linux x86_64 version 7.0)
 - Common Lisp implementation and version (example: SBCL 1.0.57.0.debian, x86_64)
 - **exact** output produced by the test suite
-  (remember to specify if the error is in STMX test suite or in Hyperluminal-DB test suite)
 - any other relevant information
 
 See "Contacts, help, discussion" below for the preferred method to send the report.
@@ -192,35 +152,16 @@ See "Contacts, help, discussion" below for the preferred method to send the repo
 
 Implementation
 --------------
-Hyperluminal-DB is loosely inspired by some techniques used by
-[manardb](http://cl-www.msi.co.jp/projects/manardb/index.html)
-but it is a completely separate and independent project.
+Hyperluminal-MEM reads and writes serialized data to raw memory,
+using CFFI foreign pointers - equivalent to C/C++ pointers.
 
-It is based on [STMX](https://github.com/cosmos72/stmx),
-a high-performance hybrid transactional memory library from the same
-author.
-
-Hyperluminal-DB uses a (supposedly) clever trick in order to overcome Intel
-claims that hardware memory transactions (specifically, Intel TSX) cannot
-perform input/output.
-
-The result is that Hyperluminal-DB is able to perform **transactional**
-input/output while running hardware memory transactions - an apparent
-paradox - in an extremely specific but significant case: reading and
-writing memory-mapped files.
-
-This allows reaching extremely high transaction speeds: the only hard limit
-is the hardware - an Intel Core i7 4770 peaks at **400 millions** transactions
-per second when all the 4 cores and hyperthreading are exploited.
-
-Quite clearly, the speed also strongly depends on the amount (and type) of
-data read and written during each transaction.
-
+The most direct way to save serialized data to disk, and to load it back,
+is to open a file then map it to memory with the POSIX mmap() system call.
 
 Basic usage
 -----------
 
-Hyperluminal-DB offers the following Lisp types, constants, macros and functions,
+Hyperluminal-MEM offers the following Lisp types, constants, macros and functions,
 also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 
 - `MADDRESS` is the type of raw memory pointers.
@@ -238,7 +179,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 
 - `MEM-SIZE` is a type: it represents the length of a raw memory block,
    counted in words (not in bytes). Used by all the functions that manipulate
-   raw memory in units of `mem-words` - which means most Hyperluminal-DB functions.
+   raw memory in units of `mem-words` - which means most Hyperluminal-MEM functions.
 
    For the curious, in practice it is `(unsigned-byte 30)` on 32-bit systems,
    `(unsigned-byte 61)` on 64-bit systems, and so on...
@@ -260,7 +201,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 
 - `(MALLOC-WORDS n-words)` is a function, it allocates raw memory and returns
    a raw pointer to it just like `malloc`.
-   It is usually more handy than `malloc` since almost all Hyperluminal-DB functions
+   It is usually more handy than `malloc` since almost all Hyperluminal-MEM functions
    count and expect memory length in words, not in bytes.
 
    Definition:
@@ -349,7 +290,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    This allows to easily write consecutive serialized values into the raw memory.
    
    Any kind of raw memory is supported, thus it is also possible to call `mwrite`
-   on memory-mapped files. This is actually the mechanism that allows Hyperluminal-DB
+   on memory-mapped files. This is actually the mechanism that allows Hyperluminal-MEM
    to implement an object store backed by memory-mapped files.
 
    `mwrite` supports the following standard Lisp types:
@@ -394,19 +335,19 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 - `(MSIZE-OBJECT object index)` is a generic function that examines a user-defined
    Lisp object and tells how many words of raw memory are needed to serialize it.
 
-   Programmers can extend Hyperluminal-DB by defining specialized methods for it,
+   Programmers can extend Hyperluminal-MEM by defining specialized methods for it,
    see `MWRITE-OBJECT` for details.
 
 - `(MREAD-OBJECT ptr index end-index &key)` is a generic function that reads
    a serialized user-defined object from raw memory, deserializes and returns it.
 
-   Programmers can extend Hyperluminal-DB by defining specialized methods for it,
+   Programmers can extend Hyperluminal-MEM by defining specialized methods for it,
    see `MWRITE-OBJECT` for details.
 
 - `(MWRITE-OBJECT object ptr index end-index)` is a generic function
    that serializes a user-defined Lisp object, writing it into raw memory.
 
-   Programmers can extend Hyperluminal-DB by defining specialized methods for
+   Programmers can extend Hyperluminal-MEM by defining specialized methods for
    `msize-object`, `mwrite-object` and `mread-object`. Such methods are invoked
    automatically by `msize`, `mwrite` and `mread` when they encounter a user-defined object,
    i.e. an instance of structure-object or standard-object or their subclasses.
@@ -487,23 +428,23 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    and `mwrite-object-slots`. See `MWRITE-OBJECT-SLOTS` for details.
 
 - `MLIST-OBJECT-SLOTS` is a generic function, useful to implement `msize-object`,
-   `mread-object` and `mwrite-object` when extending Hyperluminal-DB.
+   `mread-object` and `mwrite-object` when extending Hyperluminal-MEM.
    See `MWRITE-OBJECT-SLOTS` for details.
 
 - `MSIZE-OBJECT-SLOTS` is a generic function, useful to implement `msize-object`
-   when extending Hyperluminal-DB. See `MWRITE-OBJECT-SLOTS` for details.
+   when extending Hyperluminal-MEM. See `MWRITE-OBJECT-SLOTS` for details.
 
 - `MREAD-OBJECT-SLOTS` is a generic function, useful to implement `mread-object`
-   when extending Hyperluminal-DB. See `MWRITE-OBJECT-SLOTS` for details.
+   when extending Hyperluminal-MEM. See `MWRITE-OBJECT-SLOTS` for details.
 
 - `MWRITE-OBJECT-SLOTS` is a generic function, useful to implement `mwrite-object`
-   when extending Hyperluminal-DB. Details:
+   when extending Hyperluminal-MEM. Details:
   
    The mechanism described in `MWRITE-OBJECT` above is very powerful and general,
    but sometimes all you need is to serialize/deserialize the slots of a standard-object:
    in this case it surely feels overcomplicated.
   
-   For such purpose, Hyperluminal-DB provides the functions
+   For such purpose, Hyperluminal-MEM provides the functions
    `msize-object-slots`, `mread-object-slots` and `mwrite-object-slots`
    which automatically obtain the slots of an object (more details below) and call
    the appropriate function among `msize`, `mread`, `mwrite` on each slot.
@@ -550,18 +491,13 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 - `(HLMEM-VERSION)` is a function that returns the current version of
   the serialization library, implemented by the `HYPERLUMINAL-MEM` package.
   The returned value is a list having the form `'(major minor patch)`
-  as for example `'(0 5 0)`
-
-- `(HLDB-VERSION)` is a function that returns the current version of
-  the memory-mapped database library, implemented by the `HYPERLUMINAL-DB`
-  package. The returned value is a list having the form `'(major minor patch)`
-  as for example `'(0 5 0)`
+  as for example `'(0 5 2)`
 
 
-File format and ABI
+Serialization format and ABI
 -------------------
   
-By default, Hyperluminal-DB file format and ABI is autodetected to match
+By default, Hyperluminal-MEM serialization format and ABI is autodetected to match
 Lisp idea of CFFI-SYS pointers:
 * 32 bit when CFFI-SYS pointers are 32 bit,
 * 64 bit when CFFI-SYS pointers are 64 bit,
@@ -572,21 +508,21 @@ of underlying CPU registers (exposed through CFFI-SYS foreign-type :pointer)
 and `+msizeof-word+` is set accordingly.
 
 It is possible to override such autodetection by adding an appropriate entry
-in the global variable `*FEATURES*` **before** compiling and loading Hyperluminal-DB.
-Doing so disables autodetection and either tells Hyperluminal-DB the desired size
+in the global variable `*FEATURES*` **before** compiling and loading Hyperluminal-MEM.
+Doing so disables autodetection and either tells Hyperluminal-MEM the desired size
 of `mem-word` or, in alternative, the CFFI-SYS type it should use for `mem-word`.
 
 For example, to force 64 bit (= 8 bytes) file format and ABI,
-execute the following form before compiling and loading Hyperluminal-DB:
+execute the following form before compiling and loading Hyperluminal-MEM:
 
-    (pushnew :hyperluminal-db/word-size/8 *features*)
+    (pushnew :hyperluminal-mem/word-size/8 *features*)
 
 on the other hand, to force 32 bit (= 4 bytes) file format and ABI,
 execute the form
 
-    (pushnew :hyperluminal-db/word-size/4 *features*)
+    (pushnew :hyperluminal-mem/word-size/4 *features*)
 
-in both cases, the Hyperluminal-DB internal function `(choose-word-type)`
+in both cases, the Hyperluminal-MEM internal function `(choose-word-type)`
 will recognize the override and define `mem-word` and `+msizeof-word+`
 to match a CFFI-SYS unsigned integer type having the specified size
 among the following candidates:
@@ -600,7 +536,7 @@ In case it does not find a type with the requested size, it will raise an error.
 
 Forcing the same value that would be autodetected is fine and harmless.
 Also, the chosen type must be at least 32 bits wide, but there is no upper limit:
-Hyperluminal-DB is designed to automatically support 64 bits systems,
+Hyperluminal-MEM is designed to automatically support 64 bits systems,
 128 bit systems, and anything else that will exist in the future.
 It even supports 'unusual' configurations where the size of `mem-word`
 is not a power of two (ever heard of 36-bit CPUs?).
@@ -610,32 +546,27 @@ where CFFI-SYS will know about further unsigned integer types,
 it is also possible to explicitly specify the type to use
 by executing a form like
 
-    (pushnew :hyperluminal-db/word-type/<SOME-CFFI-SYS-TYPE> *features*)
+    (pushnew :hyperluminal-mem/word-type/<SOME-CFFI-SYS-TYPE> *features*)
 
 as for example:
 
-    (pushnew :hyperluminal-db/word-type/unsigned-long-long *features*)
+    (pushnew :hyperluminal-mem/word-type/unsigned-long-long *features*)
 
-Hyperluminal-DB will honour such override, intern the type name
+Hyperluminal-MEM will honour such override, intern the type name
 to convert it to a keyword, use it as the definition of `mem-word`,
 and derive `+msizeof-word+` from it.
 
 
 Status
 ------
-As of February 2014, Hyperluminal-DB is being written by Massimiliano Ghilardi
-and it is considered by the author to be in BETA status.
-
-The serialization/deserialization library is usable, tested and documented,
-but it may still contain some rough edges and minor bugs.
-
-On the other hand, the memory-mapped database (built on top of the serialization library)
-is in the early-implementation stage, not yet ready for general use.
+As of January 2015, Hyperluminal-MEM is being written by Massimiliano Ghilardi
+and it is considered by the author to be fairly stable, tested and documented.
+It may still contain some rough edges and minor bugs.
 
 
 Contacts, help, discussion
 --------------------------
-As long as the traffic is low enough, [GitHub Issues](https://github.com/cosmos72/hyperluminal-db/issues)
+As long as the traffic is low enough, [GitHub Issues](https://github.com/cosmos72/hyperluminal-mem/issues)
 can be used to report test suite failures, bugs, suggestions, general discussion etc.
 
 If the traffic becomes high, more appropriate discussion channels will be set-up.
@@ -645,7 +576,5 @@ The author will also try to answer support requests, but gives no guarantees.
 
 Legal
 -----
-
-Hyperluminal-DB is released under the terms of the [GNU General Public
-License v3.0](http://www.gnu.org/licenses/gpl-3.0.html), known
-as the GPLv3.
+Hyperluminal-MEM is released under the terms of the [Lisp Lesser General Public
+License](http://opensource.franz.com/preamble.html), known as the LLGPL.

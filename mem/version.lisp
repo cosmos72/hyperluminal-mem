@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@
 (in-package :hyperluminal-mem)
 
 
-(define-constant-once +hlmem-version+ '(0 5 1))
+(define-constant-once +hlmem-version+ '(0 5 2))
 
 (define-constant-once +hlmem-abi-version+ '(0 1 0))
 

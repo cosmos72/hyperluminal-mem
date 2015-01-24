@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -101,7 +101,7 @@ they are allowed to differ between data and compiled library")
         (let ((list   (mapcar #'code-char (coerce endian-magic 'list)))
               (n-list (mapcar #'code-char (coerce *endian-magic* 'list))))
 
-          (error "HYPERLUMINAL-DB: unsupported file format.
+          (error "HYPERLUMINAL-MEM: unsupported file format.
 expecting magic sequence (~{~S~^ ~}), found (~{~S~^ ~})~A"
                  n-list list
                  (if (equalp endian-magic *x-endian-magic*)
@@ -112,7 +112,7 @@ file was created on a system with opposite endianity"
     (loop for (i name expected) in *magic-read-list*
        for value = (svref magic i)
        unless (eql value expected) do
-         (error "HYPERLUMINAL-DB: unsupported file format. expecting ~S = ~S, found ~S"
+         (error "HYPERLUMINAL-MEM: unsupported file format. expecting ~S = ~S, found ~S"
                 name expected value))
 
     (+ index n-words)))

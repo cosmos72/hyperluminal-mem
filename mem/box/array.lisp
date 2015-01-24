@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -36,12 +36,12 @@ not including BOX header."
          (msize #'msize))
 
     (unless (<= rank +most-positive-int+)
-      (error "HYPERLUMINAL-DB: array has too many dimensions for object store.
+      (error "HYPERLUMINAL-MEM: array has too many dimensions for object store.
 it has rank ~S, maximum supported is rank ~S"
 	     rank +most-positive-int+))
 
     (unless (<= len +most-positive-int+)
-      (error "HYPERLUMINAL-DB: array too large for object store.
+      (error "HYPERLUMINAL-MEM: array too large for object store.
 it contains ~S elements, maximum supported is ~S elements"
 	     len +most-positive-int+))
 
@@ -84,7 +84,7 @@ at (PTR+INDEX)."
         (rank (array-rank array))
         (len (array-total-size array)))
 
-    (log.trace ptr index array)
+    #-(and) (log:trace ptr index array)
 
     (check-mem-overrun ptr index end-index (1+ rank))
 

@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -20,10 +20,10 @@
 (in-package :hyperluminal-lang)
 
 (eval-when (:compile-toplevel :load-toplevel)
-  (pushnew :hyperluminal-db *features*)
+  (pushnew :hyperluminal-mem *features*)
 
   #-(and)
-  (pushnew :hyperluminal-db/debug *features*))
+  (pushnew :hyperluminal-mem/debug *features*))
 
 
 (defun eval-compile-constant (name form)

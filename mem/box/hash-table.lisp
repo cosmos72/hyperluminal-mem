@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -34,20 +34,17 @@ not including BOX header."
 
   (let ((len (hash-table-count htable)))
     (unless (<= len +most-positive-int+)
-      (error "HYPERLUMINAL-DB: hash-table too large for object store.
+      (error "HYPERLUMINAL-MEM: hash-table too large for object store.
 it contains ~S entries, maximum supported is ~S entries"
 	     len +most-positive-int+)))
 
   ;; +1 to store number of entries
   (incf-mem-size index)
 
-  (let ((msize #'msize))
-    (loop for k being the hash-keys in htable using (hash-value v)
-       do
-         (setf index (the mem-size (funcall msize k index)))
-         (setf index (the mem-size (funcall msize v index))))
-
-    index))
+  (loop for k being the hash-keys in htable using (hash-value v)
+     do
+       (setf index (msize* index k v)))
+  index)
 
   
 
@@ -61,22 +58,21 @@ at (PTR+INDEX)."
            (type mem-size index end-index)
            (type hash-table htable))
 
-  (let ((mwrite #'mwrite)
-        (len (hash-table-count htable))
+  (let ((len (hash-table-count htable))
         (test (hash-table-test htable)))
 
     (check-mem-overrun ptr index end-index 1)
 
-    (mset-int ptr index (if (or (eq test 'eq) (eq test 'equal))
-                            len
-                            (lognot len)))
+    (mset-int ptr index
+              (case test
+                ((eq equal #+clisp ext:fasthash-eq #+clisp ext:fasthash-equal) len)
+                (otherwise (lognot len))))
                             
     (incf-mem-size index)
 
     (loop for k being the hash-keys in htable using (hash-value v)
        do
-         (setf index (the mem-size (funcall mwrite ptr index end-index k)))
-         (setf index (the mem-size (funcall mwrite ptr index end-index v))))
+         (setf index (mwrite* ptr index end-index k v)))
 
     index))
 

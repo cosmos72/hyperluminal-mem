@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -35,8 +35,8 @@
            #+x86-64 #:fast-mwrite/8))
 
 
-(defpackage #:hyperluminal-assem
-  (:nicknames #:hl-assem)
+(defpackage #:hyperluminal-asm
+  (:nicknames #:hl-asm)
   (:use #:hyperluminal-sbcl)
   (:export #:fast-sap #:sap=>fast-sap #:fast-sap=>sap
 	   #:+fixnum-zero-mask+1+

@@ -1,6 +1,6 @@
 ;; -*- lisp -*-
 
-;; This file is part of hyperluminal-DB.
+;; This file is part of Hyperluminal-MEM.
 ;; Copyright (c) 2013 Massimiliano Ghilardi
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -48,12 +48,12 @@
                   (push sym syms)))))
 
        (unless (= skip-n (length skip-list))
-         (error "HYPERLUMINAL-DB: cannot compile! ~R of the symbols ~S are not present in package ~S"
+         (error "HYPERLUMINAL-MEM: cannot compile! ~R of the symbols ~S are not present in package ~S"
                 (- (length skip-list) skip-n) skip-list (package-name package)))
 
        (when (and expected-count
                   (not (eql n expected-count)))
-         (error "HYPERLUMINAL-DB: cannot compile! found ~S external symbols in package ~S, expecting ~S"
+         (error "HYPERLUMINAL-MEM: cannot compile! found ~S external symbols in package ~S, expecting ~S"
                 n (package-name package) expected-count))
 
        (sort syms (lambda (sym1 sym2)
@@ -110,23 +110,35 @@
 (eval-always
   (define-global +symbols-table+  (symbols-vector-to-table +symbols-vector+)))
 
-(defconstant +mem-pkg/common-lisp-user+ 1021 "persistent representation of the package COMMON-LISP-USER")
-(defconstant +mem-pkg/common-lisp+   1022 "persistent representation of the package COMMON-LISP")
-(defconstant +mem-pkg/keyword+       1023 "persistent representation of the package KEYWORD")
+(eval-always
+  (defconstant +mem-pkg/common-lisp-user+ 1021
+    "persistent representation of the package COMMON-LISP-USER"))
+
+(eval-always
+  (defconstant +mem-pkg/common-lisp+      1022
+    "persistent representation of the package COMMON-LISP"))
+
+(eval-always
+  (defconstant +mem-pkg/keyword+          1023
+    "persistent representation of the package KEYWORD"))
+
+(eval-always
+  (defconstant +mem-syms/first+           0
+    "first value used by predefined symbols"))
+
+(eval-always
+  (defconstant +mem-syms/last+ (+ +mem-syms/first+ (length +symbols-vector+) -1)
+    "last value used for predefined symbols"))
 
 
-(defconstant +mem-syms/first+           0 "first value used by predefined symbols")
-
-(defconstant +mem-syms/last+ (+ +mem-syms/first+ (length +symbols-vector+) -1) "last value used for predefined symbols")
-
-
-(defconstant +mem-syms-user/first+   2048 "first value available for user-defined symbols")
+(eval-always
+  (defconstant +mem-syms-user/first+      2048
+    "first value available for user-defined symbols"))
 
 
 
 
 (eval-always
-
   (loop for (sym . expected-pos)
      in `((nil     . ,+mem-sym/nil+)
           (t       . ,+mem-sym/t+)
@@ -150,7 +162,7 @@
      for pos = (gethash sym +symbols-table+)
      do
        (unless (eql pos expected-pos)
-         (error "HYPERLUMINAL-DB: unexpected contents of ~S, cannot compile!
+         (error "HYPERLUMINAL-MEM: unexpected contents of ~S, cannot compile!
 symbol ~S is associated to value ~S, it must be associated to value ~S instead"
                 '+symbols-table+ sym pos expected-pos))))
 
