@@ -37,7 +37,7 @@ nor the N-WORDS prefix."
     (ceiling (integer-length n) +mem-word/bits+))) ;; round up 
 
 
-(defun box-words/bignum (n index)
+(defun box-words/bignum (index n)
   "Return the number of words needed to store bignum N in memory, not including BOX header."
   (declare (type integer n)
            (type mem-size index))

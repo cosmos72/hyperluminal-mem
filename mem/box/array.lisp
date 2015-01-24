@@ -26,14 +26,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/array (array index)
+(defun box-words/array (index array)
   "Return the number of words needed to store ARRAY in mmap memory,
 not including BOX header."
   (declare (type array array))
 
   (let* ((rank (array-rank array))
-         (len (array-total-size array))
-         (msize #'msize))
+         (len (array-total-size array)))
 
     (unless (<= rank +most-positive-int+)
       (error "HYPERLUMINAL-MEM: array has too many dimensions for object store.
@@ -58,7 +57,7 @@ it contains ~S elements, maximum supported is ~S elements"
 	     `(loop for ,i from 0 below ,len
                  for ,e = (,func-aref ,array ,i)
                  do
-                   (setf , index (the mem-size (funcall msize ,e ,index)))))))
+                   (setf ,index (msize ,index ,e))))))
 
       (cond
         ((typep array 'simple-vector)          (compute-n-words array len index svref))

@@ -28,13 +28,13 @@
     
 
 
-(defun box-words/vector (vector index)
+(defun box-words/vector (index vector)
   "Return the number of words needed to store VECTOR in mmap memory,
 not including BOX header."
   (declare (type (and vector (not (or string base-string bit-vector))) vector)
            (type mem-size index))
 
-  (box-words/array vector index))
+  (box-words/array index vector))
 
 
 (defun mwrite-box/vector (ptr index end-index vector)

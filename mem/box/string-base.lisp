@@ -28,7 +28,7 @@
 
 (declaim (inline box-words/base-string))
 
-(defun box-words/base-string (string index)
+(defun box-words/base-string (index string)
   "Return the number of words needed to store base-string STRING in mmap memory,
 not including BOX header words."
   (declare (type base-string string)

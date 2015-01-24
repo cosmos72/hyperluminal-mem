@@ -27,7 +27,7 @@
 
 
 
-(defun %package-words (pkg index)
+(defun %package-words (index pkg)
   "Return the number of words needed to store package PKG in mmap memory."
 
   (if (or (eq pkg nil)
@@ -37,7 +37,7 @@
       ;; unboxed package reference
       (incf-mem-size index)
       ;; untagged package name: mem-int length, then utf-8 chars
-      (box-words/string-utf-8 (package-name pkg) index)))
+      (box-words/string-utf-8 index (package-name pkg))))
 
 
 (declaim (inline %mwrite-package %mread-package))
@@ -88,7 +88,7 @@ ABI: package is stored as package reference if possible, otherwise as package na
         (mread-box/string-utf-8 ptr index end-index))))
 
 
-(defun box-words/symbol (sym index)
+(defun box-words/symbol (index sym)
   "Return the number of words needed to store symbol SYM in mmap memory.
 Does not count the space needed by BOX header."
   (declare (type symbol sym)
@@ -96,8 +96,8 @@ Does not count the space needed by BOX header."
 
   ;; assume symbol does NOT have predefined representation
 
-  (let1 index (%package-words (symbol-package sym) index)
-    (box-words/string-utf-8   (symbol-name    sym) index)))
+  (let1 index (%package-words index (symbol-package sym))
+    (box-words/string-utf-8   index (symbol-name    sym))))
 
 
 (defun mwrite-box/symbol (ptr index end-index sym)

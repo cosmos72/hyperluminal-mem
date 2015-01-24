@@ -50,7 +50,7 @@
 (defmethod msize-object ((obj tstack) index)
   (declare (type mem-size index))
 
-  (msize (_ obj top) index))
+  (msize index (_ obj top)))
 
 
 (defmethod mwrite-object ((obj tstack) ptr index end-index)

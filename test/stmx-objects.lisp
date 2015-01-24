@@ -79,7 +79,7 @@
        do
          (setf (get-ghash h key) val))
 
-    (with-mem-words (ptr (msize h index) end-index)
+    (with-mem-words (ptr (msize index h) end-index)
       (mwrite-mread-test ptr index end-index h
 			 :comparator #'equalp-ghash-table))))
 
@@ -95,7 +95,7 @@
        do
          (setf (get-gmap m key) val))
 
-    (with-mem-words (ptr (msize m index) end-index)
+    (with-mem-words (ptr (msize index m) end-index)
       (mwrite-mread-test ptr index end-index m :comparator #'equalp-gmap))))
         
 

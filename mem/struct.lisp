@@ -56,19 +56,19 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
 
 (declaim (notinline msize-obj mwrite-obj mread-obj))
 
-(defun msize-obj (object &optional (index 0))
+(defun msize-obj (index object)
   "Compute and return the number of memory words needed to serialize OBJECT,
 including its header"
   (declare (type mem-size index))
 
   (incf index +mem-box/header-words+)
 
-  (let1 index (msize (type-of object) index)
+  (let1 index (msize index (type-of object))
     (the (values mem-size &optional)
       (msize-object object index))))
 
 
-(defun mwrite-obj (object ptr index end-index)
+(defun mwrite-obj (ptr index end-index object)
   "Serialize OBJECT by writing it into the memory starting at (+ PTR INDEX).
 Also serializes OBJECT header.
 The available memory ends immediately before (+ PTR END-INDEX)."

@@ -26,7 +26,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/pathname (path index)
+(defun box-words/pathname (index path)
   "Return the number of words needed to store pathname PATH in mmap memory,
 not including BOX header."
   (declare (type pathname path)

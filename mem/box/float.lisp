@@ -33,14 +33,14 @@
 (defconstant +box-words/dfloat+
   #.(ceiling +msizeof-dfloat+ +msizeof-word+)) ;; round up
 
-(defun box-words/sfloat (value index)
+(defun box-words/sfloat (index value)
   "Return the number of words needed to store single-float VALUE in memory, not including BOX header."
   (declare (ignore value)
            (type mem-size index))
   (mem-size+ index +box-words/sfloat+))
 
 
-(defun box-words/dfloat (value index)
+(defun box-words/dfloat (index value)
   "Return the number of words needed to store a BOX containing double-float VALUE in memory."
   (declare (ignore value)
            (type mem-size index))

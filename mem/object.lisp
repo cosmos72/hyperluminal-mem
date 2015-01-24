@@ -116,13 +116,13 @@ May be useful also at runtime if one chooses to use the slow, reflective functio
            (type list slot-names))
   (dolist (slot-name slot-names)
     (when use-slot-names
-      (setf index (msize slot-name index)))
+      (setf index (msize index slot-name)))
 
-    (setf index (msize (slot-value object slot-name) index)))
+    (setf index (msize index (slot-value object slot-name))))
 
   (when use-slot-names
     ;; reserve space for 'nil slot-name, used as end-of-slots marker
-    (setf index (msize nil index)))
+    (setf index (msize index nil)))
   index)
 
 

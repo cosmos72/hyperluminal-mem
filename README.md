@@ -239,28 +239,28 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    * using memory-mapped files, for example with the function `mmap`
      from OSICAT library (remember to call `munmap` when done)
 
-- `(MSIZE value [index])` is a function that examines a Lisp value, and tells
+- `(MSIZE index value)` is a function that examines a Lisp value, and tells
    how many words of raw memory are needed to serialize it.
 
    It is useful to know how large a raw memory block must be
    in order to write a serialized value into it. It is defined as:
 
-        (defun msize (value &optional (index 0))
+        (defun msize (index value)
           (declare (type t value)
                    (type mem-size index))
           (the mem-size (+ index
                            #| ...implementation... |#)))
 
-   The optional argument INDEX is useful to compute the total size of composite values,
+   The argument INDEX is useful to compute the total size of composite values,
    as for example lists, arrays, hash-tables and objects: the value returned by `msize`
    is increased by the value of `index`, so the following three code snippets are equivalent
 
-        (+ (msize "foo") (msize 'bar))
+        (+ (msize 0 "foo") (msize 0 'bar))
 
-        (let ((index (msize "foo")))
-          (msize 'bar index))
+        (let ((index (msize 0 "foo")))
+          (msize index 'bar))
 
-        (msize 'bar (msize "foo"))
+        (msize (msize 0 "foo") 'bar)
 
    with the advantage that the second and third versions automatically check
    for length overflows and can exploit tail-call optimizations.

@@ -53,7 +53,7 @@
 (defmethod msize-object ((c tcell) index)
   (declare (type mem-size index))
 
-  (msize (_ c value) index))
+  (msize index (_ c value)))
 
 
 (defmethod mwrite-object ((c tcell) ptr index end-index)

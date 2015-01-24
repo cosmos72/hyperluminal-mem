@@ -22,8 +22,8 @@
 (enable-#?-syntax)
 
 
-(defun box-words/unallocated (value)
-  (declare (ignore value))
+(defun box-words/unallocated (index value)
+  (declare (ignore index value))
   (error "internal error! attempt to write boxed-type +MEM-BOX/UNALLOCATED+"))
 
 (defun mwrite-box/unallocated (ptr index value)
@@ -144,7 +144,7 @@
 
 (declaim (notinline msize-box))
 
-(defun msize-box (value &optional (index 0) (boxed-type (mdetect-box-type value)))
+(defun msize-box (index value &optional (boxed-type (mdetect-box-type value)))
   "Return the number of words needed to store boxed VALUE in memory,
 also including BOX header.
 Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
@@ -154,8 +154,8 @@ Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
   #-(and) (log:trace value boxed-type)
 
-  (call-box-func +msize-box-funcs+ boxed-type value
-                 (mem-size+ +mem-box/header-words+ index)))
+  (call-box-func +msize-box-funcs+ boxed-type 
+                 (mem-size+ +mem-box/header-words+ index) value))
 
 
 (declaim (inline msize-box-rounded-up))
@@ -168,7 +168,7 @@ Rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
   (declare (type mem-box-type boxed-type))
 
-  (round-up-size (msize-box value boxed-type)))
+  (round-up-size (msize-box 0 value boxed-type)))
 
 
 
@@ -269,7 +269,7 @@ Return the value and the number of words actually read as multiple values."
 
 ;; (declaim (ftype (...) msize)) is in box.lisp
 
-(defun msize (value &optional (index 0))
+(defun msize (index value)
   "Compute and return the number of CPU words needed to store VALUE.
 If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
 to MSIZE-BOX or, for user-defined types, to MSIZE-OBJECT.
@@ -279,18 +279,18 @@ Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
    (if (is-unboxed? value)
        (mem-size+1 index)
        (if-bind box-type (mdetect-box-type value)
-           (msize-box value index box-type)
-           (msize-obj value index))))
+           (msize-box index value box-type)
+           (msize-obj index value))))
 
 
-(defun msize-rounded-up (value &optional (index 0))
+(defun msize-rounded-up (index value)
   "Compute and return the number of CPU words needed to store VALUE.
 If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
 to MSIZE-BOX or, for user-defined types, to MSIZE-OBJECT.
 Also rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
   (declare (type mem-size index))
 
-  (round-up-size (msize value index)))
+  (round-up-size (msize index value)))
 
 
 ;; (declaim (ftype (...) mwrite)) is in box.lisp
@@ -311,7 +311,7 @@ WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
       (mem-size+1 index)
       (if-bind box-type (mdetect-box-type value)
           (mwrite-box ptr index end-index value box-type)
-          (mwrite-obj value ptr index end-index))))
+          (mwrite-obj ptr index end-index value))))
 
 
 ;; (declaim (ftype (...) mread)) is in box.lisp

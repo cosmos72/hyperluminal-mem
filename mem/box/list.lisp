@@ -26,25 +26,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/list (list index)
+(defun box-words/list (index list)
   "Return the number of words needed to store LIST in mmap memory, not including BOX header."
   (declare (type list list))
 
   ;; +1 to store list length
   (incf-mem-size index)
 
-  (let1 msize #'msize
-    ;; note: list may end with a dotted pair
-    (loop for cons = list then (rest cons)
-       while (consp cons)
-       for e = (first cons)
-       do
-         (setf index (the mem-size (funcall msize e index)))
-	 finally
-	   (when cons
-             (setf index (the mem-size (funcall msize cons index)))))
+  ;; note: list may end with a dotted pair
+  (loop for cons = list then (rest cons)
+     while (consp cons)
+     do
+       (setf index (msize index (first cons)))
+     finally
+       (when cons
+         (setf index (msize index cons))))
 
-    index))
+  index)
 
        
 

@@ -27,7 +27,7 @@
 (enable-#?-syntax)
 
 
-(defun box-words/string-utf-21 (string index)
+(defun box-words/string-utf-21 (index string)
   "Return the number of words needed to store STRING in memory, not including BOX header."
   (declare (type string string)
            (type mem-size index))

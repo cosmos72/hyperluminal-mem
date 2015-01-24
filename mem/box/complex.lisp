@@ -33,7 +33,7 @@
 
 (defconstant +box-words/complex-sfloat+ (* 2 +box-words/sfloat+))
 
-(defun box-words/complex-sfloat (value index)
+(defun box-words/complex-sfloat (index value)
   "Return the number of words needed to store a complex-sfloat VALUE in mmap memory.
 Does not count the space needed by BOX header."
   (declare (ignore value)
@@ -90,7 +90,7 @@ Assumes BOX header was already read."
 
 (defconstant +box-words/complex-dfloat+ (* 2 +box-words/dfloat+))
 
-(defun box-words/complex-dfloat (value index)
+(defun box-words/complex-dfloat (index value)
   "Return the number of words needed to store a complex-dfloat VALUE in mmap memory.
 Does not count the space needed by BOX header."
   (declare (ignore value)
@@ -143,7 +143,7 @@ Assumes BOX header was already read."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun box-words/complex-rational (value index)
+(defun box-words/complex-rational (index value)
   "Return the number of words needed to store a complex-rational VALUE in mmap memory.
 Does not count the space needed by BOX header."
   (declare (type complex-rational value))

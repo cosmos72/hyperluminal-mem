@@ -297,7 +297,7 @@ but only ~S word~P available at that location"
 
 
 ;; kind of forward declaration for (msize) defined in boxed.lisp
-(declaim (ftype (function (t &optional mem-size) (values mem-size &optional))
+(declaim (ftype (function (mem-size t) (values mem-size &optional))
 		msize)
 	 (inline msize))
 
@@ -345,19 +345,13 @@ will be bound to the new value of INDEX"
          ,@body)))
 
 
-(defmacro %msize* (index value &rest more-values)
-  "Warning: this macro expands VALUE *before* INDEX"
+(defmacro msize* (index value &rest more-values)
   (if more-values
       (with-gensym new-index
-        `(let1 ,new-index (msize ,value ,index)
-           (%msize* ,new-index ,@more-values)))
-      `(msize ,value ,index)))
+        `(let1 ,new-index (msize ,index ,value)
+           (msize* ,new-index ,@more-values)))
+      `(msize ,index ,value)))
 
-
-(defmacro msize* (index value &rest more-values)
-  (with-gensym old-index
-    `(let1 ,old-index ,index
-       (%msize* ,old-index ,value ,@more-values))))
   
 
 (defmacro %mwrite* (ptr index end-index value &rest more-values)
