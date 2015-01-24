@@ -29,9 +29,7 @@
 
   (:import-from #:stmx.lang
 
-                #:enable-#?-syntax  #:eval-always
-                #:set-feature  #:set-features #:default-feature #:default-features
-                #:get-feature  #:all-features?
+                #:enable-#?-syntax  #:eval-always  #:set-feature 
 
                 #:define-global                #:define-constant-once
                 #:with-gensym  #:with-gensyms  #:new      #:let1

@@ -22,7 +22,7 @@
 
 (asdf:defsystem :hyperluminal-db
   :name "HYPERLUMINAL-DB"
-  :version "0.4.0"
+  :version "0.5.1"
   :license "GPLv3"
   :author "Massimiliano Ghilardi"
   :description "Persistent, transactional object store. Also includes a serialization library."
@@ -126,7 +126,7 @@
 
 (asdf:defsystem :hyperluminal-db.test
   :name "HYPERLUMINAL-DB.TEST"
-  :version "0.4.0"
+  :version "0.5.1"
   :author "Massimiliano Ghilardi"
   :license "GPLv3"
   :description "test suite for hyperluminal-db"

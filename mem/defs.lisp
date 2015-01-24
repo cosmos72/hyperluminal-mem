@@ -81,10 +81,9 @@
     (concat-symbols 'fast-mwrite/ +msizeof-word+)))
 
 (eval-always
-  (if (and (have-symbol? 'hl-assem +fast-mread-symbol+)
-	   (have-symbol? 'hl-assem +fast-mwrite-symbol+))
-      (set-feature 'hldb/fast-mem)
-      (rem-feature 'hldb/fast-mem)))
+  (set-feature 'hldb/fast-mem
+               (and (have-symbol? 'hl-assem +fast-mread-symbol+)
+                    (have-symbol? 'hl-assem +fast-mwrite-symbol+))))
       
 
 
