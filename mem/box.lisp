@@ -292,26 +292,141 @@ but only ~S word~P available at that location"
          (array-length-error ,ptr ,index ,array-type ,len ,max-len)))))
 
 
-;; kind of forward declaration for (msize) defined in boxed.lisp
+;; kind of forward declaration for msize-box, mwrite-box, mread-box2 and mdetect-box-type,
+;; needed here but defined later, in boxed.lisp
+(declaim (ftype (function (mem-size t &optional mem-box-type)
+                          (values mem-size &optional))
+                msize-box)
+
+         (ftype (function (maddress mem-size mem-size t mem-box-type)
+			  (values mem-size &optional))
+                mwrite-box)
+         
+         (ftype (function (maddress mem-size mem-size mem-fulltag)
+			  (values t mem-size &optional))
+                mread-box2)
+
+         (ftype (function (t)
+                          (values (or null mem-box-type) &optional))
+                mdetect-box-type)
+
+	 (notinline msize-box mwrite-box mread-box2 mdetect-box-type))
+
+
+;; kind of forward declaration for msize-obj, mwrite-obj and mread-obj
+;; needed here but defined later, in struct.lisp
+(declaim (ftype (function (mem-size t &optional)
+                          (values mem-size &optional))
+                msize-obj)
+
+         (ftype (function (maddress mem-size mem-size t)
+			  (values mem-size &optional))
+                mwrite-obj)
+         
+         (ftype (function (maddress mem-size mem-size)
+			  (values t mem-size &optional))
+                mread-obj2)
+         
+	 (notinline msize-obj mwrite-obj mread-obj))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; main API functions accepting both boxed and unboxed values              ;;;;
+;;;; we define them early, to inline them in the rest of the code            ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 (declaim (ftype (function (mem-size t) (values mem-size &optional))
 		msize)
 	 (inline msize))
 
-;; kind of forward declaration for (mwrite) defined in boxed.lisp
+;; note: unlike MSIZE-OBJECT, VALUE is last argument
+(defun msize (index value)
+  "Compute and return the number of CPU words needed to store VALUE.
+If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
+to MSIZE-BOX or, for user-defined types, to MSIZE-OBJECT.
+Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
+  (declare (type mem-size index))
+
+   (if (is-unboxed? value)
+       (mem-size+1 index)
+       (if-bind box-type (mdetect-box-type value)
+           (msize-box index value box-type)
+           (msize-obj index value))))
+
+
+
+
 (declaim (ftype (function (maddress mem-size mem-size t)
                           (values mem-size &optional))
 		mwrite)
 	 (inline mwrite))
 
-;; kind of forward declaration for (mread) defined in boxed.lisp
+
+;; note: unlike MWRITE-OBJECT, VALUE is last argument
+(defun mwrite (ptr index end-index value)
+  "Write a value (boxed, unboxed or object) into the memory starting at (PTR+INDEX).
+Return the INDEX pointing to immediately after the value just written.
+
+WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
+  (declare (type maddress ptr)
+           (type mem-size index end-index)
+           (type t value))
+
+  (check-mem-overrun ptr index end-index 1)
+
+  (if (mset-unboxed ptr index value)
+      (mem-size+1 index)
+      (if-bind box-type (mdetect-box-type value)
+          (mwrite-box ptr index end-index value box-type)
+          (mwrite-obj ptr index end-index value))))
+
+
 (declaim (ftype (function (maddress mem-size mem-size)
                           (values t mem-size &optional))
 		mread)
 	 (inline mread))
 
 
+;; note: unlike MREAD-OBJECT, there is no TYPE argument
+(defun mread (ptr index end-index)
+  "Read a value (boxed, unboxed or object) from the memory starting at (PTR+INDEX).
+Return multiple values:
+1) the value 
+2) the INDEX pointing to immediately after the value just read"
+  (declare (type maddress ptr)
+           (type mem-size index end-index))
+
+  (check-mem-length ptr index end-index 1)
+
+  (multiple-value-bind (value boxed-type) (mget-unboxed ptr index)
+    (unless boxed-type
+      (return-from mread (values value (mem-size+1 index))))
+
+    (let* ((n-words (box-pointer->size value))
+           (end-box (mem-size+ index n-words))
+           (end-index (min end-index end-box)))
+      (if (<= (the fixnum boxed-type) +mem-box/last+)
+          (mread-box2 ptr index end-index boxed-type)
+          (mread-obj ptr index end-index)))))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun !mwrite (ptr index value)
+  "Used only for debugging."
+  (declare (type maddress ptr)
+           (type mem-size index))
+
+  (mwrite ptr index +mem-box/max-words+ value))
+
+(defun !mread (ptr index)
+  "Used only for debugging."
+  (declare (type maddress ptr)
+           (type mem-size index))
+  (mread ptr index +mem-box/max-words+))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmacro multiple-value-bind-chain2* ((var1 var2 &rest more-vars)
                                        (func arg1 arg2 &rest more-args) &body body)

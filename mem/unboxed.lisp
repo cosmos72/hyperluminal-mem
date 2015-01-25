@@ -473,6 +473,7 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
     (mset-fulltag-and-value ptr index tag val)))
 
      
+(declaim (inline mget-unboxed))
 
 (defun mget-unboxed (ptr index)
   "Try to read an unboxed value (boolean, unbound slot, character or mem-int)

@@ -89,7 +89,7 @@
      (funcall (get-box-func ,funcs ,boxed-type) ,@args)))
 
 
-(declaim (notinline mdetect-box-type))
+;; (declaim (ftype ...)) for mdetect-box-type is in box.lisp
 
 (defun mdetect-box-type (value)
   "Detect the boxed-type of VALUE. Returns one of the constants +mem-box/...+"
@@ -138,7 +138,8 @@
 	  #.(lognot (1- +mem-box/min-words+))))
 
 
-(declaim (notinline msize-box))
+;; (declaim (ftype ...)) for msize-box is in box.lisp
+
 
 (defun msize-box (index value &optional (boxed-type (mdetect-box-type value)))
   "Return the number of words needed to store boxed VALUE in memory,
@@ -166,13 +167,9 @@ Rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
   (round-up-size (msize-box 0 value boxed-type)))
 
+         
 
-
-
-(declaim (ftype (function (maddress mem-size mem-size t mem-box-type)
-			  (values mem-size &optional))
-		 mwrite-box)
-	 (notinline mwrite-box))
+;; (declaim (ftype ...)) for mwrite-box is in box.lisp
 
 (defun mwrite-box (ptr index end-index value boxed-type)
   "Write a boxed value into the mmap memory starting at (PTR+INDEX).
@@ -220,7 +217,7 @@ Skips over BOX header."
 
 
          
-
+;; (declaim (ftype ...)) for mread-box2 is in box.lisp
 
 (defun mread-box2 (ptr index end-index boxed-type)
   "Read a boxed value from the memory starting at (PTR+INDEX).
@@ -234,11 +231,16 @@ Return the value and the number of words actually read as multiple values."
   (%mread-box ptr index end-index boxed-type))
 
 
+
+(declaim (ftype (function (maddress mem-size mem-size)
+			  (values t mem-size &optional))
+                mread-box))
+
 (defun mread-box (ptr index end-index)
   "Read a boxed value from the memory starting at (PTR+INDEX).
 Return the value and the number of words actually read as multiple values."
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index end-index))
   
   (multiple-value-bind (boxed-type n-words) (mread-box/header ptr index)
     ;; each BOX consumes at least header space + 1 word for payload.
@@ -263,22 +265,6 @@ Return the value and the number of words actually read as multiple values."
 ;;;; mid-level functions accepting both boxed and unboxed values             ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (declaim (ftype (...) msize)) is in box.lisp
-
-(defun msize (index value)
-  "Compute and return the number of CPU words needed to store VALUE.
-If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
-to MSIZE-BOX or, for user-defined types, to MSIZE-OBJECT.
-Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
-  (declare (type mem-size index))
-
-   (if (is-unboxed? value)
-       (mem-size+1 index)
-       (if-bind box-type (mdetect-box-type value)
-           (msize-box index value box-type)
-           (msize-obj index value))))
-
-
 (defun msize-rounded-up (index value)
   "Compute and return the number of CPU words needed to store VALUE.
 If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
@@ -291,58 +277,5 @@ Also rounds up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
 ;; (declaim (ftype (...) mwrite)) is in box.lisp
 
-;; note: unlike MWRITE-OBJECT, VALUE is last argument
-(defun mwrite (ptr index end-index value)
-  "Write a value (boxed, unboxed or object) into the memory starting at (PTR+INDEX).
-Return the INDEX pointing to immediately after the value just written.
-
-WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
-  (declare (type maddress ptr)
-           (type mem-size index end-index)
-           (type t value))
-
-  (check-mem-overrun ptr index end-index 1)
-
-  (if (mset-unboxed ptr index value)
-      (mem-size+1 index)
-      (if-bind box-type (mdetect-box-type value)
-          (mwrite-box ptr index end-index value box-type)
-          (mwrite-obj ptr index end-index value))))
 
 
-;; (declaim (ftype (...) mread)) is in box.lisp
-
-(defun mread (ptr index end-index)
-  "Read a value (boxed, unboxed or object) from the memory starting at (PTR+INDEX).
-Return multiple values:
-1) the value 
-2) the INDEX pointing to immediately after the value just read"
-  (declare (type maddress ptr)
-           (type mem-size index end-index))
-
-  (check-mem-length ptr index end-index 1)
-
-  (multiple-value-bind (value boxed-type) (mget-unboxed ptr index)
-    (unless boxed-type
-      (return-from mread (values value (mem-size+1 index))))
-
-    (let* ((n-words (box-pointer->size value))
-           (end-box (mem-size+ index n-words))
-           (end-index (min end-index end-box)))
-      (if (<= (the fixnum boxed-type) +mem-box/last+)
-          (mread-box2 ptr index end-index boxed-type)
-          (mread-obj ptr index end-index)))))
-
-
-(defun !mwrite (ptr index value)
-  "Used only for debugging."
-  (declare (type maddress ptr)
-           (type mem-size index))
-
-  (mwrite ptr index +mem-box/max-words+ value))
-
-(defun !mread (ptr index)
-  "Used only for debugging."
-  (declare (type maddress ptr)
-           (type mem-size index))
-  (mread ptr index +mem-box/max-words+))

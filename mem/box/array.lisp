@@ -75,8 +75,7 @@ at (PTR+INDEX)."
            (type mem-size index end-index)
 	   (type array array))
 
-  (let ((mwrite #'mwrite)
-        (rank (array-rank array))
+  (let ((rank (array-rank array))
         (len (array-total-size array)))
 
     #-(and) (log:trace ptr index array)
@@ -92,14 +91,14 @@ at (PTR+INDEX)."
          (incf-mem-size index))
 
     (macrolet
-        ((loop-mwrite-array ()
+        ((loop-mwrite-array (&optional (element-type t))
             (with-gensyms (i e)
               `(loop for ,i from 0 below len
-                  for ,e = (row-major-aref array ,i) do
-                    (setf index (the mem-size (funcall mwrite ptr index end-index ,e)))))))
+                  for ,e ,element-type = (row-major-aref array ,i) do
+                    (setf index (mwrite ptr index end-index ,e))))))
          
       (cond
-        ((typep array '(simple-array fixnum)) (loop-mwrite-array))
+        ((typep array '(simple-array fixnum)) (loop-mwrite-array fixnum))
         ((typep array '(simple-array t))      (loop-mwrite-array))
         (t                                    (loop-mwrite-array))))
 

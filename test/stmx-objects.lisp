@@ -72,6 +72,9 @@
     (loop for key = (pop tree)
        for val = (pop tree)
        while tree
+       ;; given two similar(*) objects, sxhash is guaranteed to be the same only
+       ;; if they have one these types:
+       when (typep key '(or bit-vector character cons number pathname string symbol))
        do
          (setf (get-ghash h key) val))
 

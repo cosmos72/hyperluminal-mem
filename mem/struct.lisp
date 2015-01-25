@@ -49,8 +49,7 @@ The available memory ends immediately before (+ PTR END-INDEX)."))
 
 
 
-
-(declaim (notinline msize-obj mwrite-obj mread-obj))
+;; (declaim (ftype ...)) for msize-obj, mwrite-obj and mread-obj is in box.lisp
 
 (defun msize-obj (index object)
   "Compute and return the number of memory words needed to serialize OBJECT,
