@@ -336,50 +336,54 @@ but only ~S word~P available at that location"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(declaim (ftype (function (mem-size t) (values mem-size &optional))
+(declaim (ftype (function (mem-size t &key (:type (or null mem-box-type)))
+                          (values mem-size &optional))
 		msize)
 	 (inline msize))
 
 ;; note: unlike MSIZE-OBJECT, VALUE is last argument
-(defun msize (index value)
+(defun msize (index value &key (type nil))
   "Compute and return the number of CPU words needed to store VALUE.
 If VALUE can be stored unboxed, returns 1. Otherwise forwards the call
 to MSIZE-BOX or, for user-defined types, to MSIZE-OBJECT.
 Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
-  (declare (type mem-size index))
+  (declare (type mem-size index)
+           (type (or null mem-box-type) type))
 
-   (if (is-unboxed? value)
-       (mem-size+1 index)
-       (if-bind box-type (mdetect-box-type value)
-           (msize-box index value box-type)
-           (msize-obj index value))))
+  (if (is-unboxed? value)
+      (mem-size+1 index)
+      (if-bind box-type (or type (mdetect-box-type value))
+        (msize-box index value box-type)
+        (msize-obj index value))))
 
 
 
 
-(declaim (ftype (function (maddress mem-size mem-size t)
+(declaim (ftype (function (maddress mem-size mem-size t &key (:type (or null mem-box-type)))
                           (values mem-size &optional))
 		mwrite)
 	 (inline mwrite))
 
 
 ;; note: unlike MWRITE-OBJECT, VALUE is last argument
-(defun mwrite (ptr index end-index value)
+(defun mwrite (ptr index end-index value &key (type nil))
   "Write a value (boxed, unboxed or object) into the memory starting at (PTR+INDEX).
 Return the INDEX pointing to immediately after the value just written.
 
 WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
   (declare (type maddress ptr)
            (type mem-size index end-index)
-           (type t value))
+           (type t value)
+           (type (or null mem-box-type) type))
 
   (check-mem-overrun ptr index end-index 1)
 
   (if (mset-unboxed ptr index value)
       (mem-size+1 index)
-      (if-bind box-type (mdetect-box-type value)
+      (if-bind box-type (or type (mdetect-box-type value))
           (mwrite-box ptr index end-index value box-type)
           (mwrite-obj ptr index end-index value))))
+
 
 
 (declaim (ftype (function (maddress mem-size mem-size)

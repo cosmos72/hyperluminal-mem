@@ -1,5 +1,9 @@
 ========== TO DO ==========
 
+define-compiler-macro on msize, msize-box, mwrite and mwrite-box
+for constant value or constant :type that open-code
+the calls to msize-box/<N> and mwrite-box/<N>
+
 everything else...
 
 ========== DONE ==========
