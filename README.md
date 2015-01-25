@@ -1,14 +1,14 @@
-Hyperluminal-MEM
-===============
+Hyperluminal-mem
+================
 
 Summary
 -------
-Hyperluminal-MEM is a high-performance serialization/deserialization library
+Hyperluminal-mem is a high-performance serialization/deserialization library
 for Common Lisp.
 
 Features
 --------
-Hyperluminal-MEM is designed and optimized for the following objectives:
+Hyperluminal-mem is designed and optimized for the following objectives:
 - speed: serializing and deserializing data can have sustained rates
   exceeding 1GB/s on a single CPU core.
 - safety: it can be used on untrusted and possibly malicious data,
@@ -44,7 +44,7 @@ is in the early-implementation stage, not yet ready for general use.
 
 Supported systems
 -----------------
-Hyperluminal-MEM is currently tested on the following Common Lisp implementations:
+Hyperluminal-mem is currently tested on the following Common Lisp implementations:
 
 * [SBCL](http://sbcl.org/)
   * version 1.2.6        (x86_64)   on Debian GNU/Linux jessie (x86_64)
@@ -75,24 +75,24 @@ Hyperluminal-MEM is currently tested on the following Common Lisp implementation
 ### Unsupported systems
 
 * [ECL](http://ecls.sourceforge.net/) has some known issues with CFFI, OSICAT and STMX,
-  three libraries required by Hyperluminal-MEM. Once support for these three libraries improves,
-  Hyperluminal-MEM can be tested on it too.
+  three libraries required by Hyperluminal-mem. Once support for these three libraries improves,
+  Hyperluminal-mem can be tested on it too.
 
 ### Other systems
 
-Hyperluminal-MEM requires CFFI, OSICAT and STMX libraries to work. While reasonably portable,
+Hyperluminal-mem requires CFFI, OSICAT and STMX libraries to work. While reasonably portable,
 they exploit features well beyond ANSI Common Lisp and their support for the various Common Lisp
 implementations varies widely.
 
-For this reason no general guarantees can be given: Hyperluminal-MEM
+For this reason no general guarantees can be given: Hyperluminal-mem
 may or **may not** work on other, untested Common Lisp implementations.
 
 Installation and loading
 ------------------------
 
-Hyperluminal-MEM is available from [GitHub](https://github.com/cosmos72/hyperluminal-mem).
+Hyperluminal-mem is available from [GitHub](https://github.com/cosmos72/hyperluminal-mem).
 The simplest way to obtain it is to first install [Quicklisp](http://www.quicklisp.org)
-then download Hyperluminal-MEM into your Quicklisp local-projects folder.
+then download Hyperluminal-mem into your Quicklisp local-projects folder.
 Open a shell and run the commands:
 
     $ cd ~/quicklisp/local-projects
@@ -104,7 +104,7 @@ then open a REPL and run:
     ;; lots of output...
     CL-USER> (use-package :hlmem)
      
-If all goes well, this will load Hyperluminal-MEM and its dependencies,
+If all goes well, this will load Hyperluminal-mem and its dependencies,
 CFFI, OSICAT and STMX.
 
 ### Troubleshooting
@@ -117,13 +117,13 @@ In case you get errors:
         CL-USER> (ql:quickload "osicat")
         CL-USER> (ql:quickload "stmx")
 
-- check that you downloaded Hyperluminal-MEM creating an `hyperluminal-mem/` folder inside
+- check that you downloaded Hyperluminal-mem creating an `hyperluminal-mem/` folder inside
   your Quicklisp local-projects folder, usually `~/quicklisp/local-projects`
 
 
 ### Testing that it works
 
-After loading Hyperluminal-MEM for the first time, it is recommended to run
+After loading Hyperluminal-mem for the first time, it is recommended to run
 the test suite to check that everything works as expected. From the REPL, run:
 
     CL-USER> (ql:quickload "hyperluminal-mem.test")
@@ -152,7 +152,7 @@ See "Contacts, help, discussion" below for the preferred method to send the repo
 
 Implementation
 --------------
-Hyperluminal-MEM reads and writes serialized data to raw memory,
+Hyperluminal-mem reads and writes serialized data to raw memory,
 using CFFI foreign pointers - equivalent to C/C++ pointers.
 
 The most direct way to save serialized data to disk, and to load it back,
@@ -161,7 +161,7 @@ is to open a file then map it to memory with the POSIX mmap() system call.
 Basic usage
 -----------
 
-Hyperluminal-MEM offers the following Lisp types, constants, macros and functions,
+Hyperluminal-mem offers the following Lisp types, constants, macros and functions,
 also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 
 - `MADDRESS` is the type of raw memory pointers.
@@ -201,7 +201,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 
 - `(MALLOC-WORDS n-words)` is a function, it allocates raw memory and returns
    a raw pointer to it just like `malloc`.
-   It is usually more handy than `malloc` since almost all Hyperluminal-MEM functions
+   It is usually more handy than `malloc` since almost all Hyperluminal-mem functions
    count and expect memory length in words, not in bytes.
 
    Definition:
@@ -290,7 +290,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    This allows to easily write consecutive serialized values into the raw memory.
    
    Any kind of raw memory is supported, thus it is also possible to call `mwrite`
-   on memory-mapped files. This is actually the mechanism that allows Hyperluminal-MEM
+   on memory-mapped files. This is actually the mechanism that allows Hyperluminal-mem
    to implement an object store backed by memory-mapped files.
 
    `mwrite` supports the following standard Lisp types:
@@ -335,19 +335,19 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 - `(MSIZE-OBJECT object index)` is a generic function that examines a user-defined
    Lisp object and tells how many words of raw memory are needed to serialize it.
 
-   Programmers can extend Hyperluminal-MEM by defining specialized methods for it,
+   Programmers can extend Hyperluminal-mem by defining specialized methods for it,
    see `MWRITE-OBJECT` for details.
 
 - `(MREAD-OBJECT ptr index end-index &key)` is a generic function that reads
    a serialized user-defined object from raw memory, deserializes and returns it.
 
-   Programmers can extend Hyperluminal-MEM by defining specialized methods for it,
+   Programmers can extend Hyperluminal-mem by defining specialized methods for it,
    see `MWRITE-OBJECT` for details.
 
 - `(MWRITE-OBJECT object ptr index end-index)` is a generic function
    that serializes a user-defined Lisp object, writing it into raw memory.
 
-   Programmers can extend Hyperluminal-MEM by defining specialized methods for
+   Programmers can extend Hyperluminal-mem by defining specialized methods for
    `msize-object`, `mwrite-object` and `mread-object`. Such methods are invoked
    automatically by `msize`, `mwrite` and `mread` when they encounter a user-defined object,
    i.e. an instance of structure-object or standard-object or their subclasses.
@@ -428,23 +428,23 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    and `mwrite-object-slots`. See `MWRITE-OBJECT-SLOTS` for details.
 
 - `MLIST-OBJECT-SLOTS` is a generic function, useful to implement `msize-object`,
-   `mread-object` and `mwrite-object` when extending Hyperluminal-MEM.
+   `mread-object` and `mwrite-object` when extending Hyperluminal-mem.
    See `MWRITE-OBJECT-SLOTS` for details.
 
 - `MSIZE-OBJECT-SLOTS` is a generic function, useful to implement `msize-object`
-   when extending Hyperluminal-MEM. See `MWRITE-OBJECT-SLOTS` for details.
+   when extending Hyperluminal-mem. See `MWRITE-OBJECT-SLOTS` for details.
 
 - `MREAD-OBJECT-SLOTS` is a generic function, useful to implement `mread-object`
-   when extending Hyperluminal-MEM. See `MWRITE-OBJECT-SLOTS` for details.
+   when extending Hyperluminal-mem. See `MWRITE-OBJECT-SLOTS` for details.
 
 - `MWRITE-OBJECT-SLOTS` is a generic function, useful to implement `mwrite-object`
-   when extending Hyperluminal-MEM. Details:
+   when extending Hyperluminal-mem. Details:
   
    The mechanism described in `MWRITE-OBJECT` above is very powerful and general,
    but sometimes all you need is to serialize/deserialize the slots of a standard-object:
    in this case it surely feels overcomplicated.
   
-   For such purpose, Hyperluminal-MEM provides the functions
+   For such purpose, Hyperluminal-mem provides the functions
    `msize-object-slots`, `mread-object-slots` and `mwrite-object-slots`
    which automatically obtain the slots of an object (more details below) and call
    the appropriate function among `msize`, `mread`, `mwrite` on each slot.
@@ -489,15 +489,14 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 - `MREAD-MAGIC` to be documented...
 
 - `(HLMEM-VERSION)` is a function that returns the current version of
-  the serialization library, implemented by the `HYPERLUMINAL-MEM` package.
-  The returned value is a list having the form `'(major minor patch)`
-  as for example `'(0 5 2)`
+  Hyperluminal-mem. The returned value is a list having the form
+  `'(major minor patch)` as for example `'(0 5 2)`
 
 
 Serialization format and ABI
 -------------------
   
-By default, Hyperluminal-MEM serialization format and ABI is autodetected to match
+By default, Hyperluminal-mem serialization format and ABI is autodetected to match
 Lisp idea of CFFI-SYS pointers:
 * 32 bit when CFFI-SYS pointers are 32 bit,
 * 64 bit when CFFI-SYS pointers are 64 bit,
@@ -508,12 +507,12 @@ of underlying CPU registers (exposed through CFFI-SYS foreign-type :pointer)
 and `+msizeof-word+` is set accordingly.
 
 It is possible to override such autodetection by adding an appropriate entry
-in the global variable `*FEATURES*` **before** compiling and loading Hyperluminal-MEM.
-Doing so disables autodetection and either tells Hyperluminal-MEM the desired size
+in the global variable `*FEATURES*` **before** compiling and loading Hyperluminal-mem.
+Doing so disables autodetection and either tells Hyperluminal-mem the desired size
 of `mem-word` or, in alternative, the CFFI-SYS type it should use for `mem-word`.
 
 For example, to force 64 bit (= 8 bytes) file format and ABI,
-execute the following form before compiling and loading Hyperluminal-MEM:
+execute the following form before compiling and loading Hyperluminal-mem:
 
     (pushnew :hyperluminal-mem/word-size/8 *features*)
 
@@ -522,7 +521,7 @@ execute the form
 
     (pushnew :hyperluminal-mem/word-size/4 *features*)
 
-in both cases, the Hyperluminal-MEM internal function `(choose-word-type)`
+in both cases, the Hyperluminal-mem internal function `(choose-word-type)`
 will recognize the override and define `mem-word` and `+msizeof-word+`
 to match a CFFI-SYS unsigned integer type having the specified size
 among the following candidates:
@@ -536,7 +535,7 @@ In case it does not find a type with the requested size, it will raise an error.
 
 Forcing the same value that would be autodetected is fine and harmless.
 Also, the chosen type must be at least 32 bits wide, but there is no upper limit:
-Hyperluminal-MEM is designed to automatically support 64 bits systems,
+Hyperluminal-mem is designed to automatically support 64 bits systems,
 128 bit systems, and anything else that will exist in the future.
 It even supports 'unusual' configurations where the size of `mem-word`
 is not a power of two (ever heard of 36-bit CPUs?).
@@ -552,14 +551,14 @@ as for example:
 
     (pushnew :hyperluminal-mem/word-type/unsigned-long-long *features*)
 
-Hyperluminal-MEM will honour such override, intern the type name
+Hyperluminal-mem will honour such override, intern the type name
 to convert it to a keyword, use it as the definition of `mem-word`,
 and derive `+msizeof-word+` from it.
 
 
 Status
 ------
-As of January 2015, Hyperluminal-MEM is being written by Massimiliano Ghilardi
+As of January 2015, Hyperluminal-mem is being written by Massimiliano Ghilardi
 and it is considered by the author to be fairly stable, tested and documented.
 It may still contain some rough edges and minor bugs.
 
@@ -576,5 +575,5 @@ The author will also try to answer support requests, but gives no guarantees.
 
 Legal
 -----
-Hyperluminal-MEM is released under the terms of the [Lisp Lesser General Public
+Hyperluminal-mem is released under the terms of the [Lisp Lesser General Public
 License](http://opensource.franz.com/preamble.html), known as the LLGPL.
