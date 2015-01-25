@@ -366,9 +366,9 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    then a reasonable specialization of `msize-object` is:
     
         (defmethod msize-object ((p point3d) index)
-          (let* ((index-x (msize (point3d-x p) index))
-                 (index-y (msize (point3d-y p) index-x))
-                 (index-z (msize (point3d-z p) index-y)))
+          (let* ((index-x (msize index   (point3d-x p)))
+                 (index-y (msize index-x (point3d-y p)))
+                 (index-z (msize index-y (point3d-z p))))
              index-z))
    
    note how the result of each `msize` call is passed to the next call - this ensures
@@ -381,8 +381,6 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 
         (defmethod msize-object ((p point3d) index)
           (msize* index (point3d-x p) (point3d-y p) (point3d-z p)))
-
-   Note how `index` is now the first argument, not the last.
 
    Similarly, `mwrite-object` can be specialized as:
 
