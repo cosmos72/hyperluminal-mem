@@ -399,6 +399,13 @@ ignoring any sign bit"
 (defun !is-unbound-tvar? (value)
   (eq value +unbound-tvar+))
 
+
+(define-constant-once +mem-unboxed-types+
+    '(mem-int character base-char boolean
+      #?+hldb/sfloat/inline single-float
+      #?+hldb/dfloat/inline double-float))
+
+
 (declaim (inline mset-unboxed))
 
 (defun mset-unboxed (ptr index value)

@@ -15,7 +15,7 @@
 
 (in-package :hyperluminal-mem)
 
-
+(enable-#?-syntax)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;    boxed array                                                       ;;;;
@@ -48,21 +48,73 @@ it contains ~S elements, maximum supported is ~S elements"
     (incf-mem-size index rank)
 
     (macrolet
-	((compute-n-words (array len index &optional (func-aref 'row-major-aref))
+	((compute-n-words (array len index &optional (el-type t))
 	   (with-gensyms (i e)
 	     `(loop for ,i from 0 below ,len
-                 for ,e = (,func-aref ,array ,i)
+                 for ,e = (row-major-aref ,array ,i)
                  do
-                   (setf ,index (msize ,index ,e))))))
+                   (setf ,index (msize ,index (the ,el-type ,e)))))))
 
       (cond
-        ((typep array 'simple-vector)          (compute-n-words array len index svref))
         ((typep array '(simple-array fixnum))  (compute-n-words array len index))
         ((typep array '(simple-array t))       (compute-n-words array len index))
         (t                                     (compute-n-words array len index)))
 
       index)))
   
+(defmacro %the-array (a type simple)
+  `(the (,(if simple 'simple-array 'array)
+          ,(if type type '*)
+          *)
+     ,a))
+
+         
+(defmacro %mwrite-array-unboxed (a type)
+  (with-gensyms (i e)
+    `(progn
+       (check-mem-overrun ptr index end-index len)
+       (loop for ,i from 0 below len
+          for ,e = (row-major-aref ,a ,i) do
+            (mset-unboxed ptr index (the ,type ,e))
+            (incf-mem-size index)))))
+
+
+(defmacro %mwrite-array-t (a type)
+  (with-gensyms (i e)
+    `(loop for ,i from 0 below len
+        for ,e = (row-major-aref ,a ,i)
+        do (setf index (mwrite ptr index end-index
+                               (the ,type ,e))))))
+
+
+(defmacro %mwrite-array (a type simple)
+  `(cond
+     ((subtypep ,type 'mem-int)
+      (if (subtypep 'mem-int ,type)
+          (%mwrite-array-unboxed (%the-array ,a mem-int ,simple) mem-int)
+          (%mwrite-array-unboxed (%the-array ,a   *     ,simple) mem-int)))
+
+     ((eq ,type 'character)
+      (%mwrite-array-unboxed (%the-array ,a character ,simple) character))
+
+     ((eq ,type 'base-char)
+      (%mwrite-array-unboxed (%the-array ,a base-char ,simple) base-char))
+
+     #?+hldb/sfloat/inline
+     ((eq ,type 'single-float)
+      (%mwrite-array-unboxed (%the-array ,a single-float ,simple) single-float))
+
+     #?+hldb/dfloat/inline
+     ((eq ,type 'double-float)
+      (%mwrite-array-unboxed (%the-array ,a double-float ,simple) double-float))
+
+     ((eq ,type t)
+      (%mwrite-array-t (%the-array ,a t ,simple) t))
+
+     (t
+      (%mwrite-array-t (%the-array ,a * ,simple) t))))
+
+      
 
 
 (defun mwrite-box/array (ptr index end-index array)
@@ -76,33 +128,25 @@ at (PTR+INDEX)."
 	   (type array array))
 
   (let ((rank (array-rank array))
-        (len (array-total-size array)))
+        (len  (array-total-size array))
+        (type (array-element-type array))
+        (simple (typep array 'simple-array)))
 
     #-(and) (log:trace ptr index array)
 
     (check-mem-overrun ptr index end-index (1+ rank))
 
-    (unless (= 1 rank)
-      (mset-int ptr index (the mem-int rank))
-      (incf-mem-size index))
+    (mset-int ptr index (the mem-int rank))
+    (incf-mem-size index)
 
     (loop for i from 0 below rank do
          (mset-int ptr index (the mem-int (array-dimension array i)))
          (incf-mem-size index))
 
-    (macrolet
-        ((loop-mwrite-array (&optional (element-type t))
-            (with-gensyms (i e)
-              `(loop for ,i from 0 below len
-                  for ,e ,element-type = (row-major-aref array ,i) do
-                    (setf index (mwrite ptr index end-index ,e))))))
-         
-      (cond
-        ((typep array '(simple-array fixnum)) (loop-mwrite-array fixnum))
-        ((typep array '(simple-array t))      (loop-mwrite-array))
-        (t                                    (loop-mwrite-array))))
-
-    index))
+    (if simple
+        (%mwrite-array array type t)
+        (%mwrite-array array type nil)))
+  index)
 
 
 (defun mread-box/array (ptr index end-index)

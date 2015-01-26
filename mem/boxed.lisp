@@ -39,7 +39,7 @@
 (declaim (type vector +msize-box-funcs+ +mwrite-box-funcs+ +mread-box-funcs+))
 
 (defmacro define-global-constant (name value &optional documentation)
-  `(#+(and) defparameter #-(and) define-constant-once
+  `(#+(and) define-global #-(and) define-constant-once
       ,name ,value
       ,@(when documentation `(,documentation))))
 
@@ -109,13 +109,13 @@
 
       (list         +mem-box/list+)
 
-      (array        (if (/= 1 (array-rank value))
-                        +mem-box/array+
+      (array        (if (= 1 (array-rank value))
                         (case (array-element-type value)
                           (character +mem-box/string+)
                           (base-char +mem-box/base-string+)
                           (bit       +mem-box/bit-vector+)
-                          (otherwise +mem-box/vector+))))
+                          (otherwise +mem-box/vector+))
+                        +mem-box/array+))
       
       (symbol       +mem-box/symbol+) ;; it would be the last one... out of order for speed.
 
