@@ -16,47 +16,16 @@
 (in-package :hyperluminal-mem)
 
 
+(enable-#?-syntax)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;    boxed vector                                                       ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
     
-#|
-(defmacro %mwrite-array-1-unboxed (a type)
-  (with-gensym e
-    `(progn
-       (check-mem-overrun ptr index end-index len)
-       (loop ;; with log = (log:info "1-unboxed ~S ~S" ',a ',type)
-          for ,e across ,a do
-            (mset-unboxed ptr index (the ,type ,e))
-            (incf-mem-size index)))))
-
-
-
-(defmacro %mwrite-array-1-t (a type)
-  (with-gensym e
-    `(loop
-        for ,e across ,a
-        do (setf index (mwrite ptr index end-index
-                               (the ,type ,e))))))
-
-
-|#
-
 (deftype array1 (&optional (element-type '*))
   `(and (array ,element-type (*))
         (not (or string base-string bit-vector))))
-
-(defun box-words/vector (index vector)
-  "Return the number of words needed to store VECTOR in mmap memory,
-not including BOX header."
-  (declare (type array1 vector)
-           (type mem-size index))
-
-  (box-words/array index vector))
-
-
 
 (defmacro %the-array1 (a type simple)
   `(the (,(if simple 'simple-array 'array)
@@ -64,43 +33,84 @@ not including BOX header."
           (*))
      ,a))
 
-         
-(defmacro %mwrite-array1-unboxed (a type)
-  (with-gensym e
-    `(progn
-       (check-mem-overrun ptr index end-index len)
-       (loop for ,e across ,a do
-            (mset-unboxed ptr index (the ,type ,e))
-            (incf-mem-size index)))))
+(defmacro %loop-array1-unboxed (func a type)
+  (ecase func
+    (mwrite
+     (with-gensym e
+       `(progn
+          (check-mem-overrun ptr index end-index len)
+          (loop for ,e across ,a do
+               (mset-unboxed ptr index (the ,type ,e))
+               (incf-mem-size index)))))
+    (msize
+     `(incf-mem-size index len))))
 
 
-(defmacro %mwrite-array1-t (a type)
+(defmacro %loop-array1-t (func a type)
   (with-gensym e
     `(loop for ,e across ,a do
-          (setf index (mwrite ptr index end-index
-                              (the ,type ,e))))))
+          (setf index
+                ,(ecase func
+                   (mwrite `(mwrite ptr index end-index (the ,type ,e)))
+                   (msize  `(msize index (the ,type ,e))))))))
 
 
-(defmacro %mwrite-array1 (a type simple)
+(defmacro %loop-array1 (func a type simple)
   `(cond
-     ((subtypep ,type 'mem-int)
-      (if (subtypep 'mem-int ,type)
-          (%mwrite-array1-unboxed (%the-array1 ,a mem-int ,simple) mem-int)
-          (%mwrite-array1-unboxed (%the-array1 ,a   *     ,simple) mem-int)))
+     ((mem-int=integer-type ,type)
+      (%loop-array1-unboxed ,func (%the-array1 ,a mem-int ,simple) mem-int))
+
+     ,@(when +mem-int>fixnum+
+         `(((eq ,type 'fixnum)
+            (%loop-array1-unboxed ,func (%the-array1 ,a fixnum ,simple) mem-int))))
+       
+     ((mem-int>integer-type ,type)
+      (%loop-array1-unboxed ,func (%the-array1 ,a   *     ,simple) mem-int))
 
      #?+hldb/sfloat/inline
-     ((eq ,type 'single-float)
-      (%mwrite-array1-unboxed (%the-array1 ,a single-float ,simple) single-float))
+     ((eq 'single-float ,type)
+      (%loop-array1-unboxed ,func (%the-array1 ,a single-float ,simple) single-float))
 
      #?+hldb/dfloat/inline
-     ((eq ,type 'double-float)
-      (%mwrite-array1-unboxed (%the-array1 ,a double-float ,simple) double-float))
+     ((eq 'double-float ,type)
+      (%loop-array1-unboxed ,func (%the-array1 ,a double-float ,simple) double-float))
 
-     ((eq ,type t)
-      (%mwrite-array1-t (%the-array1 ,a t ,simple) t))
+     ((eq t ,type)
+      (%loop-array1-t ,func (%the-array1 ,a t ,simple) t))
 
      (t
-      (%mwrite-array1-t (%the-array1 ,a * ,simple) t))))
+      (%loop-array1-t ,func (%the-array1 ,a * ,simple) t))))
+
+
+
+(defun box-words/vector (index vector)
+  "Return the number of words needed to store VECTOR in mmap memory,
+not including BOX header."
+  (declare (type array1 vector)
+           (type mem-size index))
+
+  (let ((len  (array-total-size vector))
+        (type (array-element-type vector))
+        (simple (typep vector 'simple-array)))
+
+    #-(and) (log:trace ptr index array)
+
+    (unless (< len (- +most-positive-int+ index))
+      (error "HYPERLUMINAL-MEM: vector too large for object store.
+it contains ~S elements, but at most ~S words are available at index ~S"
+	     len (- +most-positive-int+ index 1) index))
+
+    ;; 1 word to store vector length
+    (incf-mem-size index)
+
+    (if simple
+        (%loop-array1 msize vector type t)
+        (%loop-array1 msize vector type nil)))
+  index)
+
+
+
+         
 
 
 
@@ -123,8 +133,8 @@ at (PTR+INDEX)."
     (incf-mem-size index)
 
     (if (typep vector 'simple-array)
-        (%mwrite-array1 vector type t)
-        (%mwrite-array1 vector type nil)))
+        (%loop-array1 mwrite vector type t)
+        (%loop-array1 mwrite vector type nil)))
   index)
 
 

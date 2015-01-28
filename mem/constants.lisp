@@ -112,6 +112,39 @@
 (eval-always
   (defconstant +most-negative-int+     (lognot +most-positive-int+)))
 
+(eval-always
+  (defconstant +mem-int<fixnum+        (< most-negative-fixnum +most-negative-int+
+                                          +most-positive-int+ most-positive-fixnum)))
+(eval-always
+  (defconstant +mem-int>fixnum+        (< +most-negative-int+ most-negative-fixnum
+                                          most-positive-fixnum +most-positive-int+)))
+(eval-always
+  (defconstant +mem-int=fixnum+        (and (= most-negative-fixnum +most-negative-int+)
+                                            (= most-positive-fixnum +most-positive-int+))))
+
+
+
+(declaim (inline mem-int=integer-type mem-int>integer-type))
+
+(defun mem-int=integer-type (type)
+  (declare (type (or symbol cons) type))
+  (or
+   (and +mem-int=fixnum+ (eq type 'fixnum))
+   (and (consp type)
+        (eq  'signed-byte (first type))
+        (eql +mem-int/bits+ (second type)))))
+        
+
+(defun mem-int>integer-type (type)
+  (declare (type (or symbol cons) type))
+  (or
+   (and +mem-int>fixnum+ (eq type 'fixnum))
+   (and (consp type)
+        (member (first type) '(signed-byte unsigned-byte))
+        (> +mem-int/bits+ (the fixnum (second type))))))
+
+    
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;    ratios, i.e. mem-ratio    ;;;;

@@ -51,13 +51,12 @@
   (declare (type fixnum len))
   
   (let* ((array (make-array len
-                            :element-type 'fixnum
-                            :initial-element 0))
+                            :element-type 'hlmem::mem-int
+                            :initial-element hlmem::+most-positive-int+))
          (idx 0)
          (end (msize idx array)))
 
     (declare (type mem-size idx end))
-    (print len)
     
     (with-mem-words (ptr end)
       (time
