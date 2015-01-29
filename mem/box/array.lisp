@@ -61,7 +61,7 @@
 
      ,@(when +mem-int>fixnum+
          `(((eq ,type 'fixnum)
-            (%loop-array-unboxed ,func (%the-array1 ,a fixnum ,simple) mem-int))))
+            (%loop-array-unboxed ,func (%the-array1 ,a fixnum ,simple) fixnum))))
        
      ((mem-int>integer-type ,type)
       (%loop-array-unboxed ,func (%the-array1 ,a   *     ,simple) mem-int))

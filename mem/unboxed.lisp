@@ -43,7 +43,21 @@
 ;; pointer offsets used internally by HYPERLUMINAL-MEM. They are in units of a CPU word,
 ;; so to convert from mem-pointer to mem-size you must multiply by the number of words
 ;; required to store the object pointed to.
-(deftype mem-size    () '(unsigned-byte #.(- +mem-word/bits+ (integer-length (1- +msizeof-word+)))))
+(deftype mem-size    ()
+  "Type for offsets and sizes of serialized data. It is in units of a mem-word,
+i.e. 1 means one mem-word."
+  '(unsigned-byte
+    #.(let ((mem-size-bits
+             (- +mem-word/bits+ (integer-length (1- +msizeof-word+))))
+            (ufixnum-bits (integer-length most-positive-fixnum)))
+        ;; workaround for 32-bit SBCL and CCL, where FIXNUM is (signed-byte 30)
+        ;; while MEM-SIZE would be (unsigned-byte 30), heavily slowing down HLMEM
+        ;; due to bignum boxing: reduce MEM-SIZE by one bit, so that it fits a FIXNUM.
+        (if (= mem-size-bits (1+ ufixnum-bits))
+            ufixnum-bits
+            mem-size-bits))))
+                              
+                              
 
 
 (deftype mem-unboxed-except-ratio-symbol () 
@@ -424,7 +438,11 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
              (type mem-pointer val))
 
     (cond
-      ((typep value 'mem-int)
+      ;; value is a mem-int?
+      ;; if fixnum is smaller than mem-int, check value against fixnum first
+      ;; because it's faster and more used
+      #+#.(cl:if (cl:or hlmem::+mem-int>fixnum+ hlmem::+mem-int=fixnum+) '(:and) '(:or))
+      ((typep value 'fixnum)
        (return-from mset-unboxed (mset-int ptr index value)))
 
       ;; value is a character?
@@ -438,6 +456,14 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
 
       ;; value is +unbound-tvar+ ?
       ((eq value +unbound-tvar+) (setf val +mem-sym/unbound+))
+
+      ;; value is a mem-int?
+      ;; if fixnum is different from mem-int, check value against mem-int later
+      ;; because it's slower
+      #+#.(cl:if (cl:not hlmem::+mem-int=fixnum+) '(:and) '(:or))
+      ((typep value 'mem-int)
+       (return-from mset-unboxed (mset-int ptr index value)))
+       
 
       ;; value is a ratio?
       ((typep value 'ratio)

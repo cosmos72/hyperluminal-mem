@@ -84,7 +84,8 @@
 
          (:generator 2
           (sb-assem:inst mov
-                         (sb-vm::reg-in-size r ,size)
+                         #+x86 r
+                         #-x86 (sb-vm::reg-in-size r ,size)
                          (sb-vm::make-ea ,size :base sap :index index
                                          :scale scale :disp disp))))
 
@@ -104,7 +105,8 @@
 
          (:generator 1
           (sb-assem:inst mov
-                         (sb-vm::reg-in-size r ,size)
+                         #+x86 r
+                         #-x86 (sb-vm::reg-in-size r ,size)
                          (sb-vm::make-ea ,size :base sap :disp disp))))
 
        (sb-c:define-vop (,%mwrite-name)
@@ -127,7 +129,8 @@
           (sb-assem:inst mov
                          (sb-vm::make-ea ,size :base sap :index index
                                          :scale scale :disp disp)
-                         (sb-vm::reg-in-size value ,size))))
+                         #+x86 value
+                         #-x86 (sb-vm::reg-in-size value ,size))))
 
        (sb-c:define-vop (,%mwrite-name-c)
          (:policy :fast-safe)
@@ -144,8 +147,8 @@
          (:generator 1
           (sb-assem:inst mov
                          (sb-vm::make-ea ,size :base sap :disp disp)
-                         (sb-vm::reg-in-size value ,size))))
-
+                         #+x86 value
+                         #-x86 (sb-vm::reg-in-size value ,size))))
 
        (defmacro ,mread-name (sap index
                               &key (scale +fixnum-zero-mask+1+) (disp 0))

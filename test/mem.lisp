@@ -15,7 +15,14 @@
 
 (in-package :hyperluminal-mem.test)
 
-(declaim (notinline array-mwrite-test))
+(declaim (notinline array-mwrite-test array-mwrite-slow-test))
+
+(defun array-mwrite-slow-test (ptr index end-index array)
+  (declare (type maddress ptr)
+           (type mem-size index end-index)
+           (type array array))
+
+
 
 (defun array-mwrite-test (ptr index end-index array)
   (declare (type maddress ptr)
@@ -26,23 +33,17 @@
         (simple (typep array 'simple-array))
         (rank   (array-rank array)))
 
-    (if (and simple
-             (eql rank 1)
-             (subtypep type 'hlmem::mem-int)
-             (subtypep 'hlmem::mem-int type))
-                 
+    (if (and simple (eql rank 1) (eq type 'fixnum))
+
         (loop
-           for e across
-             ;; (hlmem::%the-array array hlmem::mem-int :simple t :rank 1)
-             (the (simple-array hlmem::mem-int (*)) array)
+           for e across (the (simple-array fixnum (*)) array)
            do
-           ;;for j from 0 below (array-total-size array)
-           ;;for e = (row-major-aref array j) do
-             (hlmem::mset-unboxed ptr index (the hlmem::mem-int e))
-             (incf index))
+             (hlmem::mset-int ptr index (the fixnum e))
+             (incf (the fixnum index)))
 
         (loop for j from 0 below (array-total-size array)
-           for e = (row-major-aref array j) do
+           for e = (row-major-aref (the (array * *) array) j)
+           do
              (setf index (mwrite ptr index end-index e))))))
 
 
@@ -51,8 +52,8 @@
   (declare (type fixnum len))
   
   (let* ((array (make-array len
-                            :element-type 'hlmem::mem-int
-                            :initial-element hlmem::+most-positive-int+))
+                            :element-type 'fixnum
+                            :initial-element 0))
          (idx 0)
          (end (msize idx array)))
 
@@ -80,7 +81,7 @@
 
        #-(and)
        (dotimes (i 1024)
-         (hlmem::mwrite-box/array ptr idx end array))
+         (hlmem::mwrite-box/vector ptr idx end array))
 
        #-(and)
        (dotimes (i 1024)
