@@ -25,7 +25,7 @@
     `(ffi-mem-set ,value ,ptr ,(parse-type type) ,byte-offset)))
 
 
-#?+hldb/fast-mem
+#?+hlmem/fast-mem
 (eval-always
   (let ((pkg (find-package (symbol-name 'hl-asm))))
 
@@ -48,7 +48,7 @@
 			    
 (eval-always
   (defmacro mget-t (type ptr word-index)
-    #?+hldb/fast-mem
+    #?+hlmem/fast-mem
     (when (eq +chosen-word-type+ (parse-type type))
       (return-from mget-t
         `(fast-mget-word (hl-asm:sap=>fast-sap ,ptr) ,word-index)))
@@ -58,7 +58,7 @@
   
 
   (defmacro mset-t (value type ptr word-index)
-    #?+hldb/fast-mem
+    #?+hlmem/fast-mem
     (when (eq +chosen-word-type+ (parse-type type))
       (return-from mset-t
         `(fast-mset-word ,value (hl-asm:sap=>fast-sap ,ptr) ,word-index)))
@@ -263,8 +263,8 @@ size of CPU word is ~S bits, expecting at least 32 bits" +mem-word/bits+))
    (error "cannot build HYPERLUMINAL-MEM: unsupported architecture.
 each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 
- (set-feature 'hldb/base-char/fits-byte +base-char/fits-byte?+)
- (set-feature 'hldb/base-char/eql/character (= +most-positive-base-char+ +most-positive-character+))
+ (set-feature 'hlmem/base-char/fits-byte +base-char/fits-byte?+)
+ (set-feature 'hlmem/base-char/eql/character (= +most-positive-base-char+ +most-positive-character+))
 
  #+sbcl
  ;; used on SBCL to access the internal representation of Lisp objects
@@ -355,7 +355,7 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
            (type mem-word fill-word)
            (type ufixnum start-index end-index))
 
-  #?+hldb/fast-mem
+  #?+hlmem/fast-mem
   (let* ((n-words      (the ufixnum  (- end-index start-index)))
 	 (n-bulk-words (the ufixnum  (logand -8 n-words)))
 	 (i            (the ufixnum  start-index))
@@ -380,7 +380,7 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
          (incf i)))
     
     
-  #?-hldb/fast-mem
+  #?-hlmem/fast-mem
   (let* ((i   (logand +mem-word/mask+ (* start-index +msizeof-word+)))
          (end (logand +mem-word/mask+ (* end-index   +msizeof-word+)))
          ;; 32-bit x86 is register-starved...

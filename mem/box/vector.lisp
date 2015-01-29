@@ -28,10 +28,10 @@
         (not (or string base-string bit-vector))))
 
 (defmacro %the-array1 (a type simple)
-  `(the (,(if simple 'simple-array 'array)
-          ,(if type type '*)
-          (*))
-     ,a))
+  (if simple
+      `(the (simple-array ,(if type type '*) 1) ,a)
+      `(the (and (not simple-array) (array ,(if type type '*) 1)) ,a)))
+
 
 (defmacro %loop-array1-unboxed (func a type)
   (ecase func
@@ -60,18 +60,18 @@
      ((mem-int=integer-type ,type)
       (%loop-array1-unboxed ,func (%the-array1 ,a mem-int ,simple) mem-int))
 
-     ,@(when +mem-int>fixnum+
-         `(((eq ,type 'fixnum)
-            (%loop-array1-unboxed ,func (%the-array1 ,a fixnum ,simple) fixnum))))
+     #?+hlmem/mem-int>fixnum
+     ((eq ,type 'fixnum)
+      (%loop-array1-unboxed ,func (%the-array1 ,a fixnum  ,simple) fixnum))
        
      ((mem-int>integer-type ,type)
       (%loop-array1-unboxed ,func (%the-array1 ,a   *     ,simple) mem-int))
 
-     #?+hldb/sfloat/inline
+     #?+hlmem/sfloat/inline
      ((eq 'single-float ,type)
       (%loop-array1-unboxed ,func (%the-array1 ,a single-float ,simple) single-float))
 
-     #?+hldb/dfloat/inline
+     #?+hlmem/dfloat/inline
      ((eq 'double-float ,type)
       (%loop-array1-unboxed ,func (%the-array1 ,a double-float ,simple) double-float))
 
@@ -105,7 +105,9 @@ it contains ~S elements, but at most ~S words are available at index ~S"
 
     (if simple
         (%loop-array1 msize vector type t)
-        (%loop-array1 msize vector type nil)))
+        ;; specializing on the element-type of non-simple arrays
+        ;; is usually not needed, as they are slow in any case
+        (%loop-array1-t msize vector t)))
   index)
 
 
@@ -134,7 +136,9 @@ at (PTR+INDEX)."
 
     (if (typep vector 'simple-array)
         (%loop-array1 mwrite vector type t)
-        (%loop-array1 mwrite vector type nil)))
+        ;; specializing on the element-type of non-simple arrays
+        ;; is usually not needed, as they are slow in any case
+        (%loop-array1-t mwrite vector t)))
   index)
 
 

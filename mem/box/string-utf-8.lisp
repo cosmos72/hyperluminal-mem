@@ -221,7 +221,7 @@ ABI: writes string length as mem-int, followed by packed array of UTF-8 encoded 
 (defun %mread-string-utf-8 (ptr index end-index result n-chars)
   (declare (type maddress ptr)
            (type mem-size index end-index)
-           (type (and simple-string #?-hldb/base-char/eql/character (not base-string))
+           (type (and simple-string #?-hlmem/base-char/eql/character (not base-string))
                  result)
            (type ufixnum n-chars))
 

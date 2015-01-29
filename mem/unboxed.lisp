@@ -63,14 +63,14 @@ i.e. 1 means one mem-word."
 (deftype mem-unboxed-except-ratio-symbol () 
   "Union of all types (except ratio and symbol) that can be stored as unboxed in memory store"
   '(or mem-int character boolean
-    #?+hldb/sfloat/inline single-float
-    #?+hldb/dfloat/inline double-float))
+    #?+hlmem/sfloat/inline single-float
+    #?+hlmem/dfloat/inline double-float))
 
 (deftype mem-unboxed-except-ratio () 
   "Union of all types (except ratio) that can be stored as unboxed in memory store"
   '(or mem-int character boolean symbol
-    #?+hldb/sfloat/inline single-float
-    #?+hldb/dfloat/inline double-float))
+    #?+hlmem/sfloat/inline single-float
+    #?+hlmem/dfloat/inline double-float))
 
 
 
@@ -416,8 +416,8 @@ ignoring any sign bit"
 
 (define-constant-once +mem-unboxed-types+
     '(mem-int character base-char boolean
-      #?+hldb/sfloat/inline single-float
-      #?+hldb/dfloat/inline double-float))
+      #?+hlmem/sfloat/inline single-float
+      #?+hlmem/dfloat/inline double-float))
 
 
 (declaim (inline mset-unboxed))
@@ -439,9 +439,9 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
 
     (cond
       ;; value is a mem-int?
-      ;; if fixnum is smaller than mem-int, check value against fixnum first
+      ;; if mem-int is larger than fixnum, check value against fixnum first
       ;; because it's faster and more used
-      #+#.(cl:if (cl:or hlmem::+mem-int>fixnum+ hlmem::+mem-int=fixnum+) '(:and) '(:or))
+      #?+hlmem/mem-int>=fixnum
       ((typep value 'fixnum)
        (return-from mset-unboxed (mset-int ptr index value)))
 
@@ -458,9 +458,9 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
       ((eq value +unbound-tvar+) (setf val +mem-sym/unbound+))
 
       ;; value is a mem-int?
-      ;; if fixnum is different from mem-int, check value against mem-int later
+      ;; if mem-int is different from fixnum, check value against mem-int later
       ;; because it's slower
-      #+#.(cl:if (cl:not hlmem::+mem-int=fixnum+) '(:and) '(:or))
+      #?-hlmem/mem-int=fixnum
       ((typep value 'mem-int)
        (return-from mset-unboxed (mset-int ptr index value)))
        
@@ -482,14 +482,14 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
 
              
       ;; value is a single-float?
-      #?+hldb/sfloat/inline
+      #?+hlmem/sfloat/inline
       ((typep value 'single-float)
        (mset-fulltag-and-value ptr index +mem-tag/sfloat+ 0)
        (mset-float/inline :sfloat ptr index value)
        (return-from mset-unboxed t))
 
       ;; value is a double-float?
-      #?+hldb/dfloat/inline
+      #?+hlmem/dfloat/inline
       ((typep value 'double-float)
        (mset-fulltag-and-value ptr index +mem-tag/dfloat+ 0)
        (mset-float/inline :dfloat ptr index value)
@@ -548,11 +548,11 @@ as multiple values."
             ((#.+mem-tag/ratio+ #.+mem-tag/neg-ratio+) ;; found a ratio
              (%word-to-ratio word))
 
-            #?+hldb/sfloat/inline
+            #?+hlmem/sfloat/inline
             (#.+mem-tag/sfloat+ ;; found a single-float
              (mget-float/inline :sfloat ptr index))
 
-            #?+hldb/dfloat/inline
+            #?+hlmem/dfloat/inline
             (#.+mem-tag/dfloat+ ;; found a double-float
              (mget-float/inline :dfloat ptr index))
 

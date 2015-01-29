@@ -22,6 +22,11 @@
            (type mem-size index end-index)
            (type array array))
 
+  (loop for j from 0 below (array-total-size array)
+     for e = (row-major-aref (the (array * *) array) j)
+     do
+       (setf index (mwrite ptr index end-index e)))
+  index)
 
 
 (defun array-mwrite-test (ptr index end-index array)
@@ -39,21 +44,17 @@
            for e across (the (simple-array fixnum (*)) array)
            do
              (hlmem::mset-int ptr index (the fixnum e))
-             (incf (the fixnum index)))
-
-        (loop for j from 0 below (array-total-size array)
-           for e = (row-major-aref (the (array * *) array) j)
-           do
-             (setf index (mwrite ptr index end-index e))))))
-
+             (hlmem::incf-mem-size index))
+        
+        (array-mwrite-slow-test ptr index end-index array))))
 
 
 (defun array-test (&optional (len (truncate 1048576 +msizeof-word+)))
   (declare (type fixnum len))
   
   (let* ((array (make-array len
-                            :element-type 'fixnum
-                            :initial-element 0))
+                            :element-type 'double-float
+                            :initial-element 0.0d0))
          (idx 0)
          (end (msize idx array)))
 

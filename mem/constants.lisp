@@ -15,6 +15,7 @@
 
 (in-package :hyperluminal-mem)
 
+(enable-#?-syntax)
 
 ;; ABI definition. The values are tuned for good balance
 ;; between performance and size of addressable store
@@ -76,7 +77,16 @@
 ;; so to convert from mem-pointer to mem-size you must multiply by the number of words
 ;; required to store the object pointed to.
 (eval-always
-  (defconstant +mem-size/bits+         (- +mem-word/bits+ (integer-length (1- +msizeof-word+)))))
+  (defconstant +mem-size/bits+
+    ;; optimization for 32-bit SBCL and CCL, where fixnum is (signed-byte 30)
+    ;; and mem-size would be (unsigned-byte 30), causing a lot of bignum allocations:
+    ;; define mem-size as (unsigned-byte 29), so that it fits a fixnum
+    (let ((bits (- +mem-word/bits+ (integer-length (1- +msizeof-word+))))
+          (ufixnum-bits (integer-length most-positive-fixnum)))
+      (if (<= 1 (- bits ufixnum-bits) 2)
+          ufixnum-bits
+          bits))))
+          
 (eval-always
   (defconstant +mem-size/mask+         (1- (ash 1 +mem-size/bits+))))
 (eval-always
@@ -113,23 +123,25 @@
   (defconstant +most-negative-int+     (lognot +most-positive-int+)))
 
 (eval-always
-  (defconstant +mem-int<fixnum+        (< most-negative-fixnum +most-negative-int+
-                                          +most-positive-int+ most-positive-fixnum)))
-(eval-always
   (defconstant +mem-int>fixnum+        (< +most-negative-int+ most-negative-fixnum
                                           most-positive-fixnum +most-positive-int+)))
 (eval-always
   (defconstant +mem-int=fixnum+        (and (= most-negative-fixnum +most-negative-int+)
                                             (= most-positive-fixnum +most-positive-int+))))
 
-
+(eval-always
+  (set-features `(hlmem/mem-int>=fixnum ,(or +mem-int>fixnum+ +mem-int=fixnum+))
+                `(hlmem/mem-int>fixnum ,+mem-int>fixnum+)
+                `(hlmem/mem-int=fixnum ,+mem-int=fixnum+)))
+                
+                
 
 (declaim (inline mem-int=integer-type mem-int>integer-type))
 
 (defun mem-int=integer-type (type)
   (declare (type (or symbol cons) type))
   (or
-   (and +mem-int=fixnum+ (eq type 'fixnum))
+   #?+hlmem/mem-int=fixnum (eq type 'fixnum)
    (and (consp type)
         (eq  'signed-byte (first type))
         (eql +mem-int/bits+ (second type)))))
@@ -138,7 +150,7 @@
 (defun mem-int>integer-type (type)
   (declare (type (or symbol cons) type))
   (or
-   (and +mem-int>fixnum+ (eq type 'fixnum))
+   #?+hlmem/mem-int>fixnum (eq type 'fixnum)
    (and (consp type)
         (member (first type) '(signed-byte unsigned-byte))
         (> +mem-int/bits+ (the fixnum (second type))))))
@@ -184,8 +196,8 @@
   (defconstant +mem-dfloat/inline?+ (mem-float/inline? :dfloat)))
 
 (eval-always
- (set-feature 'hldb/sfloat/inline +mem-sfloat/inline?+)
- (set-feature 'hldb/dfloat/inline +mem-dfloat/inline?+))
+ (set-feature 'hlmem/sfloat/inline +mem-sfloat/inline?+)
+ (set-feature 'hlmem/dfloat/inline +mem-dfloat/inline?+))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -208,8 +220,8 @@
   (unless (zerop (logand +mem-box/min-words+ (1- +mem-box/min-words+)))
     (error "+mem-box/min-words+ is ~S, instead it must be a power of two!" +mem-box/min-words+))
 
-  (set-feature 'hldb/box/header-words +mem-box/header-words+)
-  (set-feature 'hldb/box/min-words    +mem-box/min-words+))
+  (set-feature 'hlmem/box/header-words +mem-box/header-words+)
+  (set-feature 'hlmem/box/min-words    +mem-box/min-words+))
 
 
 

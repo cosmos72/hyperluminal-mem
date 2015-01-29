@@ -25,7 +25,7 @@
 
   (:import-from #:stmx.lang
 
-                #:eval-always  #:enable-#?-syntax   #:set-feature
+                #:eval-always  #:enable-#?-syntax   #:set-feature #:set-features
 
 
                 #:define-global                #:define-constant-once

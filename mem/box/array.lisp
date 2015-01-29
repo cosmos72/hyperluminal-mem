@@ -23,10 +23,11 @@
 
 
 (defmacro %the-array (a type simple)
-  `(the (,(if simple 'simple-array 'array)
-          ,(if type type '*)
-          *)
-     ,a))
+  (if simple
+      `(the (simple-array ,(if type type '*) *) ,a)
+      `(the (and (array ,(if type type '*) *)
+                 (not simple-array))
+            ,a)))
 
          
 (defmacro %loop-array-unboxed (func a type)
@@ -59,9 +60,9 @@
      ((mem-int=integer-type ,type)
       (%loop-array-unboxed ,func (%the-array1 ,a mem-int ,simple) mem-int))
 
-     ,@(when +mem-int>fixnum+
-         `(((eq ,type 'fixnum)
-            (%loop-array-unboxed ,func (%the-array1 ,a fixnum ,simple) fixnum))))
+     #?+hlmem/mem-int>fixnum
+     ((eq ,type 'fixnum)
+      (%loop-array-unboxed ,func (%the-array1 ,a fixnum  ,simple) fixnum))
        
      ((mem-int>integer-type ,type)
       (%loop-array-unboxed ,func (%the-array1 ,a   *     ,simple) mem-int))
@@ -72,11 +73,11 @@
      ((eq 'base-char ,type)
       (%loop-array-unboxed ,func (%the-array ,a base-char ,simple) base-char))
 
-     #?+hldb/sfloat/inline
+     #?+hlmem/sfloat/inline
      ((eq 'single-float ,type)
       (%loop-array-unboxed ,func (%the-array ,a single-float ,simple) single-float))
 
-     #?+hldb/dfloat/inline
+     #?+hlmem/dfloat/inline
      ((eq 'double-float ,type)
       (%loop-array-unboxed ,func (%the-array ,a double-float ,simple) double-float))
 
@@ -117,7 +118,9 @@ it contains ~S elements, but at most ~S words are available at index ~S"
 
     (if simple
         (%loop-array msize array type t)
-        (%loop-array msize array type nil)))
+        ;; specializing on the element-type of non-simple arrays
+        ;; is usually not needed, as they are slow in any case
+        (%loop-array-t msize vector t)))
   index)
 
   
@@ -150,7 +153,9 @@ at (PTR+INDEX)."
 
     (if simple
         (%loop-array mwrite array type t)
-        (%loop-array mwrite array type nil)))
+        ;; specializing on the element-type of non-simple arrays
+        ;; is usually not needed, as they are slow in any case
+        (%loop-array-t mwrite vector t)))
   index)
 
 
