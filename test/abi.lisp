@@ -56,6 +56,7 @@
            (type function comparator))
   (let ((send (msize index x))
         (xend (mwrite ptr index end-index x)))
+    (format t "(msize ~S ~S) = ~S~%" index x send)
     (is (= send xend))
     (multiple-value-bind (y yend) (mread ptr index end-index)
       (is (= xend yend))
@@ -67,12 +68,34 @@
         (end-index (+ 10 (truncate count +msizeof-word+))))
     (with-mem-words (ptr end-index)
       (loop for i from 0 below count
-         for x = 0 then (logior (ash x 8) i) do
+         for x = 0 then (logior (ash x 8) (logand i #xff)) do
            (mwrite-mread-test ptr index end-index x)
            (mwrite-mread-test ptr index end-index (- x))))))
 
 (def-test bignum (:compile-at :definition-time)
   (bignum-test 400))
+
+
+(defun ratio-test ()
+  (let* ((n-bits hlmem::+mem-ratio/numerator/bits+)
+         (n-mask (1- (ash 1 n-bits)))
+         (d-bits hlmem::+mem-ratio/denominator/bits+)
+         (d-mask (1- (ash 1 d-bits)))
+         (index 0)
+         (end-index (max (msize 0 (/ (* 2 n-mask) 3))
+                         (msize 0 (/ 1 (* 2 d-mask))))))
+    (with-mem-words (ptr end-index)
+      (loop for i from (- d-mask 10) to (+ d-mask 10) do
+           (mwrite-mread-test ptr index end-index (/ 1 i))
+           (mwrite-mread-test ptr index end-index (/ -1 i)))
+
+      (loop for i from (- n-mask 10) to (+ n-mask 10) do
+           (mwrite-mread-test ptr index end-index (/ i d-mask))
+           (mwrite-mread-test ptr index end-index (/ -1 d-mask))))))
+
+
+(def-test ratio (:compile-at :definition-time)
+  (ratio-test))
 
 
 (defparameter *abi-tree*

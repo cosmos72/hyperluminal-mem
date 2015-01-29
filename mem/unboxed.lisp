@@ -458,8 +458,8 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
       ((eq value +unbound-tvar+) (setf val +mem-sym/unbound+))
 
       ;; value is a mem-int?
-      ;; if mem-int is different from fixnum, check value against mem-int later
-      ;; because it's slower
+      ;; if mem-int is different from fixnum, check value against mem-int
+      ;; after fixnum, because it's slower
       #?-hlmem/mem-int=fixnum
       ((typep value 'mem-int)
        (return-from mset-unboxed (mset-int ptr index value)))
