@@ -56,7 +56,7 @@
            (type function comparator))
   (let ((send (msize index x))
         (xend (mwrite ptr index end-index x)))
-    (format t "(msize ~S ~S) = ~S~%" index x send)
+    ;;(format t "(msize ~S ~S) = ~S~%" index x send)
     (is (= send xend))
     (multiple-value-bind (y yend) (mread ptr index end-index)
       (is (= xend yend))
