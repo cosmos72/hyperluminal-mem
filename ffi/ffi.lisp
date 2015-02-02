@@ -187,17 +187,48 @@
            ,var))))
 
 
+#-abcl
+(declaim (inline ffi-mem-alloc))
+(defun ffi-mem-alloc (n-bytes)
+  "Allocate N-BYTES of raw memory and return raw pointer to it.
+The obtained memory must be freed manually: call FFI-MEM-FREE on it when no longer needed."
+  #-abcl
+  (cffi-sys:%foreign-alloc n-bytes)
+  #+abcl
+  (let ((ptr (java:jstatic +java-nio-bytebuffer-allocate+ nil n-bytes)))
+    (java:jcall +java-nio-bytebuffer-set-byteorder+ ptr +java-nio-byteorder-native+)
+    ptr))
+
+
+(declaim (inline ffi-mem-free))
+(defun ffi-mem-free (ptr)
+  "Deallocate a block of raw memory previously obtained with FFI-MEM-ALLOC."
+  #-abcl (declare (type cffi-sys:foreign-pointer ptr))
+  #-abcl (cffi-sys:foreign-free ptr)
+  #+abcl (declare (ignore ptr)))
+
 
 (defmacro with-ffi-mem ((var-name n-bytes &optional n-bytes-var) &body body)
   #-abcl
-  `(cffi-sys:with-foreign-pointer (,var-name ,n-bytes ,@(when n-bytes-var `(,n-bytes-var)))
-     ,@body)
+  (progn
+    (when (constantp n-bytes)
+      (setf n-bytes (eval n-bytes))
+      ;; we do not want to easily exceed the 8MB *default* maximum stack size on Linux
+      ;; so we place a somewhat arbitrary limit at 1MB
+      (when (and (typep n-bytes 'fixnum) (<= n-bytes (ash 1 20)))
+        (return-from with-ffi-mem
+          `(cffi-sys:with-foreign-pointer (,var-name ,n-bytes ,@(when n-bytes-var `(,n-bytes-var)))
+             ,@body))))
+    
+    `(let* (,@(when n-bytes-var `((,n-bytes-var ,n-bytes)))
+            (,var-name (ffi-mem-alloc ,(or n-bytes-var n-bytes))))
+       (unwind-protect
+            (progn ,@body)
+         (ffi-mem-free ,var-name))))
   #+abcl
   `(let* (,@(when n-bytes-var `((,n-bytes-var ,n-bytes)))
-          (,var-name (java:jstatic +java-nio-bytebuffer-allocate+ nil
-                                   ,(if n-bytes-var `,n-bytes-var `,n-bytes))))
-
-     (java:jcall +java-nio-bytebuffer-set-byteorder+ ,var-name +java-nio-byteorder-native+)
+          (,var-name (ffi-mem-alloc ,(or n-bytes-var n-bytes))))
+     ;; ffi-mem-free does nothing on ABCL
      ,@body))
 
 
@@ -207,6 +238,8 @@
   `(cffi-sys:with-pointer-to-vector-data (,var-name ,vector)
      ,@body)
     
+  ;; hand-crafted implementation for SBCL.
+  ;; Not needed, cffi-sys implementation is both tighter and more general
   #-(and)
   (let* ((word-size #.(cffi-sys:%foreign-type-size :pointer))
          (lisp-object-address-mask (* -2 word-size))

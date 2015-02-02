@@ -16,21 +16,22 @@
 (in-package :hyperluminal-mem)
 
 
-(declaim (inline malloc mfree)
-         (notinline !memset !memcpy))
+(declaim (notinline !memset !memcpy))
 
 
+(declaim (inline malloc))
 (defun malloc (n-bytes)
   "Allocate N-BYTES of raw memory and return raw pointer to it.
 The obtained memory must be freed manually: call MFREE on it when no longer needed."
-  #-abcl (cffi-sys:%foreign-alloc n-bytes)
-  #+abcl (java:jstatic "allocate" "java.nio.ByteBuffer" n-bytes))
+  (ffi-mem-alloc n-bytes))
 
 
+(declaim (inline mfree))
 (defun mfree (ptr)
   "Deallocate a block of raw memory previously obtained with MALLOC."
   (declare (type maddress ptr))
-  #-abcl (cffi-sys:foreign-free ptr))
+  (ffi-mem-free ptr))
+
 
            
 (defun !memset (ptr fill-byte start-byte end-byte)

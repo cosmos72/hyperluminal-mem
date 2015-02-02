@@ -120,7 +120,7 @@ it contains ~S elements, but at most ~S words are available at index ~S"
         (%loop-array msize array type t)
         ;; specializing on the element-type of non-simple arrays
         ;; is usually not needed, as they are slow in any case
-        (%loop-array-t msize vector t)))
+        (%loop-array-t msize array t)))
   index)
 
   
@@ -155,7 +155,7 @@ at (PTR+INDEX)."
         (%loop-array mwrite array type t)
         ;; specializing on the element-type of non-simple arrays
         ;; is usually not needed, as they are slow in any case
-        (%loop-array-t mwrite vector t)))
+        (%loop-array-t mwrite array t)))
   index)
 
 

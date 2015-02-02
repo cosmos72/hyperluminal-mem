@@ -32,6 +32,7 @@
                 #:when-bind    #:if-bind       #:awhen    #:aif )
 
   (:export #:ffi-mem-get     #:ffi-mem-set
+           #:ffi-mem-alloc   #:ffi-mem-free
            #:with-ffi-mem    #:with-vector-mem
            #:ffi-sizeof      #:ffi-native-type-name
            #:+null-pointer+  #:null-pointer?     #:ffi-address

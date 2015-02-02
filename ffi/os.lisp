@@ -84,7 +84,10 @@
 (defun os-munmap-ptr (ptr length-bytes)
   (declare (type ffi-address ptr))
   #-abcl (osicat-posix:munmap ptr length-bytes)
-  #+abcl nil) ;; MappedByteBuffer javadoc say it is unmapped when garbage collected.
+
+  ;; Java MappedByteBuffer docs say it is unmapped when garbage collected.
+  #+abcl
+  (declare (ignore ptr length-bytes)))
 
 
 (defun os-msync-ptr (ptr length-bytes sync)
@@ -96,6 +99,8 @@
                       (if sync
                           (logior osicat-posix:ms-sync  osicat-posix:ms-invalidate)
                           (logior osicat-posix:ms-async osicat-posix:ms-invalidate)))
+  #+abcl
+  (declare (ignore length-bytes sync))
   #+abcl
   (java:jcall "force" ptr))
 
