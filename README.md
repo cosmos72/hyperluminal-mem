@@ -21,7 +21,7 @@ Hyperluminal-mem is designed and optimized for the following objectives:
 - ease of use: adding support for user-defined types is usually
   straightforward.
 
-### Latest news, 24th January 2014
+### Latest news, 24th January 2015
 
 Released version 0.5.2. License change from GPLv3 to LLGPL!
 
@@ -338,7 +338,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    Programmers can extend Hyperluminal-mem by defining specialized methods for it,
    see `MWRITE-OBJECT` for details.
 
-- `(MREAD-OBJECT ptr index end-index &key)` is a generic function that reads
+- `(MREAD-OBJECT type ptr index end-index &key)` is a generic function that reads
    a serialized user-defined object from raw memory, deserializes and returns it.
 
    Programmers can extend Hyperluminal-mem by defining specialized methods for it,
@@ -556,7 +556,7 @@ and derive `+msizeof-word+` from it.
 
 Status
 ------
-As of January 2015, Hyperluminal-mem is being written by Massimiliano Ghilardi
+As of February 2015, Hyperluminal-mem is being written by Massimiliano Ghilardi
 and it is considered by the author to be fairly stable, tested and documented.
 It may still contain some rough edges and minor bugs.
 
