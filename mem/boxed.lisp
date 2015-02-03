@@ -118,13 +118,7 @@
                         +mem-box/array+))
       
       (symbol       +mem-box/symbol+) ;; it would be the last one... out of order for speed.
-
-      (hash-table   (ecase (hash-table-test value)
-                      ((eq    #+clisp ext:fasthash-eq)      +mem-box/hash-table-eq+)
-                      ((eql   #+clisp ext:fasthash-eql)     +mem-box/hash-table-eq+)
-                      ((equal #+clisp ext:fasthash-equal)   +mem-box/hash-table-equal+)
-                      ((equalp)                             +mem-box/hash-table-equal+)))
-                              
+      (hash-table   +mem-box/hash-table+)
       (pathname     +mem-box/pathname+))))
 
 
@@ -156,7 +150,6 @@ Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
 
 (declaim (inline msize-box-rounded-up))
-
 (defun msize-box-rounded-up (value &optional
                              (boxed-type (mdetect-box-type value)))
   "Return the number of words needed to store boxed VALUE in memory,
@@ -197,34 +190,27 @@ was concurrently modified while being written"
     new-index))
 
 
-
-
-
-
-(declaim (inline %mread-box)
-         (notinline mread-box2 mread-box))
-
+(declaim (inline %mread-box))
 (defun %mread-box (ptr index end-index boxed-type)
   "Read a boxed value from the memory starting at (PTR+INDEX) and return it.
 Return the number of words actually read as additional value.
 Skips over BOX header."
   (declare (type maddress ptr)
            (type mem-size index end-index)
-           (type mem-fulltag boxed-type))
+           (type mem-box-type boxed-type))
 
   (call-box-func +mread-box-funcs+ boxed-type ptr
                  (mem-size+ index +mem-box/header-words+) end-index))
 
-
          
 ;; (declaim (ftype ...)) for mread-box2 is in box.lisp
-
+(declaim (notinline mread-box2))
 (defun mread-box2 (ptr index end-index boxed-type)
   "Read a boxed value from the memory starting at (PTR+INDEX).
 Return the value and the number of words actually read as multiple values."
   (declare (type maddress ptr)
            (type mem-size index)
-           (type mem-fulltag boxed-type))
+           (type mem-box-type boxed-type))
 
   (check-box-type ptr index boxed-type)
 
@@ -234,7 +220,8 @@ Return the value and the number of words actually read as multiple values."
 
 (declaim (ftype (function (maddress mem-size mem-size)
 			  (values t mem-size &optional))
-                mread-box))
+                mread-box)
+         (notinline mread-box2))
 
 (defun mread-box (ptr index end-index)
   "Read a boxed value from the memory starting at (PTR+INDEX).

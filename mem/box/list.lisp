@@ -37,7 +37,6 @@
      finally
        (when cons
          (setf index (msize index cons))))
-
   index)
 
        

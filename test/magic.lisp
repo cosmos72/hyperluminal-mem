@@ -13,21 +13,27 @@
 ;; See the Lisp Lesser General Public License for more details.
 
 
-(in-package :hyperluminal-mem)
+(in-package :hyperluminal-mem.test)
+
+(def-suite magic-suite :in suite)
+(in-suite magic-suite)
+
+(defun compact-test (&optional (count 1000000))
+  (declare (type integer count))
+  (dotimes (i count)
+    (let ((c (hlmem::compact-sizeof i)))
+      (when c
+        (is (eql i (hlmem::uncompact-sizeof c)))))))
+
+(def-test compact  (:compile-at :definition-time)
+  (compact-test))
 
 
-(define-constant-once +hlmem-version+ '(0 6 0))
-
-(define-constant-once +hlmem-abi-version+ '(1 6 0))
-
-
-(defun hlmem-version ()
-  "Return HYPERLUMINAL-MEM version, in the form '(major minor patch)
-as for example '(0 4 0)"
-  +hlmem-version+)
+(defun uncompact-test ()
+  (dotimes (i 255)
+    (let ((u (hlmem::uncompact-sizeof i)))
+      (is (eql i (hlmem::compact-sizeof u))))))
 
 
-(defun hlmem-abi-version ()
-  "Return HYPERLUMINAL-MEM ABI version, in the form '(major minor patch)
-as for example '(0 1 0)"
-  +hlmem-abi-version+)
+(def-test uncompact (:compile-at :definition-time)
+  (uncompact-test))

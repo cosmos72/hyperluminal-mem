@@ -18,44 +18,37 @@
 (enable-#?-syntax)
 
 (eval-always
-  (when (< +most-positive-pointer+ +most-positive-character+)
+  (when (< +most-positive-vid+ +most-positive-character+)
     
     (error "cannot compile HYPERLUMINAL-MEM: assuming ~S-bit characters (i.e. Unicode),
-    cannot fit them in the ~S bits reserved by ABI." +character/bits+ +mem-pointer/bits+)))
+    cannot fit them in the ~S bits reserved by ABI." +character/bits+ +mem-vid/bits+)))
 
 
 
-(deftype mem-int     () '(  signed-byte #.+mem-int/bits+))
-(deftype mem-uint    () '(unsigned-byte #.+mem-int/value-bits+))
+(deftype mem-int     () `(  signed-byte ,+mem-int/bits+))
+(deftype mem-uint    () `(unsigned-byte ,+mem-int/value-bits+))
 
-(deftype mem-word    () '(unsigned-byte #.+mem-word/bits+))
+(deftype mem-word    () `(unsigned-byte ,+mem-word/bits+))
 ;; only used internally
-(deftype mem-byte    () '(unsigned-byte #.+mem-byte/bits+))
+(deftype mem-byte    () `(unsigned-byte ,+mem-byte/bits+))
 
-(deftype mem-fulltag () '(unsigned-byte #.+mem-fulltag/bits+))
-(deftype mem-tag     () '(unsigned-byte #.+mem-tag/bits+))
+(deftype mem-vid     () `(integer 0 ,+most-positive-vid+))
+(deftype mem-tag     () `(integer 0 ,+most-positive-tag+))
 
-;; pointer offsets stored in MMAP area. To better use the available bits,
-;; they are in units of the type pointed to, i.e. increasing them by 1
-;; makes them point to the next object of the same type
-(deftype mem-pointer () '(unsigned-byte #.+mem-pointer/bits+))
+(deftype mem-box-type ()
+  "Valid range for boxed-type tags"
+  `(integer ,+mem-box/first+ ,+mem-box/last+))
+
+(deftype mem-obj-type ()
+  "Valid range for boxed-type or object tags"
+  `(integer ,+mem-box/first+ ,+mem-obj+))
+
 
 ;; pointer offsets used internally by HYPERLUMINAL-MEM. They are in units of a CPU word,
-;; so to convert from mem-pointer to mem-size you must multiply by the number of words
-;; required to store the object pointed to.
 (deftype mem-size    ()
   "Type for offsets and sizes of serialized data. It is in units of a mem-word,
 i.e. 1 means one mem-word."
-  '(unsigned-byte
-    #.(let ((mem-size-bits
-             (- +mem-word/bits+ (integer-length (1- +msizeof-word+))))
-            (ufixnum-bits (integer-length most-positive-fixnum)))
-        ;; workaround for 32-bit SBCL and CCL, where FIXNUM is (signed-byte 30)
-        ;; while MEM-SIZE would be (unsigned-byte 30), heavily slowing down HLMEM
-        ;; due to bignum boxing: reduce MEM-SIZE by one bit, so that it fits a FIXNUM.
-        (if (= mem-size-bits (1+ ufixnum-bits))
-            ufixnum-bits
-            mem-size-bits))))
+  `(unsigned-byte ,+mem-size/bits+))
                               
                               
 
@@ -111,26 +104,29 @@ count and expect memory lengths in words, not in bytes."
   (the mem-int (- a b)))
 
 
-(declaim (inline mem-size+ mem-size+1 mem-size+2 mem-size- mem-size-1 mem-size*))
-
+(declaim (inline mem-size+))
 (defun mem-size+ (a &optional (b 0) (c 0))
   (declare (type mem-size a b c))
   (the mem-size (+ a b c)))
 
+(declaim (inline mem-size+1))
 (defun mem-size+1 (a)
   (mem-size+ a 1))
 
+(declaim (inline mem-size+2))
 (defun mem-size+2 (a)
   (mem-size+ a 2))
 
+(declaim (inline mem-size-))
 (defun mem-size- (a b)
   (declare (type mem-size a b))
   (the mem-size (- a b)))
 
+(declaim (inline mem-size-1))
 (defun mem-size-1 (a)
   (mem-size- a 1))
 
-
+(declaim (inline mem-size*))
 (defun mem-size* (a b)
   (declare (type mem-size a b))
   (the mem-size (* a b)))
@@ -146,61 +142,63 @@ count and expect memory lengths in words, not in bytes."
     
   
 
-(defmacro %to-fulltag (word)
-  `(logand +mem-fulltag/mask+ (ash ,word ,(- +mem-fulltag/shift+))))
+(defmacro %to-tag (word)
+  `(logand +mem-tag/mask+ (ash ,word ,(- +mem-tag/shift+))))
 
-(defmacro %to-value (word)
-  `(logand +mem-pointer/mask+ (ash ,word ,(- +mem-pointer/shift+))))
+(defmacro %to-vid (word)
+  `(logand +mem-vid/mask+ (ash ,word ,(- +mem-vid/shift+))))
 
-(defmacro %to-fulltag-and-value (val)
+(defmacro %to-tag-and-vid (val)
   (let ((word (gensym "WORD-")))
     `(let ((,word ,val))
        (values
-        (%to-fulltag ,word)
-        (%to-value   ,word)))))
+        (%to-tag ,word)
+        (%to-vid ,word)))))
        
 
-(declaim (inline mem-invalid-index? mget-fulltag mget-value mget-fulltag-and-value))
-
+(declaim (inline mem-invalid-index?))
 (defun mem-invalid-index? (ptr index)
   (declare (ignore ptr)
            (type mem-size index))
   (zerop index))
 
-(defun mget-fulltag (ptr index)
+(declaim (inline mget-tag))
+(defun mget-tag (ptr index)
   (declare (type maddress ptr)
            (type mem-size index))
-  (%to-fulltag (mget-word ptr index)))
+  (%to-tag (mget-word ptr index)))
 
-(defun mget-value (ptr index)
+(declaim (inline mget-vid))
+(defun mget-vid (ptr index)
   (declare (type maddress ptr)
            (type mem-size index))
-  (%to-value (mget-word ptr index)))
+  (%to-vid (mget-word ptr index)))
 
-(defun mget-fulltag-and-value (ptr index)
+(declaim (inline mget-tag-and-vid))
+(defun mget-tag-and-vid (ptr index)
   (declare (type maddress ptr)
            (type mem-size index))
-  (%to-fulltag-and-value (mget-word ptr index)))
+  (%to-tag-and-vid (mget-word ptr index)))
 
-(defmacro bind-fulltag-and-value ((fulltag value) (ptr index) &body body)
+(defmacro with-tag-and-vid ((tag vid) (ptr index) &body body)
   (let ((word (gensym "WORD-")))
-    `(let* ((,word    (mget-word ,ptr ,index))
-            (,fulltag (%to-fulltag ,word))
-            (,value   (%to-value ,word)))
+    `(let* ((,word (mget-word ,ptr ,index))
+            (,tag  (%to-tag ,word))
+            (,vid  (%to-vid ,word)))
        ,@body)))
 
 
 
-(declaim (inline mset-fulltag-and-value))
-(defun mset-fulltag-and-value (ptr index fulltag value)
+(declaim (inline mset-tag-and-vid))
+(defun mset-tag-and-vid (ptr index tag vid)
   (declare (type maddress ptr)
            (type mem-size index)
-           (type mem-fulltag fulltag)
-           (type mem-pointer value))
+           (type mem-tag tag)
+           (type mem-vid vid))
 
   (mset-word ptr index (logior
-                        (ash fulltag +mem-fulltag/shift+)
-                        (ash value   +mem-pointer/shift+)))
+                        (ash tag +mem-tag/shift+)
+                        (ash vid +mem-vid/shift+)))
   t)
 
 
@@ -211,11 +209,12 @@ count and expect memory lengths in words, not in bytes."
   "Write mem-int VALUE into the memory at (PTR+INDEX)"
   (declare (type maddress ptr)
            (type mem-size index)
-           (type mem-int value))
+           (type mem-int value)
+           (optimize (safety 0) (speed 3)))
 
   (mset-word ptr index
 	     (logior +mem-int/flag+
-		     (logand +mem-int/mask+ value)))
+                     (logand +mem-int/mask+ value)))
   t)
 
 
@@ -226,14 +225,17 @@ count and expect memory lengths in words, not in bytes."
   `(logand +mem-int/value-mask+ ,word))
 
 (defmacro %to-int (word)
-  (with-gensyms (word_ value sign)
-    `(let* ((,word_ ,word)
-            (,value (%to-int/value ,word_))
-            (,sign  (%to-int/sign  ,word_)))
-       (the mem-int (- ,value ,sign)))))
+  (with-gensym word_
+    `(locally
+       (declare (optimize (safety 0) (speed 3)))
+       (let ((,word_ ,word))
+         (the mem-int (- (%to-int/value ,word_)
+                         (the #+sbcl mem-int ;; cheat a bit to get tighter compiled code
+                              #-sbcl mem-word
+                              (%to-int/sign  ,word_))))))))
   
 
-(declaim (inline mget-int/value mget-int))
+(declaim (inline mget-int))
 (defun mget-int (ptr index)
   "Return the mem-int stored at (PTR+INDEX)"
   (declare (type maddress ptr)
@@ -245,7 +247,8 @@ count and expect memory lengths in words, not in bytes."
 (defsetf mget-int mset-int)
 
 
-(defun mget-int/value (ptr index)
+(declaim (inline mget-uint))
+(defun mget-uint (ptr index)
   "Return the two's complement value of mem-int stored at (PTR+INDEX),
 ignoring any sign bit"
   (declare (type maddress ptr)
@@ -257,36 +260,36 @@ ignoring any sign bit"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(declaim (inline mset-character mget-character))
-
+(declaim (inline mset-character))
 (defun mset-character (ptr index value)
   (declare (type maddress ptr)
            (type mem-size index)
            (type character value))
 
-  (mset-fulltag-and-value ptr index +mem-tag/character+ (char-code value)))
+  (mset-tag-and-vid ptr index +mem-tag/character+ (char-code value)))
 
 
+(declaim (inline mget-character))
 (defun mget-character (ptr index)
   (declare (type maddress ptr)
            (type mem-size index))
 
-  (code-char (%to-value (mget-word ptr index))))
+  (code-char (%to-vid (mget-word ptr index))))
 
 
+(defsetf mget-character mset-character)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(declaim (inline mset-ratio mget-ratio))
-
 (defmacro %ratio-to-word (numerator denominator)
-  `(logior #.(ash +mem-tag/ratio+ +mem-fulltag/shift+)
+  `(logior #.(ash +mem-tag/ratio+ +mem-tag/shift+)
            ;; keep one extra bit from numerator - captures its sign!
            (ash (logand ,numerator #.(1+ (* 2 +mem-ratio/numerator/mask+)))
                 +mem-ratio/denominator/bits+)
            (1- ,denominator)))
      
   
+(declaim (inline mset-ratio))
 (defun mset-ratio (ptr index ratio)
   (declare (type maddress ptr)
            (type mem-size index)
@@ -312,32 +315,33 @@ ignoring any sign bit"
             (,sign-bit    (logand ,fulltag-and-numerator #.(1+ +mem-ratio/numerator/mask+))))
        (/ (- ,numerator ,sign-bit) ,denominator))))
 
-
+(declaim (inline mget-ratio))
 (defun mget-ratio (ptr index)
   (declare (type maddress ptr)
            (type mem-size index))
   (%word-to-ratio (mget-word ptr index)))
 
+(defsetf mget-ratio mset-ratio)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(declaim (inline mset-symbol-ref mget-symbol-ref))
 
+(declaim (inline mset-symbol-ref))
 (defun mset-symbol-ref (ptr index symbol-ref)
   (declare (type maddress ptr)
            (type mem-size index)
-           (type mem-pointer symbol-ref))
+           (type mem-vid symbol-ref))
 
-  (mset-fulltag-and-value ptr index +mem-tag/symbol+ symbol-ref))
+  (mset-tag-and-vid ptr index +mem-tag/symbol+ symbol-ref))
 
-
+(declaim (inline mget-symbol-ref))
 (defun mget-symbol-ref (ptr index)
   (declare (type maddress ptr)
            (type mem-size index))
 
-  (mget-value ptr index))
+  (mget-vid ptr index))
 
-
+(defsetf mget-symbol-ref mset-symbol-ref)
            
 
 
@@ -382,7 +386,6 @@ ignoring any sign bit"
           `(mset-float-N ,type ,ptr ,index ,value))
       `(error "HYPERLUMINAL-MEM: cannot use inline ~As on this architecture" ,(cffi-type-name type))))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (declaim (inline is-unboxed?))
@@ -392,7 +395,7 @@ ignoring any sign bit"
   (if (or (typep value 'mem-unboxed-except-ratio-symbol)
           ;; (eq value nil) ;; redundant
           ;; (eq value t) ;; redundant
-          (eq value +unbound-tvar+)
+          ;; (eq value +unbound-tvar+) ;; redundant
           
           (and (typep value 'ratio)
                (let ((numerator (numerator value))
@@ -421,7 +424,6 @@ ignoring any sign bit"
 
 
 (declaim (inline mset-unboxed))
-
 (defun mset-unboxed (ptr index value)
   "Try to write an unboxed value to memory store. Supported types are:
 boolean, unbound slots, character and medium-size integers
@@ -429,13 +431,14 @@ boolean, unbound slots, character and medium-size integers
 
 Return T on success, or NIL if VALUE is a pointer or must be boxed."
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index)
+           (optimize (safety 0) (speed 3)))
 
   (let ((tag +mem-tag/symbol+)
-        (val +mem-sym/nil+))
+        (vid +mem-sym/nil+))
 
     (declare (type mem-tag tag)
-             (type mem-pointer val))
+             (type mem-vid vid))
 
     (cond
       ;; value is a mem-int?
@@ -447,15 +450,15 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
 
       ;; value is a character?
       ((characterp value) (setf tag +mem-tag/character+
-                                val (char-code value)))
+                                vid (char-code value)))
       ;; value is NIL ?
       ((eq value nil))
 
       ;; value is T ?
-      ((eq value t)       (setf val +mem-sym/t+))
+      ((eq value t)       (setf vid +mem-sym/t+))
 
       ;; value is +unbound-tvar+ ?
-      ((eq value +unbound-tvar+) (setf val +mem-sym/unbound+))
+      ((eq value +unbound-tvar+) (setf vid +mem-sym/unbound+))
 
       ;; value is a mem-int?
       ;; if mem-int is different from fixnum, check value against mem-int
@@ -484,30 +487,41 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
       ;; value is a single-float?
       #?+hlmem/sfloat/inline
       ((typep value 'single-float)
-       (mset-fulltag-and-value ptr index +mem-tag/sfloat+ 0)
+       (mset-tag-and-vid ptr index +mem-tag/sfloat+ 0)
        (mset-float/inline :sfloat ptr index value)
        (return-from mset-unboxed t))
 
       ;; value is a double-float?
       #?+hlmem/dfloat/inline
       ((typep value 'double-float)
-       (mset-fulltag-and-value ptr index +mem-tag/dfloat+ 0)
+       (mset-tag-and-vid ptr index +mem-tag/dfloat+ 0)
        (mset-float/inline :dfloat ptr index value)
        (return-from mset-unboxed t))
 
       (t 
        ;; value is a predefined symbol?
-       (if-bind ref-val (gethash value +symbols-table+)
-         (setf val ref-val)
+       (if-bind ref-vid (gethash value +symbols-table+)
+         (setf vid ref-vid)
          ;; default case: value cannot be be stored as unboxed type, return NIL
          ;; TODO: handle pointers
          (return-from mset-unboxed nil))))
 
-    (mset-fulltag-and-value ptr index tag val)))
+    (mset-tag-and-vid ptr index tag vid)))
 
-     
+
+(defmacro %word-is-mem-int (word)
+  (if (= +mem-word/bits+ (1+ +mem-int/bits+))
+      `(not
+        (zerop #+sbcl (logand ,word +mem-int/flag+) ;; sbcl optimizes this (word is not a fixnum)
+               #-sbcl (ash ,word ,(- +mem-int/bits+))))
+      #+sbcl
+      `(= +mem-int/flag+ (logand ,word +mem-int/flag+))
+      #-sbcl
+      `(= ,(ash +mem-int/flag+ (- +mem-int/bits+))
+           (ash ,word ,(- +mem-int/bits+)))))
+      
+        
 (declaim (inline mget-unboxed))
-
 (defun mget-unboxed (ptr index)
   "Try to read an unboxed value (boolean, unbound slot, character or mem-int)
 from memory store (on 64 bit architectures, also single-floats are unboxed)
@@ -516,51 +530,52 @@ and return it.
 If memory contains a pointer or a boxed value, return their value and fulltag
 as multiple values."
   (declare (type maddress ptr)
-           (type mem-size index))
+           (type mem-size index)
+           (optimize (safety 0) (speed 3)))
 
   (let ((word (mget-word ptr index)))
 
     ;; found a mem-int?
-    (if (zerop #+sbcl (logand word +mem-int/flag+) ;; sbcl optimizes this (word is not a fixnum)
-               #-sbcl (ash word (- +mem-int/bits+)))
+    (when (%word-is-mem-int word)
+      ;; found a mem-int
+      (return-from mget-unboxed (%to-int word)))
 
-        ;; not a mem-int
-        (let ((fulltag (%to-fulltag word))
-              (value   (%to-value   word)))
 
-          (case fulltag
-            (#.+mem-tag/symbol+ ;; found a symbol
+    ;; not a mem-int
+    (let ((tag (%to-tag word))
+          (vid (%to-vid word)))
 
-             (case word
-               (#.+mem-sym/nil+     nil)
-               (#.+mem-sym/t+       t)
-               (#.+mem-sym/unbound+ +unbound-tvar+) ;; unbound slot
-               (otherwise
-                (if (<= +mem-syms/first+ value +mem-syms/last+)
-                    ;; predefined symbol
-                    (svref +symbols-vector+ (- value +mem-syms/first+))
-                    ;; user-defined symbol... not yet implemented
-                    (values value fulltag)))))
+      (case tag
+        (#.+mem-tag/symbol+ ;; found a symbol
 
-            (#.+mem-tag/character+ ;; found a character
-             (code-char (logand value +character/mask+)))
+         (case word
+           (#.+mem-sym/nil+     nil)
+           (#.+mem-sym/t+       t)
+           (#.+mem-sym/unbound+ +unbound-tvar+) ;; unbound slot
+           (otherwise
+            (if (<= +mem-syms/first+ vid +mem-syms/last+)
+                ;; predefined symbol
+                (svref +symbols-vector+ (- vid +mem-syms/first+))
+                ;; user-defined symbol... not yet implemented
+                (values vid tag)))))
 
-            ((#.+mem-tag/ratio+ #.+mem-tag/neg-ratio+) ;; found a ratio
-             (%word-to-ratio word))
+        (#.+mem-tag/character+ ;; found a character
+         (code-char (logand vid +character/mask+)))
 
-            #?+hlmem/sfloat/inline
-            (#.+mem-tag/sfloat+ ;; found a single-float
-             (mget-float/inline :sfloat ptr index))
+        ((#.+mem-tag/ratio+ #.+mem-tag/neg-ratio+) ;; found a ratio
+         (%word-to-ratio word))
 
-            #?+hlmem/dfloat/inline
-            (#.+mem-tag/dfloat+ ;; found a double-float
-             (mget-float/inline :dfloat ptr index))
+        #?+hlmem/sfloat/inline
+        (#.+mem-tag/sfloat+ ;; found a single-float
+         (mget-float/inline :sfloat ptr index))
 
-            (otherwise ;; found a boxed value or a pointer
-             (values value fulltag))))
+        #?+hlmem/dfloat/inline
+        (#.+mem-tag/dfloat+ ;; found a double-float
+         (mget-float/inline :dfloat ptr index))
 
-        ;; found a mem-int
-        (%to-int word))))
+        (otherwise ;; found a boxed value or a pointer
+         (values vid tag))))))
+
 
 
 

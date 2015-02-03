@@ -85,7 +85,7 @@ was concurrently modified while being written"
              actual-words actual-words ptr index (mem-size- end-index index)))
 
     ;; write OBJECT header
-    (mwrite-box/header ptr index +mem-obj/first+ (round-up-size actual-words))
+    (mwrite-box/header ptr index +mem-obj+ (round-up-size actual-words))
     index2))
 
 

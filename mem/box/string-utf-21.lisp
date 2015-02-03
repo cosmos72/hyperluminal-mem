@@ -168,7 +168,7 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
-  (let* ((n-chars (mget-int/value ptr index))
+  (let* ((n-chars (mget-uint ptr index))
          (n-words (mem-size+1 (ceiling n-chars +characters-per-word+))))
     
     (check-array-length ptr index 'string n-chars)

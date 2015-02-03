@@ -48,19 +48,19 @@ ABI: package is stored as package reference if possible, otherwise as package na
            (type (or null package) pkg))
 
   (let ((tag +mem-tag/package+)
-        (val +mem-pkg/common-lisp+))
+        (vid +mem-pkg/common-lisp+))
     (cond
-      ((eq pkg +package-keyword+)          (setf val +mem-pkg/keyword+))
+      ((eq pkg +package-keyword+)          (setf vid +mem-pkg/keyword+))
       ((eq pkg +package-common-lisp+))
-      ((eq pkg +package-common-lisp-user+) (setf val +mem-pkg/common-lisp-user+))
+      ((eq pkg +package-common-lisp-user+) (setf vid +mem-pkg/common-lisp-user+))
 
       ((eq pkg nil)                        (setf tag +mem-tag/symbol+ 
-                                                 val +mem-sym/nil+))
+                                                 vid +mem-sym/nil+))
       (t
        (return-from %mwrite-package
          (mwrite-box/string-utf-8 ptr index end-index (package-name pkg)))))
 
-    (mset-fulltag-and-value ptr index tag val)
+    (mset-tag-and-vid ptr index tag vid)
     (mem-size+1 index)))
 
 
@@ -72,10 +72,10 @@ ABI: package is stored as package reference if possible, otherwise as package na
   (declare (type maddress ptr)
            (type mem-size index end-index))
 
-  (bind-fulltag-and-value (fulltag value) (ptr index)
-    (if (= +mem-tag/symbol+ fulltag)
+  (with-tag-and-vid (tag vid) (ptr index)
+    (if (= +mem-tag/symbol+ tag)
         (values
-         (ecase value
+         (ecase vid
            (#.+mem-pkg/keyword+          +package-keyword+)
            (#.+mem-pkg/common-lisp+      +package-common-lisp+)
            (#.+mem-pkg/common-lisp-user+ +package-common-lisp-user+))

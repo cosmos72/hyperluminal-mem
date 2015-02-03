@@ -53,8 +53,8 @@
   (declare (type fixnum len))
   
   (let* ((array (make-array len
-                            :element-type 't
-                            :initial-element 1234/567890123))
+                            :element-type 'fixnum
+                            :initial-element 1234))
          (idx 0)
          (end (msize idx array)))
 

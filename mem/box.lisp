@@ -36,15 +36,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(declaim (inline box-pointer->size size->box-pointer))
-
+(declaim (inline box-pointer->size))
 (defun box-pointer->size (value)
-  (declare (type mem-pointer value))
+  (declare (type mem-vid value))
   (the mem-size (* value +mem-box/min-words+)))
 
+(declaim (inline size->box-pointer))
 (defun size->box-pointer (index)
   (declare (type mem-size index))
-  (the mem-pointer (nth-value 0 (truncate index +mem-box/min-words+))))
+  (the mem-vid (nth-value 0 (truncate index +mem-box/min-words+))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -125,49 +125,50 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(declaim (inline mwrite-box/header mwrite-box/box-header
-                 mread-box/header  mread-box/box-header))
-
+(declaim (inline mwrite-box/header))
 (defun mwrite-box/header (ptr index boxed-type n-words)
   "Write to mmap area the header common to all boxed values.
 Return INDEX pointing to box payload"
   (declare (type maddress ptr)
            (type mem-size index n-words)
-           (type mem-fulltag boxed-type))
+           (type mem-tag boxed-type))
 
-  (mset-fulltag-and-value ptr index boxed-type (size->box-pointer n-words))
+  (mset-tag-and-vid ptr index boxed-type (size->box-pointer n-words))
   (incf (the mem-size index)))
 
 
+(declaim (inline mwrite-box/box-header))
 (defun mwrite-box/box-header (ptr box boxed-type)
   "Write to mmap area the header common to all boxed values.
 Return INDEX pointing to box payload"
   (declare (type maddress ptr)
            (type box box)
-           (type mem-fulltag boxed-type))
+           (type mem-tag boxed-type))
 
   (mwrite-box/header ptr (box-index box) boxed-type (box-n-words box)))
 
 
+(declaim (inline mread-box/header))
 (defun mread-box/header (ptr index)
   "Read from mmap area the header common to all boxed values.
 Return BOXED-TYPE and N-WORDS as multiple values"
   (declare (type maddress ptr)
            (type mem-size index))
 
-  (bind-fulltag-and-value (boxed-type allocated-words/4) (ptr index)
+  (with-tag-and-vid (boxed-type allocated-words/4) (ptr index)
     (values
      boxed-type
      (box-pointer->size allocated-words/4))))
 
 
+(declaim (inline mread-box/box-header))
 (defun mread-box/box-header (ptr index)
   "Read from mmap area the header common to all boxed values.
 Return BOX and BOXED-TYPE as multiple values"
   (declare (type maddress ptr)
            (type mem-size index))
 
-  (bind-fulltag-and-value (boxed-type allocated-words/4) (ptr index)
+  (with-tag-and-vid (boxed-type allocated-words/4) (ptr index)
     (values
      (make-box index (box-pointer->size allocated-words/4))
      boxed-type)))
@@ -302,7 +303,7 @@ but only ~S word~P available at that location"
 			  (values mem-size &optional))
                 mwrite-box)
          
-         (ftype (function (maddress mem-size mem-size mem-fulltag)
+         (ftype (function (maddress mem-size mem-size mem-box-type)
 			  (values t mem-size &optional))
                 mread-box2)
 

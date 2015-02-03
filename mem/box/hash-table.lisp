@@ -34,15 +34,17 @@ not including BOX header."
 it contains ~S entries, maximum supported is ~S entries"
 	     len +most-positive-int+)))
 
-  ;; +1 to store number of entries
-  (incf-mem-size index)
+  ;; +1 to store test function, and another +1 for number of entries
+  (incf-mem-size index 2)
 
   (loop for k being the hash-keys in htable using (hash-value v)
      do
        (setf index (msize* index k v)))
   index)
 
-  
+
+(eval-always
+  (define-constant-once +hash-table-tests+ #(eq eql equal equalp)))
 
 (defun mwrite-box/hash-table (ptr index end-index htable)
   "Write hash-table HTABLE into the memory starting at (PTR+INDEX).
@@ -57,13 +59,16 @@ at (PTR+INDEX)."
   (let ((len (hash-table-count htable))
         (test (hash-table-test htable)))
 
-    (check-mem-overrun ptr index end-index 1)
+    (check-mem-overrun ptr index end-index 2)
 
     (mset-int ptr index
-              (case test
-                ((eq equal #+clisp ext:fasthash-eq #+clisp ext:fasthash-equal) len)
-                (otherwise (lognot len))))
-                            
+              (ecase test
+                ((eq     #+clisp ext:fasthash-eq)    0)
+                ((eql    #+clisp ext:fasthash-eql)   1)
+                ((equal  #+clisp ext:fasthash-equal) 2)
+                ((equalp)                            3)))
+
+    (mset-int ptr (incf-mem-size index) len)
     (incf-mem-size index)
 
     (loop for k being the hash-keys in htable using (hash-value v)
@@ -73,7 +78,6 @@ at (PTR+INDEX)."
     index))
 
 
-(define-constant-once +hash-table-tests+ #(eq eql equal equalp))
 
 (defun mread-box/hash-table (ptr index end-index)
   "Read a hash-table from the boxed memory starting at (PTR+INDEX) and return it.
@@ -83,23 +87,15 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
-  (check-mem-length ptr index end-index 1)
+  (check-mem-length ptr index end-index 2)
 
-  (let* (;; re-read BOX header, because we need the boxed-type
-         (boxed-type (mget-fulltag ptr (mem-size- index +mem-box/header-words+)))
-         (test-index (if (= boxed-type +mem-box/hash-table-eq+) 0 2))
-	 (len (mget-int ptr index)))
+  (let* ((hash-test-function-index (mget-int ptr index))
+	 (len (mget-int ptr (incf-mem-size index))))
 
-    (declare (type (mod 4) test-index)
-             (type mem-int len))
-         
-    (when (< len 0)
-      (incf test-index)
-      (setf len (lognot len)))
-
+    (check-type hash-test-function-index (mod #.(length +hash-table-tests+)))
     (incf-mem-size index)
 
-    (let ((htable (make-hash-table :test (svref +hash-table-tests+ test-index)
+    (let ((htable (make-hash-table :test (svref +hash-table-tests+ hash-test-function-index)
                                    :size len)))
       (loop for i from 0 below len
 	 do (with-mread* (k v new-index) (ptr index end-index)

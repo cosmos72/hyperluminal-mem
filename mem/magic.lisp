@@ -20,8 +20,8 @@
     (declare (type string s))
     (let* ((n (length s))
            (v (make-array n)))
-      (loop for i from 0 below n do
-           (setf (svref v i) (char-code (char s i))))
+      (dotimes (i n)
+        (setf (svref v i) (char-code (char s i))))
       v)))
 
 (define-global *endian-magic*
@@ -30,15 +30,54 @@
 (define-global *x-endian-magic*
     (string-to-code-vector (if +mem/little-endian+ "HLDB" "hldb")))
 
+
+(eval-always
+  (defun compact-sizeof (sizeof)
+    (declare (type (integer 0) sizeof))
+
+    (macrolet ((%compact-sizeof (sizeof)
+                 `(let* ((bits% (integer-length ,sizeof))
+                         ;; bump powers-of-2 to the previous interval
+                         (bits (- bits% (if (zerop (logand sizeof (1- ,sizeof))) 1 0)))
+                         (shift (- bits 3))
+                         (mask (1- (ash 1 shift))))
+
+                    (if (zerop (logand sizeof mask))
+                        (the fixnum
+                             (+ (* 4 bits) -12
+                                (ash sizeof (- shift))))
+                        nil))))
+      (if (typep sizeof 'fixnum)
+          (if (<= sizeof 8)
+              sizeof
+              (%compact-sizeof (the fixnum sizeof)))
+          (%compact-sizeof (the bignum sizeof))))))
+
+     
+(eval-always
+  (defun uncompact-sizeof (csizeof)
+    (declare (type (unsigned-byte 8) csizeof))
+    (when (<= csizeof 8)
+      (return-from uncompact-sizeof csizeof))
+
+    (let* ((mod-4 (logand csizeof 3))
+           (power-of-2 (1- (ash csizeof -2))))
+
+      ;;(log:info csizeof power-of-2 mod-4)
+      (ash (+ 4 mod-4) power-of-2))))
+
+
+     
+      
 (define-global *magic-write-list*
-    '((4  abi-major-version   #.(first  +hlmem-abi-version+))
-      (5  abi-minor-version   #.(second +hlmem-abi-version+))
-      (6  abi-patch-version   #.(third  +hlmem-abi-version+))
-      (7  bits-per-tag        #.+mem-tag/bits+)
-      (8  sizeof-word         #.+msizeof-word+)
-      (9  sizeof-single-float #.+msizeof-sfloat+)
-      (10 sizeof-double-float #.+msizeof-dfloat+)
-      (11 unused              0)
+    `((4  abi-major-version   ,(first  +hlmem-abi-version+))
+      (5  abi-minor-version   ,(second +hlmem-abi-version+))
+      (6  abi-patch-version   ,(third  +hlmem-abi-version+))
+      (7  bits-per-tag        ,+mem-tag/bits+)
+      (8  compact-sizeof-word         ,(compact-sizeof +msizeof-word+)   ,+msizeof-word+)
+      (9  compact-sizeof-single-float ,(compact-sizeof +msizeof-sfloat+) ,+msizeof-sfloat+)
+      (10 compact-sizeof-double-float ,(compact-sizeof +msizeof-dfloat+) ,+msizeof-dfloat+)
+      (11 bits-lost-per-mem-int ,(- +mem-word/bits+ +mem-int/bits+))
       (12 unused              0)
       (13 unused              0)
       (14 unused              0)
@@ -46,8 +85,16 @@
 
 
 (define-global *magic-read-list*
-    (remove-if (lambda (x) (member (second x) '(abi-minor-version abi-patch-version unused)))
-               *magic-write-list*)
+    (loop for x in *magic-write-list*
+       unless (third x)
+       do (error "HYPERLUMINAL-MEM compile error.
+  The constant ~A = ~S cannot be represented as a compressed size.
+  Please fix the customization in \"constants.lisp\" before recompiling."
+                 (subseq (symbol-name (second x)) 8) (fourth x))
+         
+       unless (member (second x) '(abi-minor-version abi-patch-version unused))
+       collect x)
+
   "When opening an HLDB file or exchanging HLMEM serialized data with another process,
 we do not check ABI-MINOR-VERSION and ABI-PATCH-VERSION:
 they are allowed to differ between data and compiled library")

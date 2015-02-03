@@ -19,7 +19,7 @@
 
 (asdf:defsystem :hyperluminal-mem
   :name "HYPERLUMINAL-MEM"
-  :version "0.5.2"
+  :version "0.6.0"
   :license "LLGPL"
   :author "Massimiliano Ghilardi"
   :description "High-performance serialization library, designed for untrusted data"
@@ -111,7 +111,7 @@
 
 (asdf:defsystem :hyperluminal-mem.test
   :name "HYPERLUMINAL-MEM.TEST"
-  :version "0.5.2"
+  :version "0.6.0"
   :author "Massimiliano Ghilardi"
   :license "LLGPL"
   :description "test suite for hyperluminal-mem"
@@ -122,6 +122,7 @@
 
   :components ((:module :test
                 :components ((:file "package")
+                             (:file "magic"         :depends-on ("package"))
                              (:file "mem"           :depends-on ("package"))
                              (:file "abi"           :depends-on ("mem"))
                              (:file "stmx-objects"  :depends-on ("abi"))))))

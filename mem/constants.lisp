@@ -21,18 +21,22 @@
 ;; between performance and size of addressable store
 
 
-;;  8 bits reserved for type tags on 32-bit architectures
-;; 16 bits reserved for type tags on 64-bit architectures
-;; ...
-;; the rest of each CPU word is used for pointer index or value
+;; 5 or 6 bits reserved for type tags,
+;; the rest of each CPU word is used for tagged values i.e. vids
 (eval-always
-  (defconstant +mem-fulltag/bits+ (truncate +mem-word/bits+ 4)))
+  (defconstant +mem-tag/bits+
+    (if (<= +mem-word/bits+ 32) 5 6)))
+
 (eval-always
-  (defconstant +mem-pointer/bits+ (- +mem-word/bits+ +mem-fulltag/bits+)))
+  (defconstant +mem-vid/bits+ (- +mem-word/bits+ +mem-tag/bits+)))
 
 ;; integers (actually, mem-int) are one bit less than CPU words
+;; EXCEPTION:
+;; when using 32-bit ABI, they are two bits less than CPU words
+;; in order to match the fixnums of 32-bit SBCL and CCL 
 (eval-always
-  (defconstant +mem-int/bits+      (1-  +mem-word/bits+)))
+  (defconstant +mem-int/bits+
+    (- +mem-word/bits+ (if (<= +mem-word/bits+ 32) 2 1))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -42,56 +46,31 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+(eval-always
+  ;; sanity checks
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; type tags and pointers ;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (when (< +mem-tag/bits+ 5)
+    (error "HYPERLUMINAL-MEM compile error.
+  Invalid ~S = ~S, must be at least 5.
+  Please fix the customization in \"constants.lisp\" before recompiling."
+           '+mem-tag/bits+ +mem-tag/bits+))
 
-(eval-always
-  (defconstant +mem-fulltag/shift+     +mem-pointer/bits+))
-(eval-always
-  (defconstant +mem-fulltag/mask+      (1- (ash 1 +mem-fulltag/bits+))))
-(eval-always
-  (defconstant +most-positive-fulltag+ +mem-fulltag/mask+))
+  (unless (< +mem-int/bits+ +mem-word/bits+)
+    (error "HYPERLUMINAL-MEM compile error.
+  Invalid ~S = ~S, must be smaller than ~S = ~S.
+  Please fix the customization in \"constants.lisp\" before recompiling."
+           '+mem-int/bits+ +mem-int/bits+ '+mem-word/bits+ +mem-word/bits+))
 
-;; reserve most significant fulltag bit to mark integers
-;; fulltags larger than +most-positive-tag+ indicate an integer (actually, mem-int) value
-(eval-always
-  (defconstant +mem-tag/bits+          (1- +mem-fulltag/bits+)))
-(eval-always
-  (defconstant +mem-tag/mask+          (1- (ash 1 +mem-tag/bits+))))
-(eval-always
-  (defconstant +most-positive-tag+      +mem-tag/mask+))
+  (when (and (< +mem-tag/bits+ 6)
+             (= +mem-int/bits+ (1- +mem-word/bits+)))
+    (error "HYPERLUMINAL-MEM compile error.
+  Invalid combination ~S = ~S, ~S = ~S.
+  When ~S is (1- ~S) as in this case, ~S must be at least 6.
+  Please fix the customization in \"constants.lisp\" before recompiling."
+           '+mem-int/bits+ +mem-int/bits+ '+mem-tag/bits+ +mem-tag/bits+
+           '+mem-int/bits+ '+mem-word/bits+ '+mem-tag/bits+)))
 
-;; pointer offsets stored in MMAP area. To better use the available bits,
-;; they are in units of the type pointed to, i.e. increasing them by 1
-;; makes them point to the next object of the same type
-(eval-always
-  (defconstant +mem-pointer/shift+     0))
-(eval-always
-  (defconstant +mem-pointer/mask+      (1- (ash 1 +mem-pointer/bits+))))
-(eval-always
-  (defconstant +most-positive-pointer+ +mem-pointer/mask+))
-
-;; pointer offsets used internally by HYPERLUMINAL-MEM. They are in units of a CPU word,
-;; so to convert from mem-pointer to mem-size you must multiply by the number of words
-;; required to store the object pointed to.
-(eval-always
-  (defconstant +mem-size/bits+
-    ;; optimization for 32-bit SBCL and CCL, where fixnum is (signed-byte 30)
-    ;; and mem-size would be (unsigned-byte 30), causing a lot of bignum allocations:
-    ;; define mem-size as (unsigned-byte 29), so that it fits a fixnum
-    (let ((bits (- +mem-word/bits+ (integer-length (1- +msizeof-word+))))
-          (ufixnum-bits (integer-length most-positive-fixnum)))
-      (if (<= 1 (- bits ufixnum-bits) 2)
-          ufixnum-bits
-          bits))))
-          
-(eval-always
-  (defconstant +mem-size/mask+         (1- (ash 1 +mem-size/bits+))))
-(eval-always
-  (defconstant +most-positive-size+    +mem-size/mask+))
-
+  
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;    integers, i.e. mem-int    ;;;;
@@ -158,14 +137,65 @@
     
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; type tags and vids ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(eval-always
+  (defconstant +mem-tag/shift+     (- +mem-word/bits+ +mem-tag/bits+)))
+(eval-always
+  (defconstant +mem-tag/mask+      (1- (ash 1 +mem-tag/bits+))))
+
+;; reserve the top fulltag values to mark integers:
+;; fulltags larger than +most-positive-tag+ indicate an integer (actually, mem-int) value
+(eval-always
+  (defconstant +most-positive-tag+ (1- (ash +mem-int/flag+ (- +mem-tag/shift+)))))
+
+
+;; serialized tagged values. To better use the available bits,
+;; in case they represent raw memory pointer offsets,
+;; they are in units of the type pointed to, i.e. increasing them by 1
+;; makes them point to the next object of the same type
+(eval-always
+  (defconstant +mem-vid/shift+     0))
+(eval-always
+  (defconstant +mem-vid/mask+      (1- (ash 1 +mem-vid/bits+))))
+(eval-always
+  (defconstant +most-positive-vid+ +mem-vid/mask+))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; mem-size, i.e. raw memory lengths and offsets ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; mem-size are used internally by HYPERLUMINAL-MEM for raw memory lengths and pointer offsets.
+;; They are in units of a CPU word, so to convert from mem-vid to mem-size
+;; you must multiply by the number of words required to store the object pointed to.
+(eval-always
+  (defconstant +mem-size/bits+
+    ;; optimization for 32-bit SBCL and CCL, where fixnum is (signed-byte 30)
+    ;; and mem-size would be (unsigned-byte 30), causing a lot of bignum allocations:
+    ;; define mem-size as (unsigned-byte 29), so that it fits a fixnum
+    (let ((bits (- +mem-word/bits+ (integer-length (1- +msizeof-word+))))
+          (ufixnum-bits (integer-length most-positive-fixnum)))
+      (if (<= 1 (- bits ufixnum-bits) 2)
+          ufixnum-bits
+          bits))))
+          
+(eval-always
+  (defconstant +mem-size/mask+         (1- (ash 1 +mem-size/bits+))))
+(eval-always
+  (defconstant +most-positive-size+    +mem-size/mask+))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;    ratios, i.e. mem-ratio    ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defconstant +mem-ratio/bits+             +mem-pointer/bits+)
+(defconstant +mem-ratio/bits+             +mem-vid/bits+)
 (defconstant +mem-ratio/denominator/bits+ (ash +mem-ratio/bits+ -1))
 (defconstant +mem-ratio/denominator/mask+ (1- (ash 1 +mem-ratio/denominator/bits+)))
-(defconstant +mem-ratio/numerator/bits+   (- +mem-pointer/bits+ +mem-ratio/denominator/bits+))
+(defconstant +mem-ratio/numerator/bits+   (- +mem-vid/bits+ +mem-ratio/denominator/bits+))
 (defconstant +mem-ratio/numerator/mask+   (1- (ash 1 +mem-ratio/numerator/bits+)))
 
 
@@ -184,7 +214,7 @@
   (defun %mem-float/inline? (type)
     (declare (type (member :float :double :sfloat :dfloat type)))
     (let ((size (msizeof type)))
-      (<= (* size +mem-byte/bits+) +mem-pointer/bits+)))
+      (<= (* size +mem-byte/bits+) +mem-vid/bits+)))
 
   (defmacro mem-float/inline? (type)
     (if (keywordp type)
@@ -209,7 +239,9 @@
     in multiples of 4 CPU-words. This value must be a power of two."))
 
 (eval-always
-  (defconstant +mem-box/max-words+    (* (1+ +most-positive-pointer+) +mem-box/min-words+))
+  (defconstant +mem-box/max-words+    (min
+                                       +most-positive-size+
+                                       (* (1+ +most-positive-vid+) +mem-box/min-words+)))
   (defconstant +mem-box/header-words+ 1 "boxed values have a 1 CPU-word header"))
 
 (eval-always
@@ -279,46 +311,39 @@
 (defconstant +mem-box/complex-dfloat+   11 "box is a complex of double-floats")
 (defconstant +mem-box/complex-rational+ 12 "box is a complex of rationals")
 (defconstant +mem-box/pathname+         13 "box is a pathname")
-(defconstant +mem-box/hash-table-eq+    14 "box is a hash-table with 'eq or 'eql test")
-(defconstant +mem-box/hash-table-equal+ 15 "box is a hash-table with 'equal or 'equalp test")
-(defconstant +mem-box/list+             16 "box is a cons or list")
-(defconstant +mem-box/array+            17 "box is a N-dimensional array")
-(defconstant +mem-box/vector+           18 "box is a 1-dimensional array, i.e. a vector")
+(defconstant +mem-box/hash-table+       14 "box is a hash-table")
+(defconstant +mem-box/list+             15 "box is a cons or list")
+(defconstant +mem-box/array+            16 "box is a N-dimensional array")
+(defconstant +mem-box/vector+           17 "box is a 1-dimensional array, i.e. a vector")
 
-(defconstant +mem-box/string-utf-21+    19 "box is a string, i.e. a (vector character)")
-(defconstant +mem-box/string-utf-8+     20 "box is a string, i.e. a (vector character)")
+(defconstant +mem-box/string-utf-21+    18 "box is a string, i.e. a (vector character)")
+(defconstant +mem-box/string-utf-8+     19 "box is a string, i.e. a (vector character)")
 (defconstant +mem-box/string+           +mem-box/string-utf-21+ "default string format is UTF-21")
 
-(defconstant +mem-box/base-string+      21 "box is a base-string, i.e. a (vector base-char)")
-(defconstant +mem-box/bit-vector+       22 "box is a bit-vector, i.e. a (vector bit)")
-(defconstant +mem-box/symbol+           23 "object is a symbol or keyword")
+(defconstant +mem-box/base-string+      20 "box is a base-string, i.e. a (vector base-char)")
+(defconstant +mem-box/bit-vector+       21 "box is a bit-vector, i.e. a (vector bit)")
+(eval-always
+  (defconstant +mem-box/symbol+           22 "object is a symbol or keyword")
+  (defconstant +mem-box/first+            +mem-box/bignum+)
+  (defconstant +mem-box/last+             +mem-box/symbol+)
 
-(defconstant +mem-box/first+            +mem-box/bignum+)
-(defconstant +mem-box/last+             +mem-box/symbol+)
+  (let ((obj-tag (1+ +mem-box/symbol+)))
+    (when (< +most-positive-tag+ obj-tag)
+      (error "HYPERLUMINAL-MEM compile error:
+  ~S is too small! found ~S, minimum supported is ~S
+  Please increase ~S before recompiling"
+             '+most-positive-tag+ +most-positive-tag+ obj-tag +mem-tag/bits+))
 
-(defconstant +mem-obj/first+            24 "first type tag available for objects or structs")
-(defconstant +mem-obj/last+             +mem-tag/mask+)
+    (defconstant +mem-obj+ obj-tag "type tag for user-defined objects or structs")))
 
-(defconstant +mem-obj-user/first+       27 "first type tag available for user-defined objects or structs")
-(defconstant +mem-obj-user/last+        +mem-obj/last+)
 
 
 (declaim (type vector +mem-boxed-type-syms+))
-
 (define-constant-once +mem-boxed-type-syms+
+    ;; these MUST match the constants defined above!!
     #(bignum ratio sfloat dfloat
       complex-sfloat complex-dfloat complex-rational
-      ;; hash-table is repeated twice to match
-      ;; +mem-box/hash-table-eq+ and +mem-box/hash-table-equal+ 
-      pathname hash-table hash-table list
+      pathname hash-table list
       array vector string-utf-21 string-utf-8 base-string bit-vector symbol))
 
-
-(deftype mem-box-type ()
-  "Valid range for boxed-type tags"
-  `(integer ,+mem-box/first+ ,+mem-box/last+))
-
-(deftype mem-obj-type ()
-  "Valid range for object-type tags"
-  `(integer ,+mem-obj/first+ ,+mem-obj/last+))
 
