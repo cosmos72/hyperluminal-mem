@@ -72,9 +72,9 @@ Assumes BOX header was already read."
     (values
      (complex
       (the single-float (mget-t :sfloat ptr index))
-      (the single-float (mget-t :sfloat ptr (mem-size+ index n-words-real))))
+      (the single-float (mget-t :sfloat ptr (incf-mem-size index n-words-real))))
 
-     (mem-size+ index n-words))))
+     (incf-mem-size index n-words-imag))))
 
 
 
@@ -129,9 +129,9 @@ Assumes BOX header was already read."
     (values
      (complex
       (the double-float (mget-t :dfloat ptr index))
-      (the double-float (mget-t :dfloat ptr (mem-size+ index n-words-real))))
+      (the double-float (mget-t :dfloat ptr (incf-mem-size index n-words-real))))
 
-     (mem-size+ index n-words))))
+     (incf-mem-size index n-words-imag))))
 
 
 
