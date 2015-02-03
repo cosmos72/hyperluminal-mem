@@ -58,14 +58,14 @@
 (defmacro %loop-array (func a type simple)
   `(cond
      ((mem-int=integer-type ,type)
-      (%loop-array-unboxed ,func (%the-array1 ,a mem-int ,simple) mem-int))
+      (%loop-array-unboxed ,func (%the-array ,a mem-int ,simple) mem-int))
 
      #?+hlmem/mem-int>fixnum
      ((eq ,type 'fixnum)
-      (%loop-array-unboxed ,func (%the-array1 ,a fixnum  ,simple) fixnum))
+      (%loop-array-unboxed ,func (%the-array ,a fixnum  ,simple) fixnum))
        
      ((mem-int>integer-type ,type)
-      (%loop-array-unboxed ,func (%the-array1 ,a   *     ,simple) mem-int))
+      (%loop-array-unboxed ,func (%the-array ,a   *     ,simple) mem-int))
 
      ((eq 'character ,type)
       (%loop-array-unboxed ,func (%the-array ,a character ,simple) character))

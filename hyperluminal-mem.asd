@@ -50,7 +50,7 @@
 		 (:file "compiler"       :depends-on ("package"))
 		 #+(or x86 x86-64)
 		 (:file "x86"            :depends-on ("compiler")))
-    :depends-on (:ffi))
+    :depends-on (:lang :ffi))
                   
    (:module :mem
     :components ((:file "package")
@@ -104,7 +104,7 @@
 						      "box/bit-vector"
 						      "box/symbol"
 						      "object")))
-    :depends-on (:ffi
+    :depends-on (:lang :ffi
 		 #+(and sbcl (or x86 x86-64)) :sbcl))))
 
 
