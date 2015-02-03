@@ -303,7 +303,8 @@
 
 (defconstant +mem-box/unallocated+       0 "box is unallocated")
 
-(defconstant +mem-box/bignum+            6 "box is a bignum") ;; intentionally eql +mem-tag/box+
+(eval-always
+  (defconstant +mem-box/bignum+          6 "box is a bignum")) ;; intentionally eql +mem-tag/box+
 (defconstant +mem-box/ratio+             7 "box is a ratio")
 (defconstant +mem-box/sfloat+            8 "box is a single-float")
 (defconstant +mem-box/dfloat+            9 "box is a double-float")

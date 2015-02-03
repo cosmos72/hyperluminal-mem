@@ -412,7 +412,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
                   (make-instance 'point3d :x x :y y :z z)
                    index-z)))))
    
-   The `with-mread*` macro comes to the rescue, removing all the boilerplate:
+   The `with-mread*` macro comes to the rescue, removing most boilerplate code:
 
         (defmethod mread-object ((type (eql 'point3d)) ptr index end-index &key)
           (with-mread* (x y z new-index) (ptr index end-index)
@@ -529,7 +529,7 @@ among the following candidates:
 * :unsigned-long
 * :unsigned-long-long
 
-In case it does not find a type with the requested size, it will raise an error.
+In case it does not find a type with the requested size, it will signal an error.
 
 Forcing the same value that would be autodetected is fine and harmless.
 Also, the chosen type must be at least 32 bits wide, but there is no upper limit:
