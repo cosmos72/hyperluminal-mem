@@ -63,6 +63,21 @@
       (is-true (funcall comparator x y)))))
           
 
+(defun mem-int-test ()
+  (let* ((n1 (- +most-negative-int+ 10))
+         (n2 -10)
+         (n3 (+ +most-positive-int+ 10))
+         (index 0)
+         (end-index (max (msize index n1) (msize index n2) (msize index n3))))
+    (with-mem-words (ptr end-index)
+      (dolist (i (list n1 n2 n3))
+        (dotimes (j 20)
+          (mwrite-mread-test ptr index end-index (+ i j)))))))
+
+(def-test mem-int (:compile-at :definition-time)
+  (mem-int-test))
+          
+
 (defun bignum-test (count)
   (let ((index 0)
         (end-index (+ 10 (truncate count +msizeof-word+))))

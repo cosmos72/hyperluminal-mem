@@ -27,7 +27,7 @@
       (values index scale disp))))
 
 
-(defmacro def-fast-mread-mwrite (&key mread-name mwrite-name type size)
+(defmacro define-fast-mread-mwrite (&key mread-name mwrite-name type size)
 
   (let ((%mread-name  (concat-symbols '% mread-name))
         (%mwrite-name (concat-symbols '% mwrite-name))
@@ -165,11 +165,59 @@
 	   
 
 
-(def-fast-mread-mwrite :mread-name fast-mread/4 :mwrite-name fast-mwrite/4
-                       :type (unsigned-byte 32) :size :dword)
+(define-fast-mread-mwrite :mread-name fast-mread/4 :mwrite-name fast-mwrite/4
+                          :type (unsigned-byte 32) :size :dword)
 
 
 #+x86-64
-(def-fast-mread-mwrite :mread-name fast-mread/8 :mwrite-name fast-mwrite/8
-                       :type (unsigned-byte 64) :size :qword)
+(define-fast-mread-mwrite :mread-name fast-mread/8 :mwrite-name fast-mwrite/8
+                          :type (unsigned-byte 64) :size :qword)
 
+
+
+
+
+
+
+(defmacro define-fast-mword=>fixnum ()
+  (let* ((sizeof-word (truncate (integer-length sb-ext:most-positive-word) 8))
+         (name  (concat-symbols 'fast-mword/ sizeof-word '=>fixnum))
+         (%name (concat-symbols '% name)))
+    
+    `(progn
+       (defknown ,%name
+           ;;arg-types
+           (sb-ext:word)
+           ;;result-type
+           fixnum
+           (sb-c::flushable sb-c::foldable sb-c::movable sb-c::always-translatable))
+
+       (sb-c:define-vop (,%name)
+         (:policy :fast-safe)
+         (:translate ,%name)
+         
+         (:args (x :scs (sb-vm::unsigned-reg) :target y
+                   :load-if (not (sb-c::location= x y))))
+         (:arg-types sb-vm::unsigned-num)
+         (:results (y :scs (sb-vm::any-reg)
+                      :load-if (not (sb-c::location= x y))))
+         (:result-types sb-vm::tagged-num)
+         (:generator 1
+          (cond ((not (sb-c::location= x y))
+                 (if (= +n-fixnum-tag-bits+ 1)
+                     (sb-assem::inst lea y (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                                           :base x :index x))
+                     (sb-assem::inst lea y (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                                           :index x
+                                                           :scale (ash 1 +n-fixnum-tag-bits+)))))
+                (t
+                 (sb-c::move y x)
+                 (sb-assem::inst shl y +n-fixnum-tag-bits+)))))
+
+       (declaim (ftype (function (sb-ext:word) (values fixnum &optional)) ,name)
+                (inline ,name))
+       (defun ,name (x)
+         (declare (type sb-ext:word x))
+         (the fixnum (,%name x))))))
+
+(define-fast-mword=>fixnum)

@@ -63,6 +63,12 @@
     (with-mem-words (ptr end)
       (time
 
+       #-(and)
+       (progn
+         (mwrite ptr idx end array)
+         (dotimes (i 1024)
+           (mread ptr idx end)))
+       
        #+(and)
        (dotimes (i 1024)
          (mwrite ptr idx end array))

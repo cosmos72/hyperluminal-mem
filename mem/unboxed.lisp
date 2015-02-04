@@ -24,6 +24,27 @@
     cannot fit them in the ~S bits reserved by ABI." +character/bits+ +mem-vid/bits+)))
 
 
+(eval-always
+  (defconstant +fast-mword=>fixnum-symbol+
+    (concat-symbols 'fast-mword/ +msizeof-word+ '=>fixnum)))
+
+(eval-always
+  (set-feature 'hlmem/fast-mword=>fixnum
+               ;; fast-mword=>fixnum is usable only if mem-int equals fixnum
+               (and (get-feature 'hlmem/mem-int=fixnum)
+                    (have-symbol? 'hl-asm +fast-mword=>fixnum-symbol+))))
+
+;; if available, use fast implementation of mword=>fixnum
+#?+hlmem/fast-mword=>fixnum
+(eval-always
+  (let ((pkg (find-package (symbol-name 'hl-asm))))
+    (defconstant +fast-mword=>fixnum+  (intern (symbol-name +fast-mword=>fixnum-symbol+) pkg))))
+
+#?+hlmem/fast-mword=>fixnum
+(eval-always
+  (defmacro fast-mword=>fixnum (x)
+    `(,+fast-mword=>fixnum+ ,x)))
+
 
 (deftype mem-int     () `(  signed-byte ,+mem-int/bits+))
 (deftype mem-uint    () `(unsigned-byte ,+mem-int/value-bits+))
@@ -214,7 +235,8 @@ count and expect memory lengths in words, not in bytes."
 
   (mset-word ptr index
 	     (logior +mem-int/flag+
-                     (logand +mem-int/mask+ value)))
+                     #+sbcl (logand +mem-word/mask+ value) ;; faster
+                     #-sbcl (logand +mem-int/mask+ value)))
   t)
 
 
@@ -225,6 +247,10 @@ count and expect memory lengths in words, not in bytes."
   `(logand +mem-int/value-mask+ ,word))
 
 (defmacro %to-int (word)
+  #?+hlmem/fast-mword=>fixnum
+  `(fast-mword=>fixnum ,word)
+
+  #?-hlmem/fast-mword=>fixnum
   (with-gensym word_
     `(locally
        (declare (optimize (safety 0) (speed 3)))

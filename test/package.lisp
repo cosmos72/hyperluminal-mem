@@ -26,7 +26,7 @@
         #:hyperluminal-mem)
 
   (:import-from #:hyperluminal-mem
-                #:!mdump)
+                #:!mdump #:+most-negative-int+ #:+most-positive-int+)
 
   (:export #:suite))
 

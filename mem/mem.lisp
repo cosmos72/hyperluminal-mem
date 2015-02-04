@@ -16,15 +16,9 @@
 (in-package :hyperluminal-mem)
 
 (enable-#?-syntax)
-	 
-(eval-always
-  (defmacro %mget-t (type ptr &optional (byte-offset 0))
-    `(ffi-mem-get ,ptr ,(parse-type type) ,byte-offset))
-
-  (defmacro %mset-t (value type ptr &optional (byte-offset 0))
-    `(ffi-mem-set ,value ,ptr ,(parse-type type) ,byte-offset)))
 
 
+;; if available, use fast implementation of mget-word and mset-word
 #?+hlmem/fast-mem
 (eval-always
   (let ((pkg (find-package (symbol-name 'hl-asm))))
@@ -44,7 +38,15 @@
 	 (,+fast-mwrite+ ,val ,ptr ,index :scale ,scale :disp ,offset)
 	 ,val))))
 
-			 
+
+;; default implementation of mget-word and mset-word
+(eval-always
+  (defmacro %mget-t (type ptr &optional (byte-offset 0))
+    `(ffi-mem-get ,ptr ,(parse-type type) ,byte-offset))
+
+  (defmacro %mset-t (value type ptr &optional (byte-offset 0))
+    `(ffi-mem-set ,value ,ptr ,(parse-type type) ,byte-offset)))
+
 			    
 (eval-always
   (defmacro mget-t (type ptr word-index)

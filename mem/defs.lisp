@@ -80,7 +80,7 @@
   (set-feature 'hlmem/fast-mem
                (and (have-symbol? 'hl-asm +fast-mread-symbol+)
                     (have-symbol? 'hl-asm +fast-mwrite-symbol+))))
-      
+
 
 
 (defmacro with-mem-bytes ((var-name n-bytes &optional n-bytes-var) &body body)
