@@ -350,8 +350,7 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 
 
            
-(defun !memset-words (ptr &optional (fill-word 0) (start-index 0) (end-index (1+ start-index)))
-  "!memset-words is only used for debugging."
+(defun memset-words (ptr &optional (fill-word 0) (start-index 0) (end-index (1+ start-index)))
   (declare (optimize (speed 3) (safety 0) (debug 1))
            (type maddress ptr)
            (type mem-word fill-word)

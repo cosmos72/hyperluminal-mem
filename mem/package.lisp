@@ -58,9 +58,6 @@
            #:msize        #:mwrite         #:mread
            #:msize*       #:mwrite*        #:with-mread*
 
-           #:box          #:make-box       #:reuse-box
-           #:mread-box    #:mwrite-box
-
            #:msize-object       #:mwrite-object        #:mread-object
            #:msize-object-slots #:mwrite-object-slots  #:mread-object-slots
            #:mlist-object-slots #:mwrite-object-slot   #:mwrite-slot        
@@ -71,4 +68,7 @@
            #:decl-msize-class   #:decl-mwrite-class    #:decl-mread-class
            #:decl-mserializable-class
 
-           #:!mdump #:!mdump-bytes #:!mdump-bytes-reverse #:!memset-words))
+           #:mzero       #:memset       #:memcpy
+           #:mzero-words #:memset-words #:memcpy-words
+           
+           #:!mdump #:!mdump-bytes #:!mdump-bytes-reverse))

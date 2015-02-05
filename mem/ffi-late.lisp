@@ -26,66 +26,63 @@ The obtained memory must be freed manually: call MFREE on it when no longer need
   (ffi-mem-alloc n-bytes))
 
 
+(declaim (inline malloc-words))
+(defun malloc-words (n-words)
+  "Allocate N-WORDS words of raw memory and return it just like MALLOC.
+Usually more handy than MALLOC since almost all Hyperluminal-MEM functions
+count and expect memory lengths in words, not in bytes."
+  (declare (type mem-size n-words))
+  (malloc (* n-words +msizeof-word+)))
+
+
 (declaim (inline mfree))
 (defun mfree (ptr)
-  "Deallocate a block of raw memory previously obtained with MALLOC."
+  "Deallocate a block of raw memory previously obtained with MALLOC or MALLOC-WORDS."
   (declare (type maddress ptr))
   (ffi-mem-free ptr))
 
 
            
-(defun !memset (ptr fill-byte start-byte end-byte)
+(defun memset (ptr fill-byte start-byte end-byte)
   (declare (type maddress ptr)
            (type (unsigned-byte 8) fill-byte)
            (type ufixnum start-byte end-byte))
-  #-abcl
-  (progn
-    (unless (zerop start-byte)
-      (setf ptr (cffi-sys:inc-pointer ptr start-byte)))
-    (osicat-posix:memset ptr fill-byte (- end-byte start-byte)))
+  
+  (when (> end-byte start-byte)
+    #-abcl
+    (when (> 20 (- end-byte start-byte))
+      (unless (zerop start-byte)
+        (setf ptr (cffi-sys:inc-pointer ptr start-byte)))
+      (osicat-posix:memset ptr fill-byte (- end-byte start-byte))
+      (return-from memset nil))
 
-  #+abcl
-  (loop for offset from start-byte below end-byte do
-       (mset-byte ptr offset fill-byte)))
+    (loop for offset from start-byte below end-byte do
+         (mset-byte ptr offset fill-byte))))
+
+;; (defun memset-words) is already defined, in mem.lisp
 
 
-
-(declaim (inline !mzero !mzero-words))
-
-(defun !mzero (ptr start-byte end-byte)
+(declaim (inline mzero-bytes))
+(defun mzero (ptr start-byte end-byte)
   (declare (type maddress ptr)
            (type ufixnum start-byte end-byte))
-  (!memset ptr 0 start-byte end-byte))
+  (memset ptr 0 start-byte end-byte))
 
 
-(defun !mzero-words (ptr &optional (start-index 0) (end-index (1+ start-index)))
+(defun mzero-words (ptr &optional (start-index 0) (end-index (1+ start-index)))
   (declare (type maddress ptr)
            (type ufixnum start-index end-index))
 
   (if (> 100 (- end-index start-index))
-      (!mzero ptr
-              (the ufixnum (* start-index +msizeof-word+))
-              (the ufixnum (* end-index   +msizeof-word+)))
-      (!memset-words ptr 0 start-index end-index)))
+      (mzero-bytes ptr
+                   (the ufixnum (* start-index +msizeof-word+))
+                   (the ufixnum (* end-index   +msizeof-word+)))
+      (memset-words ptr 0 start-index end-index)))
 
 
-(declaim (inline memcpy-words))
+ 
 
-(defun memcpy-words (dst dst-index src src-index n-words)
-  (declare (type maddress dst src)
-           (type ufixnum dst-index src-index n-words))
-
-  (let ((src-end (the ufixnum (+ src-index n-words))))
-    (loop while (< src-index src-end)
-       do
-	 (mset-word dst dst-index (mget-word src src-index))
-	 (incf src-index)
-	 (incf dst-index))))
-
-
-  
-
-(defun !memcpy (dst dst-start-byte src src-start-byte n-bytes)
+(defun memcpy (dst dst-start-byte src src-start-byte n-bytes)
   (declare (type maddress dst src)
            (type ufixnum dst-start-byte src-start-byte n-bytes))
   #-abcl
@@ -101,3 +98,14 @@ The obtained memory must be freed manually: call MFREE on it when no longer need
        (mset-byte dst (the ufixnum (+ i dst-start-byte))
                   (mget-byte src (the ufixnum (+ i src-start-byte))))))
 
+
+(defun memcpy-words (dst dst-index src src-index n-words)
+  (declare (type maddress dst src)
+           (type ufixnum dst-index src-index n-words))
+
+  (let ((src-end (the ufixnum (+ src-index n-words))))
+    (loop while (< src-index src-end)
+       do
+	 (mset-word dst dst-index (mget-word src src-index))
+	 (incf src-index)
+	 (incf dst-index))))

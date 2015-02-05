@@ -185,39 +185,43 @@
          (%name (concat-symbols '% name)))
     
     `(progn
-       (defknown ,%name
-           ;;arg-types
-           (sb-ext:word)
-           ;;result-type
-           fixnum
-           (sb-c::flushable sb-c::foldable sb-c::movable sb-c::always-translatable))
+       (eval-always
+         (defknown ,%name
+             ;;arg-types
+             (sb-ext:word)
+             ;;result-type
+             fixnum
+             (sb-c::flushable sb-c::foldable sb-c::movable sb-c::always-translatable)))
 
-       (sb-c:define-vop (,%name)
-         (:policy :fast-safe)
-         (:translate ,%name)
+       (eval-always
+         (sb-c:define-vop (,%name)
+           (:policy :fast-safe)
+           (:translate ,%name)
          
-         (:args (x :scs (sb-vm::unsigned-reg) :target y
-                   :load-if (not (sb-c::location= x y))))
-         (:arg-types sb-vm::unsigned-num)
-         (:results (y :scs (sb-vm::any-reg)
-                      :load-if (not (sb-c::location= x y))))
-         (:result-types sb-vm::tagged-num)
-         (:generator 1
-          (cond ((not (sb-c::location= x y))
-                 (if (= +n-fixnum-tag-bits+ 1)
-                     (sb-assem::inst lea y (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                                           :base x :index x))
-                     (sb-assem::inst lea y (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                                           :index x
-                                                           :scale (ash 1 +n-fixnum-tag-bits+)))))
-                (t
-                 (sb-c::move y x)
-                 (sb-assem::inst shl y +n-fixnum-tag-bits+)))))
+           (:args (x :scs (sb-vm::unsigned-reg) :target y
+                     :load-if (not (sb-c::location= x y))))
+           (:arg-types sb-vm::unsigned-num)
+           (:results (y :scs (sb-vm::any-reg)
+                        :load-if (not (sb-c::location= x y))))
+           (:result-types sb-vm::tagged-num)
+           (:generator 1
+            (cond ((not (sb-c::location= x y))
+                   (if (= +n-fixnum-tag-bits+ 1)
+                       (sb-assem::inst lea y (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                                             :base x :index x))
+                       (sb-assem::inst lea y (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                                             :index x
+                                                             :scale (ash 1 +n-fixnum-tag-bits+)))))
+                  (t
+                   (sb-c::move y x)
+                   (sb-assem::inst shl y +n-fixnum-tag-bits+))))))
 
-       (declaim (ftype (function (sb-ext:word) (values fixnum &optional)) ,name)
-                (inline ,name))
-       (defun ,name (x)
-         (declare (type sb-ext:word x))
-         (the fixnum (,%name x))))))
+       (eval-always
+         (declaim (ftype (function (sb-ext:word) (values fixnum &optional)) ,name)
+                  (inline ,name)))
+       (eval-always
+         (defun ,name (x)
+           (declare (type sb-ext:word x))
+           (the fixnum (,%name x)))))))
 
 (define-fast-mword=>fixnum)

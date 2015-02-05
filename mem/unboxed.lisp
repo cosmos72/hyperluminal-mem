@@ -104,16 +104,6 @@ i.e. 1 means one mem-word."
        (format stream " ")))
 
 
-(declaim (inline malloc-words))
-
-(defun malloc-words (n-words)
-  "Allocate N-WORDS words of raw memory and return it just like MALLOC.
-Usually more handy than MALLOC since almost all Hyperluminal-MEM functions
-count and expect memory lengths in words, not in bytes."
-  (declare (type mem-size n-words))
-  (malloc (* n-words +msizeof-word+)))
-  
-
 (declaim (inline mem-int+ mem-int-))
 
 (defun mem-int+ (a &optional (b 0) (c 0))
