@@ -19,24 +19,28 @@
 
 
 ;; if available, use fast implementation of mget-word and mset-word
-#?+hlmem/fast-mem
 (eval-always
-  (let ((pkg (find-package (symbol-name 'hl-asm))))
+  (let* ((fast-mread-name  (stringify 'fast-mread/  +msizeof-word+))
+         (fast-mwrite-name (stringify 'fast-mwrite/ +msizeof-word+))
+         (pkg (find-package 'hl-asm))
+         (fast-mread-sym   (when pkg (find-symbol fast-mread-name  pkg)))
+         (fast-mwrite-sym  (when pkg (find-symbol fast-mwrite-name pkg)))
+         (flag             (if (and fast-mread-sym fast-mwrite-sym) t nil)))
 
-    (defconstant +fast-mread+  (intern (symbol-name +fast-mread-symbol+)  pkg))
-    (defconstant +fast-mwrite+ (intern (symbol-name +fast-mwrite-symbol+) pkg)))
-
-
-  (defmacro fast-mget-word (ptr index &key
-                            (scale +msizeof-word+) (offset 0))
-    `(,+fast-mread+ ,ptr ,index :scale ,scale :disp ,offset))
-
-  (defmacro fast-mset-word (value ptr index &key
-			    (scale +msizeof-word+) (offset 0))
-    (with-gensym val
-      `(let ((,val ,value))
-	 (,+fast-mwrite+ ,val ,ptr ,index :scale ,scale :disp ,offset)
-	 ,val))))
+    (set-feature 'hlmem/fast-mem flag)
+    (if flag
+        (progn
+          (defmacro fast-mget-word (ptr index &key (scale +msizeof-word+) (offset 0))
+            `(,fast-mread-sym ,ptr ,index :scale ,scale :disp ,offset))
+          (defmacro fast-mset-word (value ptr index &key (scale +msizeof-word+) (offset 0))
+            (with-gensym val
+              `(let ((,val ,value))
+                 (,fast-mwrite-sym ,val ,ptr ,index :scale ,scale :disp ,offset)
+                 ,val))))
+        ;; sanity
+        (progn
+          (fmakunbound 'fast-mget-word)
+          (fmakunbound 'fast-mset-word)))))
 
 
 ;; default implementation of mget-word and mset-word

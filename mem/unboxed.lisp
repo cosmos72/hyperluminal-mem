@@ -24,26 +24,20 @@
     cannot fit them in the ~S bits reserved by ABI." +character/bits+ +mem-vid/bits+)))
 
 
+;; fast-mword=>fixnum is usable only if mem-int equals fixnum
+#?+hlmem/mem-int=fixnum
 (eval-always
-  (defconstant +fast-mword=>fixnum-symbol+
-    (concat-symbols 'fast-mword/ +msizeof-word+ '=>fixnum)))
-
-(eval-always
-  (set-feature 'hlmem/fast-mword=>fixnum
-               ;; fast-mword=>fixnum is usable only if mem-int equals fixnum
-               (and (get-feature 'hlmem/mem-int=fixnum)
-                    (have-symbol? 'hl-asm +fast-mword=>fixnum-symbol+))))
-
-;; if available, use fast implementation of mword=>fixnum
-#?+hlmem/fast-mword=>fixnum
-(eval-always
-  (let ((pkg (find-package (symbol-name 'hl-asm))))
-    (defconstant +fast-mword=>fixnum+  (intern (symbol-name +fast-mword=>fixnum-symbol+) pkg))))
-
-#?+hlmem/fast-mword=>fixnum
-(eval-always
-  (defmacro fast-mword=>fixnum (x)
-    `(,+fast-mword=>fixnum+ ,x)))
+  (let* ((name (stringify 'fast-mword/ +msizeof-word+ '=>fixnum))
+         (pkg (find-package (symbol-name 'hl-asm)))
+         (sym (when pkg (find-symbol name pkg))))
+    
+    ;; if available, use fast implementation of mword=>fixnum
+    (set-feature 'hlmem/fast-mword=>fixnum (not (null sym)))
+    (if sym
+        (defmacro fast-mword=>fixnum (x)
+          `(,sym ,x))
+        ;; sanity
+        (fmakunbound 'fast-mword=>fixnum))))
 
 
 (deftype mem-int     () `(  signed-byte ,+mem-int/bits+))

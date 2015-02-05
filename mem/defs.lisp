@@ -70,19 +70,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(eval-always
-  (defconstant +fast-mread-symbol+
-    (concat-symbols 'fast-mread/ +msizeof-word+))
-  (defconstant +fast-mwrite-symbol+
-    (concat-symbols 'fast-mwrite/ +msizeof-word+)))
-
-(eval-always
-  (set-feature 'hlmem/fast-mem
-               (and (have-symbol? 'hl-asm +fast-mread-symbol+)
-                    (have-symbol? 'hl-asm +fast-mwrite-symbol+))))
-
-
-
 (defmacro with-mem-bytes ((var-name n-bytes &optional n-bytes-var) &body body)
   `(with-ffi-mem (,var-name ,n-bytes ,@(when n-bytes-var `(,n-bytes-var)))
      ,@body))

@@ -76,10 +76,7 @@ Returns a symbol interned in current package"
   (declare (type (or symbol string) pkg-name symbol-name))
   (let ((pkg (find-package pkg-name)))
     (when pkg
-      (when (nth-value 1 (find-symbol (if (symbolp symbol-name)
-					  (symbol-name symbol-name)
-					  symbol-name)
-				      pkg))
+      (when (nth-value 1 (find-symbol (string symbol-name) pkg))
 	t))))
 
   
