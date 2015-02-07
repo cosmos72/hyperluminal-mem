@@ -35,41 +35,26 @@
       ;; only if mem-int equals fixnum
       ((and sym (get-feature 'hlmem/mem-int=fixnum))
        (set-feature 'hlmem/mword=>mem-int :asm)
-       (defmacro mword=>mem-int (x)
-         `(,sym ,x)))
-
-      ;; cheat and tell the compiler to treat
-      ;; an (unsigned-byte N) as a (signed-byte N)
-      ;; this only works if the internal representation
-      ;; of mem-int has NO space for bits above the sign bit,
-      ;; which can happen only when mem-int equals fixnum,
-      ;; and even in such case is known to work reliably only on SBCL
-      #+sbcl
-      ((get-feature 'hlmem/mem-int=fixnum)
-       (set-feature 'hlmem/mword=>mem-int :logand)
-       (defmacro mword=>mem-int (x)
-         `(locally
-              (declare (optimize (speed 3) (safety 0)))
-            (the mem-int (logand ,x +mem-int/mask+)))))
+       (defmacro mword=>mem-int (word)
+         `(,sym ,word)))
 
       (t
        (set-feature 'hlmem/mword=>mem-int :slow)
        (defmacro mword=>mem-int (word)
-         (with-gensym word_
+         (with-gensym x
            `(locally
                 (declare (optimize (safety 0) (speed 3)))
-              (let ((,word_ ,word))
-                (the mem-int (- (logand +mem-int/value-mask+ ,word_)
-                                (the #+sbcl mem-int ;; cheat a bit to get tighter compiled code
-                                     #-sbcl mem-word
-                                     (logand +mem-int/sign-mask+ ,word_))))))))))))
+              (let ((,x ,word))
+                (the mem-int (- (logand +mem-int/value-mask+ ,x)
+                                (the mem-word
+                                     (logand +mem-int/sign-mask+ ,x))))))))))))
 
        
 #?+hlmem/mem-int=fixnum
 (defmacro mem-int=>mword (value)
   `(logior +mem-int/flag+
-           #-sbcl (logand +mem-word/mask+ ,value) ;; faster
-           #+sbcl (logand +mem-int/mask+ ,value)))
+           #+sbcl (logand +mem-word/mask+ ,value) ;; faster
+           #-sbcl (logand +mem-int/mask+ ,value)))
 
 #?-hlmem/mem-int=fixnum
 (defmacro mem-int=>mword (value)

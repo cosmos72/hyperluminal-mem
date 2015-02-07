@@ -60,18 +60,23 @@
     (is (= send xend))
     (multiple-value-bind (y yend) (mread ptr index end-index)
       (is (= xend yend))
-      (is-true (funcall comparator x y)))))
+      (is-true (funcall comparator x y)
+               (if (and (integerp x) (integerp y))
+                   "(mread (mrite #x~X)) returned #x~X"
+                   "(mread (mrite ~S)) returned ~S") x y))))
           
 
 (defun mem-int-test ()
-  (let* ((n1 (- +most-negative-int+ 10))
-         (n2 -10)
-         (n3 (- +most-positive-int+ 10))
+  ;; only test MEM-INTs. if they fail, bignums may be non-functional.
+  (let* ((iterations 20)
+         (n1 +most-negative-int+)
+         (n2 (truncate iterations -2))
+         (n3 (- +most-positive-int+ (1- iterations)))
          (index 0)
          (end-index (max (msize index n1) (msize index n2) (msize index n3))))
     (with-mem-words (ptr end-index)
       (dolist (i (list n1 n2 n3))
-        (dotimes (j 20)
+        (dotimes (j iterations)
           (mwrite-mread-test ptr index end-index (+ i j)))))))
 
 (def-test mem-int (:compile-at :definition-time)
