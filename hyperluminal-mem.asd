@@ -61,7 +61,8 @@
 		 (:file "ffi-late"       :depends-on ("mem"))
 		 (:file "constants"      :depends-on ("ffi-late"))
 		 (:file "symbols"        :depends-on ("constants"))
-		 (:file "unboxed"        :depends-on ("symbols"))
+		 (:file "int"            :depends-on ("symbols"))
+		 (:file "unboxed"        :depends-on ("int"))
 		 (:file "box"            :depends-on ("version" "unboxed"))
 		 (:file "magic"          :depends-on ("box"))
 		 

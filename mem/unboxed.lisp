@@ -24,26 +24,6 @@
     cannot fit them in the ~S bits reserved by ABI." +character/bits+ +mem-vid/bits+)))
 
 
-;; fast-mword=>fixnum is usable only if mem-int equals fixnum
-#?+hlmem/mem-int=fixnum
-(eval-always
-  (let* ((name (stringify 'fast-mword/ +msizeof-word+ '=>fixnum))
-         (pkg (find-package (symbol-name 'hl-asm)))
-         (sym (when pkg (find-symbol name pkg))))
-    
-    ;; if available, use fast implementation of mword=>fixnum
-    (set-feature 'hlmem/fast-mword=>fixnum (not (null sym)))
-    (if sym
-        (defmacro fast-mword=>fixnum (x)
-          `(,sym ,x))
-        ;; sanity
-        (fmakunbound 'fast-mword=>fixnum))))
-
-
-(deftype mem-int     () `(  signed-byte ,+mem-int/bits+))
-(deftype mem-uint    () `(unsigned-byte ,+mem-int/value-bits+))
-
-(deftype mem-word    () `(unsigned-byte ,+mem-word/bits+))
 ;; only used internally
 (deftype mem-byte    () `(unsigned-byte ,+mem-byte/bits+))
 
@@ -64,7 +44,7 @@
   "Type for offsets and sizes of serialized data. It is in units of a mem-word,
 i.e. 1 means one mem-word."
   `(unsigned-byte ,+mem-size/bits+))
-                              
+                            
                               
 
 
@@ -205,67 +185,6 @@ i.e. 1 means one mem-word."
                         (ash tag +mem-tag/shift+)
                         (ash vid +mem-vid/shift+)))
   t)
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(declaim (inline mset-int))
-(defun mset-int (ptr index value)
-  "Write mem-int VALUE into the memory at (PTR+INDEX)"
-  (declare (type maddress ptr)
-           (type mem-size index)
-           (type mem-int value)
-           (optimize (safety 0) (speed 3)))
-
-  (mset-word ptr index
-	     (logior +mem-int/flag+
-                     #+sbcl (logand +mem-word/mask+ value) ;; faster
-                     #-sbcl (logand +mem-int/mask+ value)))
-  t)
-
-
-(defmacro %to-int/sign (word)
-  `(logand +mem-int/sign-mask+ ,word))
-
-(defmacro %to-int/value (word)
-  `(logand +mem-int/value-mask+ ,word))
-
-(defmacro %to-int (word)
-  #?+hlmem/fast-mword=>fixnum
-  `(fast-mword=>fixnum ,word)
-
-  #?-hlmem/fast-mword=>fixnum
-  (with-gensym word_
-    `(locally
-       (declare (optimize (safety 0) (speed 3)))
-       (let ((,word_ ,word))
-         (the mem-int (- (%to-int/value ,word_)
-                         (the #+sbcl mem-int ;; cheat a bit to get tighter compiled code
-                              #-sbcl mem-word
-                              (%to-int/sign  ,word_))))))))
-  
-
-(declaim (inline mget-int))
-(defun mget-int (ptr index)
-  "Return the mem-int stored at (PTR+INDEX)"
-  (declare (type maddress ptr)
-           (type mem-size index))
-
-  (%to-int (mget-word ptr index)))
-
-
-(defsetf mget-int mset-int)
-
-
-(declaim (inline mget-uint))
-(defun mget-uint (ptr index)
-  "Return the two's complement value of mem-int stored at (PTR+INDEX),
-ignoring any sign bit"
-  (declare (type maddress ptr)
-           (type mem-size index))
-
-  (the mem-uint (%to-int/value (mget-word ptr index))))
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -548,7 +467,7 @@ as multiple values."
     ;; found a mem-int?
     (when (%word-is-mem-int word)
       ;; found a mem-int
-      (return-from mget-unboxed (%to-int word)))
+      (return-from mget-unboxed (mword=>mem-int word)))
 
 
     ;; not a mem-int

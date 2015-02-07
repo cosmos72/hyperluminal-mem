@@ -39,7 +39,7 @@
 (declaim (type vector +msize-box-funcs+ +mwrite-box-funcs+ +mread-box-funcs+))
 
 (defmacro define-global-constant (name value &optional documentation)
-  `(#+(and) define-global #-(and) define-constant-once
+  `(#+(and) defparameter #-(and) define-constant-once
       ,name ,value
       ,@(when documentation `(,documentation))))
 

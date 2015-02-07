@@ -66,7 +66,7 @@
 (defun mem-int-test ()
   (let* ((n1 (- +most-negative-int+ 10))
          (n2 -10)
-         (n3 (+ +most-positive-int+ 10))
+         (n3 (- +most-positive-int+ 10))
          (index 0)
          (end-index (max (msize index n1) (msize index n2) (msize index n3))))
     (with-mem-words (ptr end-index)
