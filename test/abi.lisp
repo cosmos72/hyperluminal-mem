@@ -92,7 +92,8 @@
            (mwrite-mread-test ptr index end-index x)
            (mwrite-mread-test ptr index end-index (- x))))))
 
-(def-test bignum (:compile-at :definition-time)
+;; test after MEM-INT. if that fails, bignums may be non-functional.
+(def-test mem-bignum (:compile-at :definition-time :depends-on mem-int)
   (bignum-test 400))
 
 
@@ -114,7 +115,8 @@
            (mwrite-mread-test ptr index end-index (/ -1 d-mask))))))
 
 
-(def-test ratio (:compile-at :definition-time)
+;; test after MEM-INT. if that fails, ratios may be non-functional.
+(def-test mem-ratio (:compile-at :definition-time :depends-on mem-int)
   (ratio-test))
 
 
@@ -164,5 +166,5 @@
         
 
 
-(def-test tree (:compile-at :definition-time)
+(def-test mem-tree (:compile-at :definition-time :depends-on (and mem-bignum mem-ratio))
   (tree-test))

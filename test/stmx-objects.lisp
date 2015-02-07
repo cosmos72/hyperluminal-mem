@@ -15,8 +15,8 @@
 
 (in-package :hyperluminal-mem.test)
 
-(def-suite stmx-objects-suite :in suite)
-(in-suite stmx-objects-suite)
+(def-suite mem-stmx-suite :in suite)
+(in-suite mem-stmx-suite)
 
  
 
@@ -97,11 +97,13 @@
     (with-mem-words (ptr (msize index m) end-index)
       (mwrite-mread-test ptr index end-index m :comparator #'equalp-gmap))))
         
-
-;; this fails on ABCL because (sxhash #0A42) returns different values at each call
-(def-test ghash-table (:compile-at :definition-time)
+;; do not use the symbol ghash-table as test name, it's imported from stmx.util
+;; and already used as test name in stmx.test
+(def-test mem-ghash-table (:compile-at :definition-time)
   (%ghash-table-test))
 
 
-(def-test gmap (:compile-at :definition-time)
+;; do not use the symbol gmap as test name, it's imported from stmx.util
+;; and already used as test name in stmx.test
+(def-test mem-gmap (:compile-at :definition-time)
   (%gmap-test))

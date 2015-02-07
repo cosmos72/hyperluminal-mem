@@ -46,8 +46,7 @@
                 (declare (optimize (safety 0) (speed 3)))
               (let ((,x ,word))
                 (the mem-int (- (logand +mem-int/value-mask+ ,x)
-                                (the mem-word
-                                     (logand +mem-int/sign-mask+ ,x))))))))))))
+                                (logand +mem-int/sign-mask+ ,x)))))))))))
 
        
 #?+hlmem/mem-int=fixnum

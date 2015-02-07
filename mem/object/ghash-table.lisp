@@ -20,7 +20,7 @@
 ;;;;   and its transactional version STMX.UTIL:THASH-TABLE                   ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
+(enable-#?-syntax)
 
 (defmethod msize-object ((obj ghash-table) index)
   (declare (type mem-size index))
@@ -53,7 +53,8 @@
 
 
 (define-global *ghash-table-trusted-hash-list*
-    '(sxhash identity))
+    ;; also allow STMX.UTIL:SXHASH-EQUALP if it exists
+    '(sxhash identity #?+(symbol stmx.util sxhash-equalp) stmx.util:sxhash-equalp))
 
 
 (defun mread-object/ghash-table (type ptr index end-index)
