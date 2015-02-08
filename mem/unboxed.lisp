@@ -198,12 +198,15 @@ i.e. 1 means one mem-word."
   (mset-tag-and-vid ptr index +mem-tag/character+ (char-code value)))
 
 
+(defmacro %to-character (word)
+  `(logand +character/mask+ (ash ,word ,(- +mem-vid/shift+))))
+
 (declaim (inline mget-character))
 (defun mget-character (ptr index)
   (declare (type maddress ptr)
            (type mem-size index))
 
-  (code-char (%to-vid (mget-word ptr index))))
+  (code-char (%to-character (mget-word ptr index))))
 
 
 (defsetf mget-character mset-character)
