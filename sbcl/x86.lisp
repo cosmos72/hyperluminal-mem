@@ -15,16 +15,17 @@
 
 (in-package :hyperluminal-sbcl)
 
-(defun check-x86-addressing (index scale disp)
-  (let ((scale (check-compile-constant scale))
-        (disp  (check-compile-constant disp)))
+(defun check-x86-addressing (index scale offset)
+  (let ((scale  (check-compile-constant scale))
+        (offset (check-compile-constant offset)))
     (when (constantp index)
-      (let ((index (+ (* (eval index) scale) disp)))
-        (when (typep index '(signed-byte 32))
-          (return-from check-x86-addressing (values 0 1 index)))))
+      (let ((offset (+ (* (eval index) scale) offset)))
+        (when (typep offset '(signed-byte 32))
+          (return-from check-x86-addressing (values 0 1 offset)))))
+    (check-type offset (signed-byte 32))
     (let ((scale (/ scale +fixnum-zero-mask+1+)))
       (check-type scale (member 1 2 4 8))
-      (values index scale disp))))
+      (values index scale offset))))
 
 
 (defmacro define-fast-mread-mwrite (&key mread-name mwrite-name type size)
@@ -42,27 +43,12 @@
            ,type
            (sb-c::flushable sb-c::important-result sb-c::always-translatable))
 
-       (defknown ,%mread-name-c
-           ;;arg-types
-           (fast-sap (member 0) (member 1 2 4 8) (signed-byte 32))
-           ;;result-type
-           ,type
-           (sb-c::flushable sb-c::important-result sb-c::always-translatable))
-
        (defknown ,%mwrite-name
            ;;arg-types
            (,type fast-sap fixnum (member 1 2 4 8) (signed-byte 32))
            ;;result-type
            (values)
            (sb-c::always-translatable))
-
-       (defknown ,%mwrite-name-c
-           ;;arg-types
-           (,type fast-sap (member 0) (member 1 2 4 8) (signed-byte 32))
-           ;;result-type
-           (values)
-           (sb-c::always-translatable))
-
 
        (sb-c:define-vop (,%mread-name)
          (:policy :fast-safe)
@@ -72,9 +58,11 @@
                 ;; cheat and use a FIXNUM as INDEX... on SBCL
                 ;; its representation is shifted by +n-fixnum-tag-bits+
                 ;; which means that INDEX is effectively shifted
-                ;; by that many bits
+                ;; by that many bits. This discrepancy is solved by
+		;; check-x86-addressing above, which must be invoked by the caller
+		;; to update index and scale before calling ,%mread-name
                 (index :scs (sb-vm::any-reg)))
-         (:info scale disp)
+         (:info scale offset)
          (:arg-types sb-vm::system-area-pointer sb-vm::tagged-num
                      (:constant (member 1 2 4 8))
                      (:constant (signed-byte 32)))
@@ -87,14 +75,14 @@
                          #+x86 r
                          #-x86 (sb-vm::reg-in-size r ,size)
                          (sb-vm::make-ea ,size :base sap :index index
-                                         :scale scale :disp disp))))
+                                         :scale scale :disp offset))))
 
        (sb-c:define-vop (,%mread-name-c)
          (:policy :fast-safe)
          (:translate ,%mread-name)
 
          (:args (sap   :scs (sb-vm::sap-reg)))
-         (:info index scale disp)
+         (:info index scale offset)
          (:arg-types sb-vm::system-area-pointer
                      (:constant (member 0))
                      (:constant (member 1 2 4 8))
@@ -107,7 +95,7 @@
           (sb-assem:inst mov
                          #+x86 r
                          #-x86 (sb-vm::reg-in-size r ,size)
-                         (sb-vm::make-ea ,size :base sap :disp disp))))
+                         (sb-vm::make-ea ,size :base sap :disp offset))))
 
        (sb-c:define-vop (,%mwrite-name)
          (:policy :fast-safe)
@@ -118,9 +106,11 @@
                 ;; cheat and use a FIXNUM as INDEX... on SBCL
                 ;; its representation is shifted by +n-fixnum-tag-bits+
                 ;; which means that INDEX is effectively shifted
-                ;; by that many bits
+                ;; by that many bits. This discrepancy is solved by
+		;; check-x86-addressing above, which must be invoked by the caller
+		;; to update index and scale before calling ,%mwrite-name
                 (index :scs (sb-vm::any-reg)))
-         (:info scale disp)
+         (:info scale offset)
          (:arg-types sb-vm::unsigned-num sb-vm::system-area-pointer sb-vm::tagged-num
                      (:constant (member 1 2 4 8))
                      (:constant (signed-byte 32)))
@@ -128,7 +118,7 @@
          (:generator 2
           (sb-assem:inst mov
                          (sb-vm::make-ea ,size :base sap :index index
-                                         :scale scale :disp disp)
+                                         :scale scale :disp offset)
                          #+x86 value
                          #-x86 (sb-vm::reg-in-size value ,size))))
 
@@ -138,7 +128,7 @@
          
          (:args (value :scs (sb-vm::unsigned-reg))
                 (sap   :scs (sb-vm::sap-reg)))
-         (:info index scale disp)
+         (:info index scale offset)
          (:arg-types sb-vm::unsigned-num sb-vm::system-area-pointer
                      (:constant (member 0))
                      (:constant (member 1 2 4 8))
@@ -146,21 +136,21 @@
 	      
          (:generator 1
           (sb-assem:inst mov
-                         (sb-vm::make-ea ,size :base sap :disp disp)
+                         (sb-vm::make-ea ,size :base sap :disp offset)
                          #+x86 value
                          #-x86 (sb-vm::reg-in-size value ,size))))
 
        (defmacro ,mread-name (sap index
-                              &key (scale +fixnum-zero-mask+1+) (disp 0))
-         (multiple-value-bind (index scale disp)
-             (check-x86-addressing index scale disp)
-           (list ',%mread-name sap index scale disp)))
+                              &key (scale +fixnum-zero-mask+1+) (offset 0))
+         (multiple-value-bind (index scale offset)
+             (check-x86-addressing index scale offset)
+           (list ',%mread-name sap index scale offset)))
 
        (defmacro ,mwrite-name (value sap index
-                               &key (scale +fixnum-zero-mask+1+) (disp 0))
-         (multiple-value-bind (index scale disp)
-             (check-x86-addressing index scale disp)
-           (list ',%mwrite-name value sap index scale disp))))))
+                               &key (scale +fixnum-zero-mask+1+) (offset 0))
+         (multiple-value-bind (index scale offset)
+             (check-x86-addressing index scale offset)
+           (list ',%mwrite-name value sap index scale offset))))))
 
 	   
 

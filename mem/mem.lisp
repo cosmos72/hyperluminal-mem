@@ -25,17 +25,19 @@
          (pkg (find-package 'hl-asm))
          (fast-mread-sym   (when pkg (find-symbol fast-mread-name  pkg)))
          (fast-mwrite-sym  (when pkg (find-symbol fast-mwrite-name pkg)))
-         (flag             (if (and fast-mread-sym fast-mwrite-sym) t nil)))
+         (fast-mread-def   (when fast-mread-sym  (fboundp fast-mread-sym)))
+         (fast-mwrite-def  (when fast-mwrite-sym (fboundp fast-mwrite-sym)))
+         (flag             (and fast-mread-def fast-mwrite-def)))
 
-    (set-feature 'hlmem/fast-mem flag)
+    (set-feature 'hlmem/fast-mem (not (null flag)))
     (if flag
         (progn
           (defmacro fast-mget-word (ptr index &key (scale +msizeof-word+) (offset 0))
-            `(,fast-mread-sym ,ptr ,index :scale ,scale :disp ,offset))
+            `(,fast-mread-sym ,ptr ,index :scale ,scale :offset ,offset))
           (defmacro fast-mset-word (value ptr index &key (scale +msizeof-word+) (offset 0))
             (with-gensym val
               `(let ((,val ,value))
-                 (,fast-mwrite-sym ,val ,ptr ,index :scale ,scale :disp ,offset)
+                 (,fast-mwrite-sym ,val ,ptr ,index :scale ,scale :offset ,offset)
                  ,val))))
         ;; sanity
         (progn

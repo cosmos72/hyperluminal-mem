@@ -44,12 +44,15 @@
     :depends-on (:lang))
                   
                                
-   #+(and sbcl (or x86 x86-64 #|... other archs here ...|#))
+   #+(and sbcl (or x86 x86-64 arm))
    (:module :sbcl
     :components ((:file "package")
+		 (:file "export"         :depends-on ("package"))
 		 (:file "compiler"       :depends-on ("package"))
 		 #+(or x86 x86-64)
-		 (:file "x86"            :depends-on ("compiler")))
+		 (:file "x86"            :depends-on ("compiler"))
+		 #+arm
+		 (:file "arm"            :depends-on ("compiler")))
     :depends-on (:lang :ffi))
                   
    (:module :mem
@@ -106,7 +109,7 @@
 						      "box/symbol"
 						      "object")))
     :depends-on (:lang :ffi
-		 #+(and sbcl (or x86 x86-64)) :sbcl))))
+		 #+(and sbcl (or x86 x86-64 arm)) :sbcl))))
 
 
 

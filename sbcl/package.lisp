@@ -24,15 +24,17 @@
   (:import-from #:stmx.lang
                 #:eval-always  #:with-gensym  #:with-gensyms)
 
-  (:export #:fast-sap #:sap=>fast-sap #:fast-sap=>sap #:+fixnum-zero-mask+1+
-           #||#     #:fast-mread/4          #:fast-mwrite/4 #+x86    #:fast-mword/4=>fixnum
-	   #+x86-64 #:fast-mread/8 #+x86-64 #:fast-mwrite/8 #+x86-64 #:fast-mword/8=>fixnum))
+  #+arm
+  (:export #:fast-sap #:sap=>fast-sap #:fast-sap=>sap
+	   #:fast-mread/4 #:fast-mwrite/4 #:fast-mword/4=>fixnum)
+
+  #+x86
+  (:export #:fast-sap #:sap=>fast-sap #:fast-sap=>sap
+	   #:fast-mread/4 #:fast-mwrite/4 #:fast-mword/4=>fixnum)
+
+  #+x86-64
+  (:export #:fast-sap #:sap=>fast-sap #:fast-sap=>sap
+	   #:fast-mread/4 #:fast-mwrite/4 #:fast-mword/4=>fixnum
+	   #:fast-mread/8 #:fast-mwrite/8 #:fast-mword/8=>fixnum))
 
 
-(defpackage #:hyperluminal-asm
-  (:nicknames #:hl-asm)
-  (:use #:hyperluminal-sbcl)
-  (:export #:fast-sap #:sap=>fast-sap #:fast-sap=>sap #:+fixnum-zero-mask+1+
-           #||#     #:fast-mread/4          #:fast-mwrite/4 ;;#+x86    #:fast-mword/4=>fixnum
-	   #+x86-64 #:fast-mread/8 #+x86-64 #:fast-mwrite/8 ;;#+x86-64 #:fast-mword/8=>fixnum
-           ))
