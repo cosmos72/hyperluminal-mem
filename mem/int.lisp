@@ -63,29 +63,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(declaim (inline mset-int))
-(defun mset-int (ptr index value)
-  "Write mem-int VALUE into the memory at (PTR+INDEX)"
-  (declare (type maddress ptr)
-           (type mem-size index)
-           (type mem-int value)
-           (optimize (safety 0) (speed 3)))
-
-  (mset-word ptr index (mem-int=>mword value))
-  t)
-
-
-(declaim (inline mget-int))
-(defun mget-int (ptr index)
-  "Return the mem-int stored at (PTR+INDEX)"
-  (declare (type maddress ptr)
-           (type mem-size index))
-
-  (mword=>mem-int (mget-word ptr index)))
-
-
-(defsetf mget-int mset-int)
-
 
 (declaim (inline mget-uint))
 (defun mget-uint (ptr index)
@@ -97,4 +74,52 @@ ignoring any sign bit"
   (the mem-uint (logand +mem-int/value-mask+ (mget-word ptr index))))
 
 
+(declaim (inline mget-int))
+(defun mget-int (ptr index)
+  "Return the mem-int stored at (PTR+INDEX)"
+  (declare (type maddress ptr)
+           (type mem-size index))
 
+  (mword=>mem-int (mget-word ptr index)))
+
+
+(declaim (inline mset-int))
+(defun mset-int (ptr index value)
+  "Write mem-int VALUE into the memory at (PTR+INDEX)"
+  (declare (type maddress ptr)
+           (type mem-size index)
+           (type mem-int value)
+           (optimize (safety 0) (speed 3)))
+
+  (mset-word ptr index (mem-int=>mword value))
+  t)
+
+(defsetf mget-int mset-int)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+#?+hlmem/fast-mem
+(define-compiler-macro mget-int (&whole form ptr index)
+  (if (constantp index)
+      `(mword=>mem-int
+        (fast-mget-word (the maddress ,ptr) 0 :offset (* +msizeof-word+ ,index)))
+      form))
+        
+#?+hlmem/fast-mem
+(define-compiler-macro mset-int (&whole form ptr index value)
+  (if (constantp index)
+      (with-gensym p
+        ;; preserve evaluation order
+        `(let ((,p (the maddress ,ptr)))
+           (fast-mset-word (mem-int=>mword (the mem-int ,value))
+                           ,p 0 :offset (* +msizeof-word+ ,index))
+           t))
+      form))
+        
+#?-hlmem/fast-mem
+;; sanity
+(eval-always
+  (setf (compiler-macro-function 'mget-int) nil
+        (compiler-macro-function 'mset-int) nil))
