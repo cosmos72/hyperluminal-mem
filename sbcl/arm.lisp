@@ -24,8 +24,15 @@
 			    (ash 1 i)
 			    (/ 1 (ash 1 (- i)))))))
 
+(deftype arm-fixnum-shift () `(integer ,(+ -32 +n-fixnum-tag-bits+) ,(+ 31 +n-fixnum-tag-bits+)))
+(deftype arm-fixnum-scale ()
+  `(member ,@(loop for i from (+ -32 +n-fixnum-tag-bits+) to (+ 31 +n-fixnum-tag-bits+)
+		collect (if (plusp i)
+			    (ash 1 i)
+			    (/ 1 (ash 1 (- i)))))))
+
 (defun arm-scale=>shift (scale)
-  (declare (type arm-scale scale))
+  (declare (type (or arm-scale arm-fixnum-scale) scale))
   (the arm-shift
     (if (>= scale 1)
 	(- (integer-length scale) 1)
@@ -38,31 +45,31 @@
     ((plusp shift) (sb-vm::@ register (sb-vm::lsl index shift)))
     (t             (sb-vm::@ register (sb-vm::lsr index (- shift))))))
 
-;; try to use large shift to avoid overflows
 (defun encode-arm-large-offset (offset)
   ;; allow exceeding fixnum, but not addressable memory
   (check-type offset (integer #.(- sb-ext:most-positive-word)
 			      #.sb-ext:most-positive-word))
 
-  (let ((fix-shift (- +n-fixnum-tag-bits+)))
-    (declare (type arm-shift fix-shift))
-    (loop while (and (evenp offset) (< fix-shift 31))
+  (let ((shift 0))
+    (declare (type arm-shift shift))
+    ;; try to use large shift to avoid overflows
+    (loop while (and (evenp offset) (< shift 31))
        do
 	 (setf offset (ash offset -1)
-	       fix-shift (1+ fix-shift)))
+	       shift (1+ shift)))
     (check-type offset fixnum)
-    (values offset fix-shift 0)))
+    (values offset shift 0)))
 
 
 ;; try to use large shift to avoid overflows
-(defun encode-arm-index+shift+large-offset (index fix-shift offset)
-  (check-type fix-shift arm-shift)
+(defun encode-arm-index+shift+large-offset (index index-shift offset)
+  (check-type index-shift arm-shift)
   (check-type offset fixnum)
 
   (multiple-value-bind (offset offset-shift) (encode-arm-large-offset offset)
     (declare (type arm-shift offset-shift))
-    (let* ((min-shift    (the arm-shift (min fix-shift offset-shift)))
-	   (delta-index  (the arm-shift (- fix-shift min-shift)))
+    (let* ((min-shift    (the arm-shift (min index-shift offset-shift)))
+	   (delta-index  (the arm-shift (- index-shift  min-shift)))
 	   (delta-offset (the arm-shift (- offset-shift min-shift))))
       
       (values `(+ ,(if (zerop delta-index)  index `(ash ,index ,delta-index))
@@ -71,33 +78,30 @@
 
     
 
-(defun check-arm-addressing (index scale offset)
-  "Returns a triplet (values index shift displacement)
+(defun check-arm-fixnum-addressing (index fixnum-scale offset)
+  "Return a triplet (values index shift offset)
 suitable for LDR and STR addressing modes"
-  (let* ((scale (check-compile-constant scale))
-	 (fix-scale (/ scale +fixnum-zero-mask+1+))
+  (let* ((fixnum-scale (check-compile-constant fixnum-scale))
 	 (offset  (check-compile-constant offset)))
 
-    (check-type fix-scale arm-scale)
+    (check-type fixnum-scale arm-fixnum-scale)
     (check-type offset integer)
 
     (when (constantp index)
-      (let ((offset (+ (* (eval index) scale) offset)))
-	(return-from check-arm-addressing
+      (let ((offset (+ (* (eval index) fixnum-scale) offset)))
+	(return-from check-arm-fixnum-addressing
 	  (if (typep offset 'arm-offset)
 	      ;; encode as immediate offset
 	      (values 0 0 offset)
-	      ;; try to use large scale to avoid overflows
 	      (encode-arm-large-offset offset)))))
 
-    (let* ((shift (arm-scale=>shift scale))
-	   (fix-shift (- shift +n-fixnum-tag-bits+)))
+    (let ((fixnum-shift (arm-scale=>shift fixnum-scale)))
       ;; ARM instructions LDR and STR do not support simultaneous index and offset
       ;; but scale is quite flexible
       (if (zerop offset)
-	  (values index fix-shift 0)
+	  (values index fixnum-shift 0)
 	  ;; worst case: work around non-zero offset
-	  (encode-arm-index+shift+large-offset index fix-shift offset)))))
+	  (encode-arm-index+shift+large-offset index fixnum-shift offset)))))
 	    
 
 (defmacro define-fast-mread-mwrite (&key mread-name mwrite-name type size)
@@ -127,23 +131,23 @@ suitable for LDR and STR addressing modes"
          (:translate ,%mread-name)
 
          (:args (sap   :scs (sb-vm::sap-reg))
-                ;; cheat and use a FIXNUM as INDEX... on SBCL
+                ;; directly use a tagged FIXNUM as INDEX... on SBCL
                 ;; its representation is shifted by +n-fixnum-tag-bits+
                 ;; which means that INDEX is effectively shifted
                 ;; by that many bits. This discrepancy is solved by
-		;; check-arm-addressing above, which must be invoked by the caller
-		;; to fix index and scale before calling ,%mread-name
+		;; changing the allowed values of scale, i.e.
+                ;; using arm-fixnum-shift instead of arm-shift
                 (index :scs (sb-vm::any-reg)))
          (:info shift offset)
          (:arg-types sb-vm::system-area-pointer sb-vm::tagged-num
-                     (:constant arm-shift)
+                     (:constant arm-fixnum-shift)
 		     (:constant (member 0)))
 
          (:results   (r :scs (sb-vm::unsigned-reg)))
          (:result-types sb-vm::unsigned-num)
 
          (:generator 2
-          (sb-assem:inst ldr r (arm-mem-shifter sap index shift))))
+          (sb-assem:inst ldr r (arm-mem-shifter sap index (- shift +n-fixnum-tag-bits+)))))
 
        (sb-c:define-vop (,%mread-name-c)
          (:policy :fast-safe)
@@ -168,19 +172,19 @@ suitable for LDR and STR addressing modes"
          
          (:args (value :scs (sb-vm::unsigned-reg))
                 (sap   :scs (sb-vm::sap-reg))
-                ;; cheat and use a FIXNUM as INDEX... on SBCL
+                ;; directly use a tagged FIXNUM as INDEX... on SBCL
                 ;; its representation is shifted by +n-fixnum-tag-bits+
                 ;; which means that INDEX is effectively shifted
                 ;; by that many bits. This discrepancy is solved by
-		;; check-arm-addressing above, which must be invoked by the caller
-		;; to fix index and shift before calling ,%mread-name
+		;; changing the allowed values of scale, i.e.
+                ;; using arm-fixnum-shift instead of arm-shift
                 (index :scs (sb-vm::any-reg)))
          (:info shift offset)
          (:arg-types sb-vm::unsigned-num sb-vm::system-area-pointer sb-vm::tagged-num
-                     (:constant arm-shift)
+                     (:constant arm-fixnum-shift)
 		     (:constant (member 0)))
          (:generator 2
-	  (sb-assem:inst str value (arm-mem-shifter sap index shift))))
+	  (sb-assem:inst str value (arm-mem-shifter sap index (- shift +n-fixnum-tag-bits+)))))
 
        (sb-c:define-vop (,%mwrite-name-c)
          (:policy :fast-safe)
@@ -200,13 +204,13 @@ suitable for LDR and STR addressing modes"
        (defmacro ,mread-name (sap index
                               &key (scale +fixnum-zero-mask+1+) (offset 0))
          (multiple-value-bind (index shift offset)
-             (check-arm-addressing index scale offset)
+             (check-arm-fixnum-addressing index scale offset)
 	   (list ',%mread-name sap index shift offset)))
 
        (defmacro ,mwrite-name (value sap index
                                &key (scale +fixnum-zero-mask+1+) (offset 0))
          (multiple-value-bind (index shift offset)
-             (check-arm-addressing index scale offset)
+             (check-arm-fixnum-addressing index scale offset)
 	   (list ',%mwrite-name value sap index shift offset))))))
 	       
 

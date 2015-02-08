@@ -29,6 +29,8 @@
 
 
 (defun check-x86-fixnum-addressing (index scale offset)
+  "Return a triplet (values index scale offset)
+suitable for MOV addressing modes"
   (let ((scale  (check-compile-constant scale))
         (offset (check-compile-constant offset)))
     (when (constantp index)

@@ -363,11 +363,15 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
            (type ufixnum start-index end-index))
 
   #?+hlmem/fast-mem
-  (let* ((n-words      (the ufixnum  (- end-index start-index)))
-	 (n-bulk-words (the ufixnum  (logand -8 n-words)))
-	 (i            (the ufixnum  start-index))
-	 (bulk-end     (the ufixnum  (+ i n-bulk-words)))
-         (base         (the hl-asm:fast-sap (hl-asm:sap=>fast-sap ptr))))
+  (let* ((i            (the ufixnum  start-index))
+         (base         (the hl-asm:fast-sap (hl-asm:sap=>fast-sap ptr)))
+         ;; ARM has no BASE+INDEX*SCALE+OFFSET addressing,
+	 ;; and 32-bit x86 is register-starved, so this currently leaves x86-64
+	 #+(or x86-64 x86_64 x8664) (n-words      (the ufixnum  (- end-index start-index)))
+	 #+(or x86-64 x86_64 x8664) (n-bulk-words (the ufixnum  (logand -8 n-words)))
+	 #+(or x86-64 x86_64 x8664) (bulk-end     (the ufixnum  (+ i n-bulk-words))))
+
+    #+(or x86-64 x86_64 x8664)
     (loop while (< i bulk-end)
        do
 	 (let ((i (the ufixnum i)))
@@ -390,11 +394,13 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
   #?-hlmem/fast-mem
   (let* ((i   (logand +mem-word/mask+ (* start-index +msizeof-word+)))
          (end (logand +mem-word/mask+ (* end-index   +msizeof-word+)))
-         ;; 32-bit x86 is register-starved...
-         #-x86 (bulk-end (logand end (* -4 +msizeof-word+))))
-    (declare (type mem-word i end #-x86 bulk-end))
+         ;; ARM has no BASE+INDEX*SCALE+OFFSET addressing,
+	 ;; and 32-bit x86 is register-starved, so this currently leaves x86-64
+	 #+(or x86-64 x86_64 x8664)
+	 (bulk-end (logand end (* -4 +msizeof-word+))))
+    (declare (type mem-word i end #+(or x86-64 x86_64 x8664) bulk-end))
 
-    #-x86
+    #+(or x86-64 x86_64 x8664)
     (loop while (< i bulk-end)
        do
          (let ((i1 (the mem-word (+ i (* 1 +msizeof-word+))))
