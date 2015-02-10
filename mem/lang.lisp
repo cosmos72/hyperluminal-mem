@@ -17,8 +17,9 @@
 
 (eval-when (:compile-toplevel :load-toplevel)
 
-  #+(or x86-64 x86_64 x8664) ;; too many names...
-  (set-feature 'cpu :x86-64)
+  (set-feature 'x86-64 
+	       #+(or x86-64 x86_64 x8664) t ;; too many names...
+	       #-(or x86-64 x86_64 x8664) nil)
 
   (defun find-hldb-option/string (prefix)
     (declare (type symbol prefix))
