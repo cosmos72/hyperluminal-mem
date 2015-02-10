@@ -51,8 +51,7 @@
   (:export #:hlmem-version #:hlmem-abi-version
 	   
            #:maddress     #:mem-word       #:mem-size    #:+msizeof-word+
-           #:malloc       #:malloc-words   #:mfree       
-           #:mread-magic  #:mwrite-magic
+           #:mread-magic  #:mwrite-magic   
 
            #:mget-unboxed #:mset-unboxed   #:mset-fulltag-and-value
            #:msize        #:mwrite         #:mread
@@ -64,11 +63,11 @@
            #:mread-object-slots-using-names
 
            #:with-mem-bytes     #:with-mem-words       #:with-vector-mem
+           #:malloc             #:malloc-words         #:mfree
+           #:mzero-words        #:memset-words         #:memcpy-words
 
            #:decl-msize-class   #:decl-mwrite-class    #:decl-mread-class
            #:decl-mserializable-class
 
-           #:mzero       #:memset       #:memcpy
-           #:mzero-words #:memset-words #:memcpy-words
            
            #:!mdump #:!mdump-bytes #:!mdump-bytes-reverse))
