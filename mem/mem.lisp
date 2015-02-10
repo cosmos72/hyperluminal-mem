@@ -80,6 +80,7 @@
     `(mget-t :word ,ptr ,word-index))
 
   (defmacro mset-word (ptr word-index value)
+    "Warning: evaluates VALUE before the other arguments!"
     `(mset-t ,value :word ,ptr ,word-index))
 
   (defsetf mget-word mset-word))
@@ -94,9 +95,8 @@
     `(%mget-t :byte ,ptr ,byte-index))
 
   (defmacro mset-byte (ptr byte-index value)
-    #-abcl "Used only by MWRITE-MAGIC and and %DETECT-ENDIANITY."
-    #+abcl "Used only by MWRITE-MAGIC, and %DETECT-ENDIANITY,
-!MEMSET and !MEMCPY."
+    "Used only by MWRITE-MAGIC, and %DETECT-ENDIANITY, MEMSET and MEMCPY.
+  Warning: evaluates VALUE before the other arguments!"
     `(%mset-t ,value :byte ,ptr ,byte-index))
 
   (defsetf mget-byte mset-byte))

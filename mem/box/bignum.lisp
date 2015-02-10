@@ -119,7 +119,7 @@ followed by an array of words containing N in two's complement."
                            (logand +lisp-object-address-mask+
                                    (sb-kernel:get-lisp-obj-address n)))))))
             (memcpy-words ptr index src 0 n-words)
-            (mem-size+ index n-words)))) 
+            (incf-mem-size index n-words))))
       
     #-sbcl
     (%mwrite-bignum-recurse ptr index n-words n)))

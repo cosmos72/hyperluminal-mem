@@ -214,8 +214,8 @@ The obtained memory must be freed manually: call FFI-MEM-FREE on it when no long
     (when (constantp n-bytes)
       (setf n-bytes (eval n-bytes))
       ;; we do not want to easily exceed the 8MB *default* maximum stack size on Linux
-      ;; so we place a somewhat arbitrary limit at 1MB
-      (when (and (typep n-bytes 'fixnum) (<= n-bytes (ash 1 20)))
+      ;; so we place a somewhat arbitrary limit at 960kB
+      (when (and (typep n-bytes 'fixnum) (<= n-bytes (ash 960 10)))
         (return-from with-ffi-mem
           `(cffi-sys:with-foreign-pointer (,var-name ,n-bytes ,@(when n-bytes-var `(,n-bytes-var)))
              ,@body))))
