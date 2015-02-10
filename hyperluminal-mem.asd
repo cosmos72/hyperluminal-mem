@@ -30,7 +30,7 @@
 
   :components
   ((:static-file "hyperluminal-mem.asd")
-	       
+
    (:module :lang
     :components ((:file "package")
 		 (:file "lang"           :depends-on ("package"))))
@@ -61,12 +61,12 @@
 		 (:file "version"        :depends-on ("lang"))
 		 (:file "defs"           :depends-on ("lang"))
 		 (:file "mem"            :depends-on ("defs"))
-		 (:file "ffi-late"       :depends-on ("mem"))
-		 (:file "constants"      :depends-on ("ffi-late"))
+		 (:file "constants"      :depends-on ("mem"))
 		 (:file "symbols"        :depends-on ("constants"))
 		 (:file "int"            :depends-on ("symbols"))
 		 (:file "unboxed"        :depends-on ("int"))
-		 (:file "box"            :depends-on ("version" "unboxed"))
+		 (:file "ffi-late"       :depends-on ("unboxed"))
+		 (:file "box"            :depends-on ("version" "unboxed" "ffi-late"))
 		 (:file "magic"          :depends-on ("box"))
 		 
 		 (:file "box/bignum"     :depends-on ("box"))

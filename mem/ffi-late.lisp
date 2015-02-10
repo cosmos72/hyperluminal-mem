@@ -15,9 +15,7 @@
 
 (in-package :hyperluminal-mem)
 
-
-(declaim (notinline !memset !memcpy))
-
+(enable-#?-syntax)
 
 (declaim (inline malloc))
 (defun malloc (n-bytes)
@@ -46,45 +44,109 @@ count and expect memory lengths in words, not in bytes."
 (defun memset (ptr fill-byte start-byte end-byte)
   (declare (type maddress ptr)
            (type (unsigned-byte 8) fill-byte)
-           (type ufixnum start-byte end-byte))
+           (type mem-word start-byte end-byte))
   
   (when (> end-byte start-byte)
     #-abcl
-    (when (> 20 (- end-byte start-byte))
-      (unless (zerop start-byte)
-        (setf ptr (cffi-sys:inc-pointer ptr start-byte)))
-      (osicat-posix:memset ptr fill-byte (- end-byte start-byte))
-      (return-from memset nil))
+    (let ((n-bytes (- end-byte start-byte)))
+      (declare (type mem-word n-bytes))
+      (when (> n-bytes 20)
+        (unless (zerop start-byte)
+          (setf ptr (cffi-sys:inc-pointer ptr start-byte)))
+        (osicat-posix:memset ptr fill-byte n-bytes)
+        (return-from memset nil)))
 
-    (loop for offset from start-byte below end-byte do
-         (mset-byte ptr offset fill-byte))))
+    (let ((i start-byte))
+      (declare (type mem-word start-byte))
+      (loop while (< i end-byte) do
+           (mset-byte ptr i fill-byte)
+           (incf i)))))
 
-;; (defun memset-words) is already defined, in mem.lisp
 
 
-(declaim (inline mzero-bytes))
+(defun memset-words (ptr fill-word start-index end-index)
+  (declare (optimize (speed 3) (safety 0) (debug 1))
+           (type maddress ptr)
+           (type mem-word fill-word)
+           (type mem-size start-index end-index))
+
+  (when (< start-index end-index)
+    ;; ARM has no SAP+INDEX*SCALE+OFFSET addressing,
+    ;; and 32-bit x86 is register-starved, so this currently leaves x86-64
+    #?+(and hlmem/fast-mem (eql cpu :x86-64))
+    (let ((i        (the mem-size start-index))
+          (sap      (the hl-asm:fast-sap (hl-asm:sap=>fast-sap ptr))))
+    
+      (let ((bulk-end (the mem-size (+ i (logand -8 (- end-index i))))))
+        (loop while (< i bulk-end)
+           do
+             (fast-mset-word fill-word sap i :offset (* 0 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 1 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 2 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 3 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 4 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 5 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 6 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 7 +msizeof-word+))
+             (incf i 8)))
+
+      (loop while (< i end-index)
+         do
+           (fast-mset-word fill-word sap i)
+           (incf i)))
+    
+    #?-(or hlmem/fast-mem (eql cpu :x86-64))
+    (let ((i (the mem-size start-index)))
+      ;; 32-bit x86 is register-starved
+      #-x86
+      (let ((bulk-end (the mem-size (+ i (logand -4 (the mem-size (- end-index i)))))))
+        (loop while (< i bulk-end)
+           do
+             (let ((i1 (mem-size+ i 1))
+                   (i2 (mem-size+ i 2))
+                   (i3 (mem-size+ i 3)))
+               (mset-word ptr i  fill-word)
+               (mset-word ptr i1 fill-word)
+               (mset-word ptr i2 fill-word)
+               (mset-word ptr i3 fill-word)
+               (incf-mem-size i 4))))
+      
+      (loop while (< i end-index)
+         do
+           (mset-word ptr i fill-word)
+           (incf-mem-size i)))))
+
+
+
+(declaim (inline mzero))
 (defun mzero (ptr start-byte end-byte)
   (declare (type maddress ptr)
-           (type ufixnum start-byte end-byte))
+           (type mem-size start-byte end-byte))
   (memset ptr 0 start-byte end-byte))
 
 
-(defun mzero-words (ptr &optional (start-index 0) (end-index (1+ start-index)))
+(defun mzero-words (ptr start-index end-index)
   (declare (type maddress ptr)
-           (type ufixnum start-index end-index))
+           (type mem-size start-index end-index))
 
-  (if (> 100 (- end-index start-index))
-      (mzero-bytes ptr
-                   (the ufixnum (* start-index +msizeof-word+))
-                   (the ufixnum (* end-index   +msizeof-word+)))
-      (memset-words ptr 0 start-index end-index)))
+  (when (> end-index start-index)
+    #-abcl
+    (when (> 100 (- end-index start-index))
+      (return-from mzero-words
+        (mzero ptr
+                     (the mem-size (* start-index +msizeof-word+))
+                     (the mem-size (* end-index   +msizeof-word+)))))
+
+    (memset-words ptr 0 start-index end-index)))
+  
+
 
 
  
 
 (defun memcpy (dst dst-start-byte src src-start-byte n-bytes)
   (declare (type maddress dst src)
-           (type ufixnum dst-start-byte src-start-byte n-bytes))
+           (type mem-size dst-start-byte src-start-byte n-bytes))
   #-abcl
   (progn
     (unless (zerop dst-start-byte)
@@ -95,15 +157,15 @@ count and expect memory lengths in words, not in bytes."
 
   #+abcl
   (loop for i from 0 below n-bytes do
-       (mset-byte dst (the ufixnum (+ i dst-start-byte))
-                  (mget-byte src (the ufixnum (+ i src-start-byte))))))
+       (mset-byte dst (the mem-size (+ i dst-start-byte))
+                  (mget-byte src (the mem-size (+ i src-start-byte))))))
 
 
 (defun memcpy-words (dst dst-index src src-index n-words)
   (declare (type maddress dst src)
-           (type ufixnum dst-index src-index n-words))
+           (type mem-size dst-index src-index n-words))
 
-  (let ((src-end (the ufixnum (+ src-index n-words))))
+  (let ((src-end (the mem-size (+ src-index n-words))))
     (loop while (< src-index src-end)
        do
 	 (mset-word dst dst-index (mget-word src src-index))

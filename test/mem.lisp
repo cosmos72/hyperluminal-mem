@@ -63,16 +63,16 @@
     (with-mem-words (ptr end)
       (time
 
+       #+(and)
+       (dotimes (i 1024)
+         (mwrite ptr idx end array))
+
        #-(and)
        (progn
          (mwrite ptr idx end array)
          (dotimes (i 1024)
            (mread ptr idx end)))
        
-       #+(and)
-       (dotimes (i 1024)
-         (mwrite ptr idx end array))
-
        #-(and)
        (dotimes (i 1024)
          (hlmem::mwrite-box ptr idx end array (hlmem::mdetect-box-type array)))
@@ -96,12 +96,12 @@
 
        #-(and)
        (dotimes (i 1024)
-         (loop for j from 0 below len
-            for e fixnum = (row-major-aref array j)
-            ;; do (mwrite ptr j end e)
-              ))
+         (loop with j = 0
+            for e across array
+            do (hlmem::mset-int ptr j (the fixnum e))
+              (incf (the fixnum j))))
          
-         #-(and)
-         (dotimes (i 1024)
-           (dotimes (j len)
-             (mwrite ptr j end (row-major-aref array j))))))))
+       #-(and)
+       (dotimes (i 1024)
+         (dotimes (j len)
+           (mwrite ptr j end (row-major-aref array j))))))))

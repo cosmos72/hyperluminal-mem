@@ -19,7 +19,7 @@
   (pushnew :hyperluminal-mem *features*)
 
   #-(and)
-  (pushnew :hyperluminal-mem/debug *features*))
+  (pushnew :hyperluminal-mem/debug *features*))  
 
 
 (defun eval-compile-constant (name form)

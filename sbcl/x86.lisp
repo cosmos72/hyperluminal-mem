@@ -50,6 +50,7 @@ suitable for MOV addressing modes"
         (%mwrite-name-c (concat-symbols '% mwrite-name '/const)))
 
     `(progn
+       (declaim (inline ,%mread-name))
        (defknown ,%mread-name
            ;;arg-types
            (fast-sap fixnum x86-fixnum-scale (signed-byte 32))
@@ -57,6 +58,7 @@ suitable for MOV addressing modes"
            ,type
            (sb-c::flushable sb-c::important-result sb-c::always-translatable))
 
+       (declaim (inline ,%mwrite-name))
        (defknown ,%mwrite-name
            ;;arg-types
            (,type fast-sap fixnum x86-fixnum-scale (signed-byte 32))
