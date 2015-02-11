@@ -47,12 +47,12 @@ in the representation of a FIXNUM")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
+         
 (declaim (inline sap=>fast-sap))
 (defun sap=>fast-sap (x)
-  x)
+  (the fast-sap x))
 
 (declaim (inline fast-sap=>sap))
 (defun fast-sap=>sap (x)
-  x)
+  (the fast-sap x))
 

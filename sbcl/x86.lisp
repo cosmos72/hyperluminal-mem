@@ -91,7 +91,7 @@ suitable for MOV addressing modes"
                          #+x86 r
                          #-x86 (sb-vm::reg-in-size r ,size)
                          (sb-vm::make-ea ,size :base sap :index index
-                                         :scale (ash scale (- +n-fixnum-tag-bits+))
+                                         :scale (ash (the fixnum scale) (- +n-fixnum-tag-bits+))
                                          :disp offset))))
 
        (sb-c:define-vop (,%mread-name-c)
@@ -135,7 +135,7 @@ suitable for MOV addressing modes"
          (:generator 2
           (sb-assem:inst mov
                          (sb-vm::make-ea ,size :base sap :index index
-                                         :scale (ash scale (- +n-fixnum-tag-bits+))
+                                         :scale (ash (the fixnum scale) (- +n-fixnum-tag-bits+))
                                          :disp offset)
                          #+x86 value
                          #-x86 (sb-vm::reg-in-size value ,size))))
@@ -180,6 +180,98 @@ suitable for MOV addressing modes"
 #+x86-64
 (define-fast-mread-mwrite :mread-name fast-mread/8 :mwrite-name fast-mwrite/8
                           :type (unsigned-byte 64) :size :qword)
+
+
+
+(defmacro define-fast-sap+ ()
+  `(progn
+     (eval-always
+       (declaim (inline %fast-sap+))
+       (defknown %fast-sap+
+           ;;arg-types
+           (fast-sap fixnum x86-fixnum-scale (signed-byte 32))
+           ;;result-type
+           fast-sap
+           (sb-c::flushable sb-c::movable)))
+
+
+     (eval-always
+       (sb-c:define-vop (%fast-sap+)
+         (:policy :fast-safe)
+         (:translate %fast-sap+)
+         (:args (sap   :scs (sb-vm::sap-reg))
+                ;; directly use a tagged FIXNUM as INDEX... on SBCL
+                ;; its representation is shifted by +n-fixnum-tag-bits+
+                ;; which means that INDEX is effectively shifted
+                ;; by that many bits. This discrepancy is solved by
+                ;; changing the allowed values of scale, i.e.
+                ;; using x86-fixnum-scale instead of x86-scale
+                (index :scs (sb-vm::any-reg)))
+         (:info scale offset)
+         (:arg-types sb-vm::system-area-pointer sb-vm::tagged-num
+                     (:constant x86-fixnum-scale)
+                     (:constant (signed-byte 32)))
+         
+         (:results   (r :scs (sb-vm::sap-reg)))
+         (:result-types sb-vm::system-area-pointer)
+
+         (:generator 2
+          (sb-assem:inst lea r
+                         (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                         :base sap :index index
+                                         :scale (ash (the fixnum scale) (- +n-fixnum-tag-bits+))
+                                         :disp offset)))))
+
+
+
+
+
+     (eval-always
+       (sb-c:define-vop (%fast-sap+/const)
+         (:policy :fast-safe)
+         (:translate %fast-sap+)
+
+         (:args (sap   :scs (sb-vm::sap-reg)
+                       :load-if (not (sb-c::location= sap r))))
+         (:info index scale offset)
+         (:arg-types sb-vm::system-area-pointer
+                     (:constant (member 0))
+                     (:constant rational)
+                     (:constant (signed-byte 32)))
+         
+         (:results   (r :scs (sb-vm::sap-reg)
+                        :load-if (not (sb-c::location= sap r))))
+         (:result-types sb-vm::system-area-pointer)
+
+         (:generator 1
+          (cond ((sb-c::location= sap r)
+                 (sb-c::move r sap)
+                 (sb-assem::inst add r offset))
+
+                (t
+                 (sb-assem:inst lea r
+                                (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                                :base sap :disp offset)))))))
+     
+     (defmacro fast-sap+ (sap index
+                          &key (scale +fixnum-zero-mask+1+) (offset 0))
+       (multiple-value-bind (index scale offset)
+           (check-x86-fixnum-addressing index scale offset)
+         `(%fast-sap+ ,sap ,index ,scale ,offset)))
+
+     (declaim (inline fast-sap<))
+     (defun fast-sap< (x y)
+       (declare (type fast-sap x y))
+       (sb-sys:sap< x y))))
+
+
+
+(define-fast-sap+)
+
+
+
+
+
 
 
 

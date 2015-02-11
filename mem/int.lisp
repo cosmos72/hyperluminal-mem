@@ -24,39 +24,26 @@
 (deftype mem-word    () `(unsigned-byte ,+mem-word/bits+))
 
 
-;; use the fastest available implementation of mword=>mem-int
-(eval-always
-  (let* ((name (stringify 'fast-mword/ +msizeof-word+ '=>fixnum))
-         (pkg (find-package (symbol-name 'hl-asm)))
-         (sym (when pkg (find-symbol name pkg))))
-    
-    (cond
-      ;; hl-asm:fast-mword=>fixnum is usable for mword=>mem-int
-      ;; only if mem-int equals fixnum
-      ((and sym (get-feature 'hlmem/mem-int=fixnum))
-       (set-feature 'hlmem/mword=>mem-int :asm)
-       (defmacro mword=>mem-int (word)
-         `(,sym ,word)))
+(defmacro mword=>mem-int (word)
+  #?+hlmem/mword=>mem-int
+  `(,(get-feature :hlmem/mword=>mem-int) ,word)
 
-      (t
-       (set-feature 'hlmem/mword=>mem-int :slow)
-       (defmacro mword=>mem-int (word)
-         (with-gensym x
-           `(locally
-                (declare (optimize (safety 0) (speed 3)))
-              (let ((,x ,word))
-                (the mem-int (- (logand +mem-int/value-mask+ ,x)
-                                (logand +mem-int/sign-mask+ ,x)))))))))))
+  #?-hlmem/mword=>mem-int
+  (with-gensym x
+    `(locally
+         (declare (optimize (safety 0) (speed 3)))
+       (let ((,x ,word))
+         (the mem-int (- (logand +mem-int/value-mask+ ,x)
+                         (logand +mem-int/sign-mask+ ,x)))))))
 
-       
-#?+hlmem/mem-int=fixnum
+
 (defmacro mem-int=>mword (value)
+  #?+hlmem/mem-int=fixnum
   `(logior +mem-int/flag+
            #+sbcl (logand +mem-word/mask+ ,value) ;; faster
-           #-sbcl (logand +mem-int/mask+ ,value)))
+           #-sbcl (logand +mem-int/mask+ ,value))
 
-#?-hlmem/mem-int=fixnum
-(defmacro mem-int=>mword (value)
+  #?-hlmem/mem-int=fixnum
   `(logior +mem-int/flag+
            (logand +mem-int/mask+ ,value)))
 

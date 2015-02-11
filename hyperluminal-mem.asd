@@ -60,7 +60,8 @@
 		 (:file "lang"           :depends-on ("package"))
 		 (:file "version"        :depends-on ("lang"))
 		 (:file "defs"           :depends-on ("lang"))
-		 (:file "mem"            :depends-on ("defs"))
+		 (:file "fast-mem"       :depends-on ("defs"))
+		 (:file "mem"            :depends-on ("fast-mem"))
 		 (:file "constants"      :depends-on ("mem"))
 		 (:file "symbols"        :depends-on ("constants"))
 		 (:file "int"            :depends-on ("symbols"))
@@ -129,6 +130,7 @@
                              (:file "magic"         :depends-on ("package"))
                              (:file "mem"           :depends-on ("package"))
                              (:file "abi"           :depends-on ("mem"))
+                             (:file "ffi"           :depends-on ("mem"))
                              (:file "stmx-objects"  :depends-on ("abi"))))))
 
 

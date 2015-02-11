@@ -13,23 +13,17 @@
 ;; See the Lisp Lesser General Public License for more details.
 
 
-;;;; * HYPERLUMINAL-MEM
+(in-package :hyperluminal-mem.test)
 
-(in-package :cl-user)
-
-(defpackage #:hyperluminal-lang
-
-  (:nicknames #:hl-lang)
-
-  (:use #:cl)
-
-  (:import-from #:stmx.lang
-                #:with-gensyms #:when-bind)
+(defun memcpy-test (n-words &optional (n-loops (truncate (ash 1 30) n-words)))
+  (declare (type mem-size n-words)
+           (type fixnum n-loops))
   
-  (:export #:eval-compile-constant #:check-compile-constant
-	   #:or-func  #:and-func
-	   #:stringify #:concat-symbols
-           #:get-symbol #:get-fbound-symbol #:have-symbol?
-	   #:check-vector-index))
-
-
+  (with-mem-words (src n-words)
+    (with-mem-words (dst n-words)
+      (time
+       (dotimes (i n-loops)
+         (osicat-posix:memcpy dst src (* n-words +msizeof-word+))))
+      (time
+       (dotimes (i n-loops)
+         (memcpy-words dst 0 src 0 n-words))))))

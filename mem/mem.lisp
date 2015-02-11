@@ -18,31 +18,6 @@
 (enable-#?-syntax)
 
 
-;; if available, use fast implementation of mget-word and mset-word
-(eval-always
-  (let* ((fast-mread-name  (stringify 'fast-mread/  +msizeof-word+))
-         (fast-mwrite-name (stringify 'fast-mwrite/ +msizeof-word+))
-         (pkg (find-package 'hl-asm))
-         (fast-mread-sym   (when pkg (find-symbol fast-mread-name  pkg)))
-         (fast-mwrite-sym  (when pkg (find-symbol fast-mwrite-name pkg)))
-         (fast-mread-def   (when fast-mread-sym  (fboundp fast-mread-sym)))
-         (fast-mwrite-def  (when fast-mwrite-sym (fboundp fast-mwrite-sym)))
-         (flag             (and fast-mread-def fast-mwrite-def)))
-
-    (set-feature 'hlmem/fast-mem (not (null flag)))
-    (if flag
-        (progn
-          (defmacro fast-mget-word (ptr index &key (scale +msizeof-word+) (offset 0))
-            `(,fast-mread-sym ,ptr ,index :scale ,scale :offset ,offset))
-          (defmacro fast-mset-word (value ptr index &key (scale +msizeof-word+) (offset 0))
-            "Warning: returns no values"
-            `(,fast-mwrite-sym ,value ,ptr ,index :scale ,scale :offset ,offset)))
-        ;; sanity
-        (progn
-          (fmakunbound 'fast-mget-word)
-          (fmakunbound 'fast-mset-word)))))
-
-
 ;; default implementation of mget-word and mset-word
 (eval-always
   (defmacro %mget-t (type ptr &optional (byte-offset 0))
@@ -57,7 +32,7 @@
     #?+hlmem/fast-mem
     (when (eq +chosen-word-type+ (parse-type type))
       (return-from mget-t
-        `(fast-mget-word (hl-asm:sap=>fast-sap ,ptr) ,word-index)))
+        `(fast-mget-word (sap=>fast-sap ,ptr) ,word-index)))
     ;; common case
     `(%mget-t ,type ,ptr (the #+sbcl mem-word #-sbcl t
                               (* ,word-index +msizeof-word+))))
@@ -67,7 +42,7 @@
     #?+hlmem/fast-mem
     (when (eq +chosen-word-type+ (parse-type type))
       (return-from mset-t
-        `(fast-mset-word ,value (hl-asm:sap=>fast-sap ,ptr) ,word-index)))
+        `(fast-mset-word ,value (sap=>fast-sap ,ptr) ,word-index)))
     ;; common case
     `(%mset-t ,value ,type ,ptr (the #+sbcl mem-word #-sbcl t
                                      (* ,word-index +msizeof-word+)))))

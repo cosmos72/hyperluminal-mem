@@ -72,12 +72,27 @@ Returns a symbol interned in current package"
   (intern (apply #'stringify syms-ints-and-strings)))
 
 
-(defun have-symbol? (pkg-name symbol-name)
-  (declare (type (or symbol string) pkg-name symbol-name))
-  (let ((pkg (find-package pkg-name)))
-    (when pkg
-      (when (nth-value 1 (find-symbol (string symbol-name) pkg))
-	t))))
+(defun get-symbol (package-name symbol-name)
+  (declare (type (or symbol string package) package-name)
+           (type (or symbol string)         symbol-name))
+  (when (symbolp package-name) (setf package-name (string package-name)))
+  (when (symbolp symbol-name)  (setf symbol-name  (string symbol-name)))
+  (when-bind pkg (find-package package-name)
+    (find-symbol symbol-name pkg)))
+
+(defun have-symbol? (package-name symbol-name)
+  (declare (type (or symbol string package) package-name)
+           (type (or symbol string)         symbol-name))
+  (not (null (nth-value 1 (get-symbol package-name symbol-name)))))
+
+(defun get-fbound-symbol (package-name symbol-name)
+  (declare (type (or symbol string package) package-name)
+           (type (or symbol string)         symbol-name))
+  (multiple-value-bind (sym found) (get-symbol package-name symbol-name)
+    (when (and found (fboundp sym))
+      sym)))
+
+        
 
   
 (defmacro check-vector-index (vector index &rest error-message-and-args)

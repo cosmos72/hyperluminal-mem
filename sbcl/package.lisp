@@ -25,15 +25,17 @@
                 #:eval-always  #:with-gensym  #:with-gensyms)
 
   #+arm
-  (:export #:fast-sap #:sap=>fast-sap #:fast-sap=>sap
+  (:export #:fast-sap  #:sap=>fast-sap #:fast-sap=>sap
 	   #:fast-mread/4 #:fast-mwrite/4 #:fast-mword/4=>fixnum)
 
   #+x86
-  (:export #:fast-sap #:sap=>fast-sap #:fast-sap=>sap
+  (:export #:fast-sap  #:sap=>fast-sap #:fast-sap=>sap
+           #:fast-sap+ #:fast-sap<
 	   #:fast-mread/4 #:fast-mwrite/4 #:fast-mword/4=>fixnum)
 
   #+x86-64
-  (:export #:fast-sap #:sap=>fast-sap #:fast-sap=>sap
+  (:export #:fast-sap  #:sap=>fast-sap #:fast-sap=>sap
+           #:fast-sap+ #:fast-sap<
 	   #:fast-mread/4 #:fast-mwrite/4 #:fast-mword/4=>fixnum
 	   #:fast-mread/8 #:fast-mwrite/8 #:fast-mword/8=>fixnum))
 
