@@ -165,44 +165,49 @@ count and expect memory lengths in words, not in bytes."
 #?+hlmem/fast-mem
 (progn
   #?+hlmem/fast-sap*
-  (defmacro %memcpy-unrolled-words (unroll-factor dst di src si end)
+  ;; not really used, the simpler version below is equally faster
+  ;; and has smaller overhead
+  (defmacro %memcpy-unrolled-words* (unroll-factor dst di src si end)
     (check-type unroll-factor (unsigned-byte 8))
     (with-gensyms (dsap ssap send bulk-end)
-      (let ((vars (loop repeat unroll-factor collect (gensym "V"))))
+      (let ((vars (loop repeat unroll-factor collect (gensym "V")))
+            ;; round up to a power of 2
+            (unroll-factor-pow2 (ash 1 (integer-length (1- unroll-factor)))))
         `(let* ((,dsap     (sap=>fast-sap ,dst))
                 (,ssap     (sap=>fast-sap ,src))
-                (,bulk-end (fast-sap+ ,ssap (if (>= ,end ,unroll-factor) (- ,end ,unroll-factor) 0)))
+                (,bulk-end (fast-sap+ ,ssap
+                                      (mem-size+ ,si (logand ,(- unroll-factor-pow2)
+                                                             (mem-size- ,end ,si)))))
                 (,send     (fast-sap+ ,ssap ,end)))
            
            (incf-fast-sap ,dsap ,di)
            (incf-fast-sap ,ssap ,si)
 
-           (do ()
-               ((not (fast-sap< ,ssap ,bulk-end)))
-             
-             (let (,@(loop for i fixnum from 0
-                        for v in vars collect
-                          `(,v (fast-mget-word ,ssap 0 :offset (* ,i +msizeof-word+)))))
-               ,@(loop for i fixnum from 0
-                    for v in vars collect
-                      `(fast-mset-word ,v ,dsap 0 :offset (* ,i +msizeof-word+))))
-             (incf-fast-sap ,dsap ,unroll-factor)
-             (incf-fast-sap ,ssap ,unroll-factor))
+           (loop while (fast-sap< ,ssap ,bulk-end) do
+                (let (,@(loop for i fixnum from 0
+                           for v in vars collect
+                             `(,v (fast-mget-word ,ssap 0 :offset (* ,i +msizeof-word+)))))
+                  ,@(loop for i fixnum from 0
+                       for v in vars collect
+                         `(fast-mset-word ,v ,dsap 0 :offset (* ,i +msizeof-word+))))
+                (incf-fast-sap ,dsap ,unroll-factor)
+                (incf-fast-sap ,ssap ,unroll-factor))
 
            (loop while (fast-sap< ,ssap ,send) do
                 (fast-mset-word (fast-mget-word ,ssap 0) ,dsap 0)
                 (incf-fast-sap ,dsap 1)
                 (incf-fast-sap ,ssap 1))))))
 
-
-  #?-hlmem/fast-sap*
   (defmacro %memcpy-unrolled-words (unroll-factor dst di src si end)
     (check-type unroll-factor (unsigned-byte 8))
     (with-gensyms (dsap ssap bulk-end)
-      (let ((vars (loop repeat unroll-factor collect (gensym "V"))))
+      (let ((vars (loop repeat unroll-factor collect (gensym "V")))
+            ;; round up to a power of 2
+            (unroll-factor-pow2 (ash 1 (integer-length (1- unroll-factor)))))
         `(let ((,dsap (sap=>fast-sap ,dst))
                (,ssap (sap=>fast-sap ,src))
-               (,bulk-end (if (>= ,end ,unroll-factor) (- ,end ,unroll-factor) 0)))
+               (,bulk-end (mem-size+ ,si (logand ,(- unroll-factor-pow2)
+                                                 (mem-size- ,end ,si)))))
            (loop while (< ,si ,bulk-end) do
                 (let (,@(loop for i fixnum from 0
                            for v in vars collect
@@ -228,9 +233,7 @@ count and expect memory lengths in words, not in bytes."
                     (end src-end))
     (when (< si end)
       #?+(and hlmem/fast-mem (or x86 x86-64))
-      (progn
-        #?+hlmem/fast-sap* (%memcpy-unrolled-words #+x86 4 #-x86 8 dst di src si src-end)
-        #?-hlmem/fast-sap* (%memcpy-unrolled-words #+x86 2 #-x86 6 dst di src si src-end))
+      (%memcpy-unrolled-words #+x86 2 #-x86 4 dst di src si src-end)
       
       #?-(and hlmem/fast-mem (or x86 x86-64))
       (progn
