@@ -82,13 +82,14 @@ ABI: characters will be stored by packing as many as possible into words."
 
   (multiple-value-bind (bulk-n-words tail-n-chars) (truncate n-chars +characters-per-word+)
 
-      (typecase string
-        (simple-base-string
-         (%%mwrite-string-utf-21 schar ptr index string bulk-n-words tail-n-chars))
-        (simple-string
-         (%%mwrite-string-utf-21 schar ptr index string bulk-n-words tail-n-chars))
-        (otherwise
-         (%%mwrite-string-utf-21 char ptr index string bulk-n-words tail-n-chars)))))
+    (cond
+      ((typep string '(simple-array character))
+       (%%mwrite-string-utf-21 schar ptr index string bulk-n-words tail-n-chars))
+      #?-hlmem/base-char<=ascii-char ;; if base-char<=ascii-char, we write an ASCII string
+      ((typep string '(simple-array base-char))
+       (%%mwrite-string-utf-21 schar ptr index string bulk-n-words tail-n-chars))
+      (t
+       (%%mwrite-string-utf-21 char ptr index string bulk-n-words tail-n-chars)))))
 
 
 

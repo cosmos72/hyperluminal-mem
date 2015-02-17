@@ -43,9 +43,11 @@
                          ((<= code #x7FF) 2)
                          ((<= code #xFFFF) 3)
                          (t 4))))))
-      (if (typep string 'simple-string)
-          (%count-utf-8-bytes)
-          (%count-utf-8-bytes)))
+      (cond
+        ((typep string '(simple-array character)) (%count-utf-8-bytes))
+        #?-hlmem/base-char<=ascii-char ;; if base-char<=ascii-char, we write an ASCII string
+        ((typep string '(simple-array base-char)) (%count-utf-8-bytes))
+        (t                                        (%count-utf-8-bytes))))
 
     ;; +1 to store N-CHARS prefix
     (mem-size+ index 1 (ceiling n-bytes +msizeof-word+))))
@@ -184,9 +186,11 @@ ABI: characters will be stored using UTF-8 encoding."
 
                   (incf word-bits next-bits))))))
 
-      (if (typep string 'simple-string)
-          (%mwrite-utf-8-words schar)
-          (%mwrite-utf-8-words  char)))
+      (cond
+        ((typep string '(simple-array character)) (%mwrite-utf-8-words schar))
+        #?-hlmem/base-char<=ascii-char ;; if base-char<=ascii-char, we write an ASCII string
+        ((typep string '(simple-array base-char)) (%mwrite-utf-8-words schar))
+        (t                                        (%mwrite-utf-8-words  char))))
 
     (unless (zerop word-bits)
       (check-mem-overrun ptr index end-index 1)
