@@ -63,19 +63,15 @@ i.e. 1 means one mem-word."
 
 
 (defun !mdump (stream ptr &optional (start-index 0) (end-index (1+ start-index)))
-  "mdump is only used for debugging. it assumes sizeof(byte) == 1"
+  "dump the contents of raw memory. useful for debugging"
   (declare (type maddress ptr)
            (type mem-size start-index end-index))
-  (loop
-     for start-byte = (* +msizeof-word+ start-index) then end-byte
-     for end-byte   = (+ +msizeof-word+ start-byte)
-     while (<= end-byte (* +msizeof-word+ end-index))
+  (loop while (< start-index end-index)
      do
-       (#.(if +mem/little-endian+
-              '!mdump-bytes-reverse
-              '!mdump-bytes)
-          stream ptr start-byte end-byte)
-       (format stream " ")))
+       (format stream #.(format nil "~~~A,'0X " (* 2 +msizeof-word+))
+               (mget-word ptr start-index))
+       (incf-mem-size start-index)))
+
 
 
 (declaim (inline mem-int+ mem-int-))

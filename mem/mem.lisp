@@ -217,16 +217,21 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
 (eval-always
   (defconstant +characters-per-word+     (truncate +mem-word/bits+ +character/bits+)))
 
-
 (eval-always
   (defconstant +most-positive-base-char+ (%detect-most-positive-base-char)))
+
+;; for interoperability among different lisps, we must define serialized base-string
+;; to mean the same everywhere. We decide it means "a string only containing ASCII characters,
+;; i.e. only containing characters such that (<= 0 (char-code X) 127)"
 (eval-always
-  ;; round up base-chars to 8 bits (iso-8859-1 or similar)
-  (defconstant +base-char/bits+          (max 8 (integer-length +most-positive-base-char+))))
+  (defconstant +ascii-char/bits+          7))
 (eval-always
-  (defconstant +base-char/mask+          (1- (ash 1 +base-char/bits+))))
+  (defconstant +ascii-char/mask+          (1- (ash 1 +ascii-char/bits+))))
 (eval-always
-  (defconstant +base-char/fits-byte?+    (<= +base-char/bits+ +mem-byte/bits+)))
+  (defconstant +most-positive-ascii-char+ +ascii-char/mask+))
+(eval-always
+  (set-feature 'hlmem/base-char<=ascii (<= +most-positive-base-char+ +most-positive-ascii-char+))
+  (set-feature 'hlmem/base-char>=ascii (>= +most-positive-base-char+ +most-positive-ascii-char+)))
 
 
 
@@ -244,8 +249,7 @@ size of CPU word is ~S bits, expecting at least 32 bits" +mem-word/bits+))
    (error "cannot build HYPERLUMINAL-MEM: unsupported architecture.
 each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 
- (set-feature 'hlmem/base-char/fits-byte +base-char/fits-byte?+)
- (set-feature 'hlmem/base-char/eql/character (= +most-positive-base-char+ +most-positive-character+))
+ (set-feature 'hlmem/base-char=character (= +most-positive-base-char+ +most-positive-character+))
 
  #+sbcl
  ;; used on SBCL to access the internal representation of Lisp objects

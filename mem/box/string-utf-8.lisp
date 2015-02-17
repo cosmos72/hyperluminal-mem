@@ -218,18 +218,18 @@ ABI: writes string length as mem-int, followed by packed array of UTF-8 encoded 
 
 
 
-(defun %mread-string-utf-8 (ptr index end-index result n-chars)
+(defun %mread-string-utf-8 (ptr index end-index n-chars)
   (declare (type maddress ptr)
            (type mem-size index end-index)
-           (type (and simple-string #?-hlmem/base-char/eql/character (not base-string))
-                 result)
            (type ufixnum n-chars))
 
   (let ((word 0)
         (word-bits 0)
         (word-bits-left 0)
         (next 0)
-        (next-bits 0))
+        (next-bits 0)
+        (result (make-string n-chars :element-type 'character)))
+
     (declare (type mem-word word next)
              (type (integer 0 #.+mem-word/bits+) word-bits word-bits-left next-bits))
 
@@ -278,6 +278,4 @@ Assumes BOX header was already read."
     (check-array-length ptr index 'string n-chars)
     (check-mem-length ptr index end-index min-n-words)
 
-    (let ((result (make-string n-chars :element-type 'character)))
-
-      (%mread-string-utf-8 ptr (mem-size+1 index) end-index result n-chars))))
+    (%mread-string-utf-8 ptr (mem-size+1 index) end-index n-chars)))

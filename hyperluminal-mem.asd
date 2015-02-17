@@ -81,7 +81,7 @@
 		 (:file "box/vector"     :depends-on ("box/array"))
 		 (:file "box/string-utf-21" :depends-on ("box/vector"))
 		 (:file "box/string-utf-8"  :depends-on ("box/vector"))
-		 (:file "box/string-base"   :depends-on ("box/vector"))
+		 (:file "box/string-ascii"  :depends-on ("box/vector"))
 		 (:file "box/bit-vector" :depends-on ("box/vector"))
 		 (:file "box/symbol"     :depends-on ("box"))
 
@@ -105,7 +105,7 @@
 						      "box/vector"
 						      "box/string-utf-21"
 						      "box/string-utf-8"
-						      "box/string-base"
+						      "box/string-ascii"
 						      "box/bit-vector"
 						      "box/symbol"
 						      "object")))

@@ -112,7 +112,8 @@
       (array        (if (= 1 (array-rank value))
                         (case (array-element-type value)
                           (character +mem-box/string+)
-                          (base-char +mem-box/base-string+)
+                          (base-char #?+hlmem/base-char<=ascii +mem-box/ascii-string+
+                                     #?-hlmem/base-char<=ascii +mem-box/string+)
                           (bit       +mem-box/bit-vector+)
                           (otherwise +mem-box/vector+))
                         +mem-box/array+))

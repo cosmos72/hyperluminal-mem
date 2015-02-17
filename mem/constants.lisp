@@ -319,9 +319,9 @@
 
 (defconstant +mem-box/string-utf-21+    18 "box is a string, i.e. a (vector character)")
 (defconstant +mem-box/string-utf-8+     19 "box is a string, i.e. a (vector character)")
-(defconstant +mem-box/string+           +mem-box/string-utf-21+ "default string format is UTF-21")
+(defconstant +mem-box/string+           +mem-box/string-utf-8+ "default string format is UTF-8")
 
-(defconstant +mem-box/base-string+      20 "box is a base-string, i.e. a (vector base-char)")
+(defconstant +mem-box/ascii-string+     20 "box is an ASCII string")
 (defconstant +mem-box/bit-vector+       21 "box is a bit-vector, i.e. a (vector bit)")
 (eval-always
   (defconstant +mem-box/symbol+           22 "object is a symbol or keyword")
@@ -345,6 +345,6 @@
     #(bignum ratio sfloat dfloat
       complex-sfloat complex-dfloat complex-rational
       pathname hash-table list
-      array vector string-utf-21 string-utf-8 base-string bit-vector symbol))
+      array vector string-utf-21 string-utf-8 ascii-string bit-vector symbol))
 
 
