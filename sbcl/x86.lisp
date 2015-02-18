@@ -183,100 +183,6 @@ suitable for MOV addressing modes"
 
 
 
-(defmacro define-fast-sap+ ()
-  `(progn
-     (eval-always
-       (declaim (inline %fast-sap+))
-       (defknown %fast-sap+
-           ;;arg-types
-           (fast-sap fixnum x86-fixnum-scale (signed-byte 32))
-           ;;result-type
-           fast-sap
-           (sb-c::flushable sb-c::movable)))
-
-
-     (eval-always
-       (sb-c:define-vop (%fast-sap+)
-         (:policy :fast-safe)
-         (:translate %fast-sap+)
-         (:args (sap   :scs (sb-vm::sap-reg))
-                ;; directly use a tagged FIXNUM as INDEX... on SBCL
-                ;; its representation is shifted by +n-fixnum-tag-bits+
-                ;; which means that INDEX is effectively shifted
-                ;; by that many bits. This discrepancy is solved by
-                ;; changing the allowed values of scale, i.e.
-                ;; using x86-fixnum-scale instead of x86-scale
-                (index :scs (sb-vm::any-reg)))
-         (:info scale offset)
-         (:arg-types sb-vm::system-area-pointer sb-vm::tagged-num
-                     (:constant x86-fixnum-scale)
-                     (:constant (signed-byte 32)))
-         
-         (:results   (r :scs (sb-vm::sap-reg)))
-         (:result-types sb-vm::system-area-pointer)
-
-         (:generator 2
-          (sb-assem:inst lea r
-                         (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                         :base sap :index index
-                                         :scale (ash (the fixnum scale) (- +n-fixnum-tag-bits+))
-                                         :disp offset)))))
-
-
-
-
-
-     (eval-always
-       (sb-c:define-vop (%fast-sap+/const)
-         (:policy :fast-safe)
-         (:translate %fast-sap+)
-
-         (:args (sap   :scs (sb-vm::sap-reg)
-                       :load-if (not (sb-c::location= sap r))))
-         (:info index scale offset)
-         (:arg-types sb-vm::system-area-pointer
-                     (:constant (member 0))
-                     (:constant rational)
-                     (:constant (signed-byte 32)))
-         
-         (:results   (r :scs (sb-vm::sap-reg)
-                        :load-if (not (sb-c::location= sap r))))
-         (:result-types sb-vm::system-area-pointer)
-
-         (:generator 1
-          (cond ((sb-c::location= sap r)
-                 (sb-c::move r sap)
-                 (sb-assem::inst add r offset))
-
-                (t
-                 (sb-assem:inst lea r
-                                (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                                :base sap :disp offset)))))))
-     
-     (defmacro fast-sap+ (sap index
-                          &key (scale +fixnum-zero-mask+1+) (offset 0))
-       (multiple-value-bind (index scale offset)
-           (check-x86-fixnum-addressing index scale offset)
-         `(%fast-sap+ ,sap ,index ,scale ,offset)))
-
-     (declaim (inline fast-sap<))
-     (defun fast-sap< (x y)
-       (declare (type fast-sap x y))
-       (sb-sys:sap< x y))))
-
-
-
-(define-fast-sap+)
-
-
-
-
-
-
-
-
-
-
 
 
 (defmacro define-fast-mword=>fixnum ()
@@ -325,3 +231,153 @@ suitable for MOV addressing modes"
            (the fixnum (,%name x)))))))
 
 (define-fast-mword=>fixnum)
+
+
+
+
+(defmacro define-fast-memcpy (&key memcpy-name type size)
+  (let ((%memcpy-name (concat-symbols '% memcpy-name)))
+    `(progn
+       (eval-always
+         (declaim (inline ,%memcpy-name)))
+
+       (eval-always
+         (defknown ,%memcpy-name
+             (fast-sap fixnum fast-sap fixnum sb-ext:word
+                       x86-fixnum-scale (signed-byte 32)
+                       x86-fixnum-scale (signed-byte 32))
+             (values)
+             (sb-c:always-translatable)))
+
+       (eval-always
+         (sb-c:define-vop (,%memcpy-name)
+           (:policy :fast-safe)
+           (:translate ,%memcpy-name)
+           (:args (dst       :scs (sb-vm::sap-reg))
+                  (dst-index :scs (sb-vm::any-reg))
+                  (src       :scs (sb-vm::sap-reg))
+                  (src-index :scs (sb-vm::any-reg))
+                  (n-words   :scs (sb-vm::unsigned-reg) :target rcx))
+           (:info dst-scale dst-offset src-scale src-offset)
+           (:arg-types sb-sys:system-area-pointer sb-vm::tagged-num
+                       sb-sys:system-area-pointer sb-vm::tagged-num
+                       sb-vm::unsigned-num
+                       (:constant x86-fixnum-scale)
+                       (:constant (signed-byte 32))
+                       (:constant x86-fixnum-scale)
+                       (:constant (signed-byte 32)))
+           (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::rcx-offset) rcx)
+           (:temporary (:sc sb-vm::sap-reg      :offset sb-vm::rsi-offset) rsi)
+           (:temporary (:sc sb-vm::sap-reg      :offset sb-vm::rdi-offset) rdi)
+           (:generator
+            20
+            (sb-assem:inst lea rsi
+                           (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                           :base src :index src-index
+                                           :scale (ash (the fixnum src-scale)
+                                                       (- +n-fixnum-tag-bits+))
+                                           :disp src-offset))
+            (sb-assem:inst lea rdi
+                           (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                           :base dst :index dst-index
+                                           :scale (ash (the fixnum dst-scale)
+                                                       (- +n-fixnum-tag-bits+))
+                                           :disp dst-offset))
+            #+(and)
+            (progn
+              (sb-c::move rcx n-words)
+              ;; (sb-assem:inst std) ; not needed
+              (sb-assem:inst rep)
+              (sb-assem:inst movs ,size))
+
+            #-(and)
+            (progn
+              (sb-assem:inst lea rcx
+                             (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                             :index n-words
+                                             :scale (ash (second ',type) -3)))
+              ;; (sb-assem:inst std) ; not needed
+              (sb-assem:inst rep)
+              (sb-assem:inst movs :byte)))))
+              
+       (eval-always
+         (defmacro ,memcpy-name (dst dst-index src src-index n-words
+                                 &key
+                                   (dst-scale +fixnum-zero-mask+1+) (dst-offset 0)
+                                   (src-scale +fixnum-zero-mask+1+) (src-offset 0))
+           (let ((memcpy-fun ',%memcpy-name))
+             `(,memcpy-fun ,dst ,dst-index ,src ,src-index ,n-words
+                           ,dst-scale ,dst-offset
+                           ,src-scale ,src-offset)))))))
+
+
+(define-fast-memcpy :memcpy-name fast-memcpy/4 :type (unsigned-byte 32) :size :dword)
+
+#+x86-64
+(define-fast-memcpy :memcpy-name fast-memcpy/8 :type (unsigned-byte 64) :size :qword)
+
+
+
+
+
+
+
+
+(defmacro define-fast-memset (&key memset-name type size)
+  (let ((%memset-name (concat-symbols '% memset-name)))
+    `(progn
+       (eval-always
+         (declaim (inline ,%memset-name)))
+
+       (eval-always
+         (defknown ,%memset-name
+             (fast-sap fixnum sb-ext:word ,type
+                       x86-fixnum-scale (signed-byte 32))
+             (values)
+             (sb-c:always-translatable)))
+
+       (eval-always
+         (sb-c:define-vop (,%memset-name)
+           (:policy :fast-safe)
+           (:translate ,%memset-name)
+           (:args (sap       :scs (sb-vm::sap-reg))
+                  (index     :scs (sb-vm::any-reg))
+                  (n-words   :scs (sb-vm::unsigned-reg) :target rcx)
+                  (fill-word :scs (sb-vm::unsigned-reg) :target rax))
+           (:info scale offset)
+           (:arg-types sb-sys:system-area-pointer sb-vm::tagged-num
+                       sb-vm::unsigned-num
+                       sb-vm::unsigned-num
+                       (:constant x86-fixnum-scale)
+                       (:constant (signed-byte 32)))
+           (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::rax-offset) rax)
+           (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::rcx-offset) rcx)
+           (:temporary (:sc sb-vm::sap-reg      :offset sb-vm::rdi-offset) rdi)
+           (:generator
+            20
+            (sb-assem:inst lea rdi
+                           (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                           :base sap :index index
+                                           :scale (ash (the fixnum scale)
+                                                       (- +n-fixnum-tag-bits+))
+                                           :disp offset))
+            (sb-c::move rcx n-words)
+            (sb-c::move rax fill-word)
+            ;; (sb-assem:inst std) ; not needed
+            (sb-assem:inst rep)
+            (sb-assem:inst stos
+                           #+x86 rax
+                           #-x86 (sb-vm::reg-in-size rax ,size)))))
+              
+       (eval-always
+         (defmacro ,memset-name (ptr index n-words fill-word
+                                 &key
+                                   (scale +fixnum-zero-mask+1+) (offset 0))
+           (let ((memset-fun ',%memset-name))
+             `(,memset-fun ,ptr ,index ,n-words ,fill-word ,scale ,offset)))))))
+
+(define-fast-memset :memset-name fast-memset/4 :type (unsigned-byte 32) :size :dword)
+
+#+x86-64
+(define-fast-memset :memset-name fast-memset/8 :type (unsigned-byte 64) :size :qword)
+

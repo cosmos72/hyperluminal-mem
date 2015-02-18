@@ -372,7 +372,7 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
       ;; value is a mem-int?
       ;; if mem-int is larger than fixnum, check value against fixnum first
       ;; because it's faster and more used
-      #?+hlmem/mem-int>=fixnum
+      #?+(or hlmem/mem-int>fixnum hlmem/mem-int=fixnum)
       ((typep value 'fixnum)
        (return-from mset-unboxed (mset-int ptr index value)))
 

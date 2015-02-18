@@ -21,9 +21,11 @@
   
   (with-mem-words (src n-words)
     (with-mem-words (dst n-words)
+      (memset-words src 0 n-words #x1234)
+      (memset-words dst 0 n-words #x4321)
       (time
        (dotimes (i n-loops)
-         (memcpy-words dst 0 src 0 n-words)))
+         (osicat-posix:memcpy dst src (* n-words +msizeof-word+))))
       (time
        (dotimes (i n-loops)
-         (osicat-posix:memcpy dst src (* n-words +msizeof-word+)))))))
+         (memcpy-words dst 0 src 0 n-words))))))

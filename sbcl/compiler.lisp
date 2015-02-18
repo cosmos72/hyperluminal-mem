@@ -44,7 +44,6 @@ in the representation of a FIXNUM")
        ,@(if +defknown-has-overwrite-fndb-silently+ '(:overwrite-fndb-silently t) ())))
 
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
          

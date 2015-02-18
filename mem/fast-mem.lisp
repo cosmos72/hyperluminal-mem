@@ -17,25 +17,6 @@
 
 (enable-#?-syntax)
 
-;; if available, use fast-sap< and fast-sap+
-(eval-always
-  (let* ((fast-sap<    (get-fbound-symbol 'hl-asm 'fast-sap<))
-         (fast-sap+    (get-fbound-symbol 'hl-asm 'fast-sap+))
-         (fast-sap*    (the boolean (and fast-sap< fast-sap+ t))))
-
-    (set-feature 'hlmem/fast-sap* fast-sap*)
-    (if fast-sap*
-        (progn
-          (defmacro fast-sap< (x y)
-            `(,fast-sap< ,x ,y))
-          (defmacro fast-sap+ (ptr index &key (scale +msizeof-word+) (offset 0))
-            `(,fast-sap+ ,ptr ,index :scale ,scale :offset ,offset)))
-        ;; sanity
-        (progn
-          (fmakunbound 'fast-sap<)
-          (fmakunbound 'fast-sap+)))))
-
-
 ;; if available, use fast-mread and fast-mwrite
 (eval-always
   (let* ((fast-mread   (get-fbound-symbol 'hl-asm (stringify 'fast-mread/  +msizeof-word+)))
@@ -67,25 +48,46 @@
                  (if (get-feature 'hlmem/mem-int=fixnum) sym nil))))
      
 
-#?+(or hlmem/fast-mem hlmem/fast-sap*)
+;; if available, use fast-memcpy
+(eval-always
+  (let ((fast-memcpy  (get-fbound-symbol 'hl-asm (stringify 'fast-memcpy/  +msizeof-word+))))
+
+    (set-feature 'hlmem/fast-memcpy fast-memcpy)
+    (if fast-memcpy
+        (defmacro fast-memcpy-words (dst dst-index src src-index n-words
+                                     &key
+                                       (dst-scale +msizeof-word+) (dst-offset 0)
+                                       (src-scale +msizeof-word+) (src-offset 0))
+          `(progn
+             (,fast-memcpy ,dst ,dst-index ,src ,src-index ,n-words
+                           :dst-scale ,dst-scale :dst-offset ,dst-offset
+                           :src-scale ,src-scale :src-offset ,src-offset)
+             nil))
+        ;; sanity
+        (fmakunbound 'fast-memcpy-words))))
+
+
+;; if available, use fast-memset
+(eval-always
+  (let ((fast-memset  (get-fbound-symbol 'hl-asm (stringify 'fast-memset/ +msizeof-word+))))
+
+    (set-feature 'hlmem/fast-memset fast-memset)
+    (if fast-memset
+        (defmacro fast-memset-words (ptr index n-words fill-word
+                                     &key (scale +msizeof-word+) (offset 0))
+          `(progn
+             (,fast-memset ,ptr ,index ,n-words ,fill-word :scale ,scale :offset ,offset)
+             nil))
+        ;; sanity
+        (fmakunbound 'fast-memset-words))))
+
+
+#?+(or hlmem/fast-mem hlmem/fast-memcpy hlmem/fast-memset)
 (deftype fast-sap () 'hl-asm:fast-sap)
       
-#?+hlmem/fast-mem
+#?+(or hlmem/fast-mem hlmem/fast-memcpy hlmem/fast-memset)
 (progn
   (defmacro sap=>fast-sap (x)
     `(hl-asm:sap=>fast-sap ,x))
   (defmacro fast-sap=>sap (x)
     `(hl-asm:fast-sap=>sap ,x)))
-
-
-#?+hlmem/fast-sap*
-(defmacro incf-fast-sap (place index &key (scale +msizeof-word+) (offset 0))
-  (multiple-value-bind (temps vals stores store-form get-form)
-      (get-setf-expansion place)
-    `(let* (,@(loop for temp in temps
-                 for val in vals
-                 collect `(,temp ,val))
-            (,(first stores) (fast-sap+ ,get-form ,index :scale ,scale :offset ,offset)))
-       ,store-form)))
-
-

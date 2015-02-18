@@ -109,8 +109,7 @@
                                             (= most-positive-fixnum +most-positive-int+))))
 
 (eval-always
-  (set-features `(hlmem/mem-int>=fixnum ,(or +mem-int>fixnum+ +mem-int=fixnum+))
-                `(hlmem/mem-int>fixnum ,+mem-int>fixnum+)
+  (set-features `(hlmem/mem-int>fixnum ,+mem-int>fixnum+)
                 `(hlmem/mem-int=fixnum ,+mem-int=fixnum+)))
                 
                 
