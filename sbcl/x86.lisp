@@ -42,6 +42,12 @@ suitable for MOV addressing modes"
     (values index scale offset)))
 
 
+(defun check-location-not-member (tn-x &rest tn-list)
+  (dolist (tn-y tn-list)
+    (when (sb-c::location= tn-x tn-y)
+      (error "unable to compile VOP, argument ~S is stored in conflicting register ~S" tn-x tn-y))))
+
+
 (defmacro define-fast-mread-mwrite (&key mread-name mwrite-name type size)
 
   (let ((%mread-name  (concat-symbols '% mread-name))
@@ -236,6 +242,7 @@ suitable for MOV addressing modes"
 
 
 (defmacro define-fast-memcpy (&key memcpy-name type size)
+  (declare (ignore type))
   (let ((%memcpy-name (concat-symbols '% memcpy-name)))
     `(progn
        (eval-always
@@ -257,7 +264,7 @@ suitable for MOV addressing modes"
                   (dst-index :scs (sb-vm::any-reg))
                   (src       :scs (sb-vm::sap-reg))
                   (src-index :scs (sb-vm::any-reg))
-                  (n-words   :scs (sb-vm::unsigned-reg) :target rcx))
+                  (n-words   :scs (sb-vm::unsigned-reg) #-x86 :target #-x86 rcx))
            (:info dst-scale dst-offset src-scale src-offset)
            (:arg-types sb-sys:system-area-pointer sb-vm::tagged-num
                        sb-sys:system-area-pointer sb-vm::tagged-num
@@ -266,39 +273,49 @@ suitable for MOV addressing modes"
                        (:constant (signed-byte 32))
                        (:constant x86-fixnum-scale)
                        (:constant (signed-byte 32)))
-           (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::rcx-offset) rcx)
-           (:temporary (:sc sb-vm::sap-reg      :offset sb-vm::rsi-offset) rsi)
-           (:temporary (:sc sb-vm::sap-reg      :offset sb-vm::rdi-offset) rdi)
-           (:generator
-            20
-            (sb-assem:inst lea rsi
-                           (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                           :base src :index src-index
-                                           :scale (ash (the fixnum src-scale)
-                                                       (- +n-fixnum-tag-bits+))
-                                           :disp src-offset))
-            (sb-assem:inst lea rdi
-                           (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                           :base dst :index dst-index
-                                           :scale (ash (the fixnum dst-scale)
-                                                       (- +n-fixnum-tag-bits+))
-                                           :disp dst-offset))
-            #+(and)
-            (progn
+
+           #-x86 (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::rcx-offset) rcx)
+           #-x86 (:temporary (:sc sb-vm::sap-reg      :offset sb-vm::rsi-offset) rsi)
+           #-x86 (:temporary (:sc sb-vm::sap-reg      :offset sb-vm::rdi-offset) rdi)
+
+           ;; x86 is register starved... save ECX, ESI and EDI on the stack before using them
+           (:generator 20
+            (let #+x86 ((rcx sb-vm::ecx-tn)
+                        (rsi sb-vm::esi-tn)
+                        (rdi sb-vm::edi-tn))
+              #+x86
+              (progn
+                (unless (sb-vm::location= n-words rcx)
+                  (sb-assem:inst push rcx))
+                (sb-assem:inst push rsi)
+                (sb-assem:inst push rdi)
+                (check-location-not-member dst       rsi)
+                (check-location-not-member dst-index rsi)
+                (check-location-not-member n-words   rsi rdi))
+
+              (sb-assem:inst lea rsi
+                             (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                             :base src :index src-index
+                                             :scale (ash (the fixnum src-scale)
+                                                         (- +n-fixnum-tag-bits+))
+                                             :disp src-offset))
+              (sb-assem:inst lea rdi
+                             (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                             :base dst :index dst-index
+                                             :scale (ash (the fixnum dst-scale)
+                                                         (- +n-fixnum-tag-bits+))
+                                             :disp dst-offset))
               (sb-c::move rcx n-words)
               ;; (sb-assem:inst std) ; not needed
               (sb-assem:inst rep)
-              (sb-assem:inst movs ,size))
+              (sb-assem:inst movs ,size)
 
-            #-(and)
-            (progn
-              (sb-assem:inst lea rcx
-                             (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                             :index n-words
-                                             :scale (ash (second ',type) -3)))
-              ;; (sb-assem:inst std) ; not needed
-              (sb-assem:inst rep)
-              (sb-assem:inst movs :byte)))))
+              #+x86
+              (progn
+                (sb-assem:inst pop rdi)
+                (sb-assem:inst pop rsi)
+                (unless (sb-vm::location= n-words rcx)
+                  (sb-assem:inst pop rcx)))))))
               
        (eval-always
          (defmacro ,memcpy-name (dst dst-index src src-index n-words
@@ -324,6 +341,7 @@ suitable for MOV addressing modes"
 
 
 (defmacro define-fast-memset (&key memset-name type size)
+  (declare (ignorable size))
   (let ((%memset-name (concat-symbols '% memset-name)))
     `(progn
        (eval-always
@@ -342,32 +360,54 @@ suitable for MOV addressing modes"
            (:translate ,%memset-name)
            (:args (sap       :scs (sb-vm::sap-reg))
                   (index     :scs (sb-vm::any-reg))
-                  (n-words   :scs (sb-vm::unsigned-reg) :target rcx)
-                  (fill-word :scs (sb-vm::unsigned-reg) :target rax))
+                  (n-words   :scs (sb-vm::unsigned-reg) #-x86 :target #-x86 rcx)
+                  (fill-word :scs (sb-vm::unsigned-reg) #-x86 :target #-x86 rax))
            (:info scale offset)
            (:arg-types sb-sys:system-area-pointer sb-vm::tagged-num
                        sb-vm::unsigned-num
                        sb-vm::unsigned-num
                        (:constant x86-fixnum-scale)
                        (:constant (signed-byte 32)))
-           (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::rax-offset) rax)
-           (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::rcx-offset) rcx)
-           (:temporary (:sc sb-vm::sap-reg      :offset sb-vm::rdi-offset) rdi)
-           (:generator
-            20
-            (sb-assem:inst lea rdi
-                           (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                           :base sap :index index
-                                           :scale (ash (the fixnum scale)
-                                                       (- +n-fixnum-tag-bits+))
-                                           :disp offset))
-            (sb-c::move rcx n-words)
-            (sb-c::move rax fill-word)
-            ;; (sb-assem:inst std) ; not needed
-            (sb-assem:inst rep)
-            (sb-assem:inst stos
-                           #+x86 rax
-                           #-x86 (sb-vm::reg-in-size rax ,size)))))
+           #-x86 (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::eax-offset) rax)
+           #-x86 (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::ecx-offset) rcx)
+           #-x86 (:temporary (:sc sb-vm::sap-reg      :offset sb-vm::edi-offset) rdi)
+
+           ;; x86 is register starved... save EAX, ECX and EDI on the stack before using them
+           (:generator 20
+            (let #+x86 ((rax sb-vm::eax-tn)
+                        (rcx sb-vm::ecx-tn)
+                        (rdi sb-vm::edi-tn))
+              #+x86
+              (progn
+                (unless (sb-vm::location= fill-word rax)
+                  (sb-assem:inst push rax))
+                (unless (sb-vm::location= n-words rcx)
+                  (sb-assem:inst push rcx))
+                (sb-assem:inst push rdi)
+                (check-location-not-member n-words   rdi)
+                (check-location-not-member fill-word rcx rdi))
+
+              (sb-assem:inst lea rdi
+                             (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                             :base sap :index index
+                                             :scale (ash (the fixnum scale)
+                                                         (- +n-fixnum-tag-bits+))
+                                             :disp offset))
+              (sb-c::move rcx n-words)
+              (sb-c::move rax fill-word)
+              ;; (sb-assem:inst std) ; not needed
+              (sb-assem:inst rep)
+              (sb-assem:inst stos
+                             #+x86 rax
+                             #-x86 (sb-vm::reg-in-size rax ,size))
+
+              #+x86
+              (progn
+                (sb-assem:inst pop rdi)
+                (unless (sb-vm::location= n-words rcx)
+                  (sb-assem:inst pop rcx))
+                (unless (sb-vm::location= fill-word rax)
+                  (sb-assem:inst push rax)))))))
               
        (eval-always
          (defmacro ,memset-name (ptr index n-words fill-word
@@ -375,6 +415,8 @@ suitable for MOV addressing modes"
                                    (scale +fixnum-zero-mask+1+) (offset 0))
            (let ((memset-fun ',%memset-name))
              `(,memset-fun ,ptr ,index ,n-words ,fill-word ,scale ,offset)))))))
+
+
 
 (define-fast-memset :memset-name fast-memset/4 :type (unsigned-byte 32) :size :dword)
 
