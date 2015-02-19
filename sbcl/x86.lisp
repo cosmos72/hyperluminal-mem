@@ -283,6 +283,7 @@ suitable for MOV addressing modes"
             (let #+x86 ((rcx sb-vm::ecx-tn)
                         (rsi sb-vm::esi-tn)
                         (rdi sb-vm::edi-tn))
+                 #-x86 ()
               #+x86
               (progn
                 (unless (sb-vm::location= n-words rcx)
@@ -322,10 +323,12 @@ suitable for MOV addressing modes"
                                  &key
                                    (dst-scale +fixnum-zero-mask+1+) (dst-offset 0)
                                    (src-scale +fixnum-zero-mask+1+) (src-offset 0))
-           (let ((memcpy-fun ',%memcpy-name))
-             `(,memcpy-fun ,dst ,dst-index ,src ,src-index ,n-words
-                           ,dst-scale ,dst-offset
-                           ,src-scale ,src-offset)))))))
+           (multiple-value-bind (dst-index dst-scale dst-offset)
+               (check-x86-fixnum-addressing dst-index dst-scale dst-offset)
+             (multiple-value-bind (src-index src-scale src-offset)
+                 (check-x86-fixnum-addressing src-index src-scale src-offset)
+               (list ',%memcpy-name dst dst-index src src-index n-words
+                     dst-scale dst-offset src-scale src-offset))))))))
 
 
 (define-fast-memcpy :memcpy-name fast-memcpy/4 :type (unsigned-byte 32) :size :dword)
@@ -377,6 +380,7 @@ suitable for MOV addressing modes"
             (let #+x86 ((rax sb-vm::eax-tn)
                         (rcx sb-vm::ecx-tn)
                         (rdi sb-vm::edi-tn))
+                 #-x86 ()
               #+x86
               (progn
                 (unless (sb-vm::location= fill-word rax)
@@ -413,8 +417,9 @@ suitable for MOV addressing modes"
          (defmacro ,memset-name (ptr index n-words fill-word
                                  &key
                                    (scale +fixnum-zero-mask+1+) (offset 0))
-           (let ((memset-fun ',%memset-name))
-             `(,memset-fun ,ptr ,index ,n-words ,fill-word ,scale ,offset)))))))
+           (multiple-value-bind (index scale offset)
+               (check-x86-fixnum-addressing index scale offset)
+             (list ',%memset-name ptr index n-words fill-word scale offset)))))))
 
 
 
