@@ -38,12 +38,16 @@
 	(- (integer-length scale) 1)
 	(- 1 (integer-length (/ 1 scale))))))
 
-(defun arm-mem-shifter (register &optional (index 0) (shift 0))
+(defun arm-reg-shifter (&optional (index 0) (shift 0))
   (declare (type arm-shift shift))
   (cond
-    ((zerop shift) (sb-vm::@ register index))
-    ((plusp shift) (sb-vm::@ register (sb-vm::lsl index shift)))
-    (t             (sb-vm::@ register (sb-vm::lsr index (- shift))))))
+    ((zerop shift) index)
+    ((plusp shift) (sb-vm::lsl index shift))
+    (t             (sb-vm::lsr index (- shift)))))
+
+(defun arm-mem-shifter (register &optional (index 0) (shift 0))
+  (declare (type arm-shift shift))
+  (sb-vm::@ register (arm-reg-shifter index shift)))
 
 (defun encode-arm-large-offset (offset)
   ;; allow exceeding fixnum, but not addressable memory
@@ -228,7 +232,7 @@ suitable for LDR and STR addressing modes"
        (eval-always
          (defknown ,%name
              ;;arg-types
-             (sb-ext:word)
+             (word)
              ;;result-type
              fixnum
              (sb-c::flushable sb-c::foldable sb-c::movable sb-c::always-translatable)))
@@ -246,11 +250,205 @@ suitable for LDR and STR addressing modes"
 	    (sb-assem::inst mov y (sb-vm::lsl x +n-fixnum-tag-bits+)))))
 
        (eval-always
-         (declaim (ftype (function (sb-ext:word) (values fixnum &optional)) ,name)
+         (declaim (ftype (function (word) (values fixnum &optional)) ,name)
                   (inline ,name)))
        (eval-always
          (defun ,name (x)
-           (declare (type sb-ext:word x))
+           (declare (type word x))
            (the fixnum (,%name x)))))))
 
 (define-fast-mword=>fixnum)
+
+
+
+
+(defknown %maddress
+    (fast-sap fixnum arm-fixnum-shift arm-offset)
+    ;; cheat and use word
+    ;; instead of fast-sap to avoid consing
+    (word)
+    (sb-c::flushable sb-c::foldable sb-c::movable sb-c::always-translatable))
+
+(sb-c:define-vop (%maddress)
+  (:policy :fast-safe)
+  (:translate %maddress)
+  (:args (sap   :scs (sb-vm::sap-reg))
+	 (index :scs (sb-vm::any-reg)))
+  (:info shift offset)
+  (:arg-types sb-sys:system-area-pointer sb-vm::tagged-num
+	      (:constant arm-fixnum-shift)
+	      (:constant (member 0)))
+
+  ;; cheat and use sb-vm::unsigned-reg
+  ;; instead of sb-vm::sap-reg to avoid consing
+  (:results   (r :scs (sb-vm::unsigned-reg)))
+  (:result-types sb-vm::unsigned-num)
+
+  (:generator
+   2
+   (sb-assem:inst add r sap (arm-reg-shifter
+			     index (fixnum- shift +n-fixnum-tag-bits+)))))
+
+(sb-c:define-vop (%maddress-c)
+  (:policy :fast-safe)
+  (:translate %maddress)
+
+  (:args (sap   :scs (sb-vm::sap-reg)))
+  (:info index shift offset)
+  (:arg-types sb-vm::system-area-pointer
+	      (:constant (member 0))
+	      (:constant integer)
+	      (:constant arm-offset))
+	      
+  ;; cheat and use sb-vm::unsigned-reg
+  ;; instead of sb-vm::sap-reg to avoid consing
+  (:results   (r :scs (sb-vm::unsigned-reg)))
+  (:result-types sb-vm::unsigned-num)
+
+  (:generator
+   1
+   (sb-assem:inst add r sap (arm-reg-shifter offset))))
+
+(defmacro maddress (sap index &key (scale +fixnum-zero-mask+1+) (offset 0))
+  (multiple-value-bind (index shift offset)
+      (check-arm-fixnum-addressing index scale offset)
+    (list '%maddress sap index shift offset)))
+
+
+(defun emit-bulk-transfer (kind tn n-words reg-list)
+  (check-type n-words (integer 1 8))
+   
+  (let ((reg-bitmap 0))
+    (declare (type word reg-bitmap))
+    (dotimes (i n-words)
+      (let ((reg (pop reg-list)))
+	(setf reg-bitmap (logior reg-bitmap
+				 (the word (ash 1 (sb-vm::tn-offset reg)))))))
+
+    ;; 31-28: COND = :always = :al = 14 = #xe
+    ;;
+    ;; ldmia tn!, {reg-bitmap}
+    ;; 27-20: #b100 P=0 U=1 S=0 W=1 L=1 = #b10001011 = #x8b
+    ;; stmia tn!, {reg-bitmap}
+    ;; 27-20: #b100 P=0 U=1 S=0 W=1 L=0 = #b10001010 = #x8a
+    ;;
+    ;; 19-16: tn
+    ;; 15-00: subset of {r0-r6,r8} = reg-bitmap
+    (sb-vm::emit-word (sb-assem::%%current-segment%%)
+		      (logior #xe0000000
+			      (the word
+				(ecase kind (:store #x08a00000) (:load #x08b00000)))
+			      (the word (ash (sb-vm::tn-offset tn) 16))
+			      reg-bitmap))))
+
+(defun emit-ldmia (tn n-words reg-list)
+  (emit-bulk-transfer :load tn n-words reg-list))
+
+(defun emit-stmia (tn n-words reg-list)
+  (emit-bulk-transfer :store tn n-words reg-list))
+
+(defknown %memcpy/4
+    (word word word)
+    (values)
+    (sb-c:always-translatable))
+
+(sb-c:define-vop (%memcpy-1-4/4)
+  (:policy :fast-safe)
+  (:translate %memcpy/4)
+  (:args (dst        :scs (sb-vm::unsigned-reg))
+	 (src        :scs (sb-vm::unsigned-reg)))
+  (:info n-words)
+  (:arg-types sb-vm::unsigned-num
+	      sb-vm::unsigned-num
+	      (:constant (integer 1 4)))
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r0-offset)     r0)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r1-offset)     r1)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r2-offset)     r2)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::lexenv-offset) r3)
+  (:generator
+   16
+   (let ((regs (list r0 r1 r2 r3)))
+     (emit-ldmia src n-words regs)
+     (emit-stmia dst n-words regs))))
+
+(sb-c:define-vop (%memcpy-5-64/4)
+  (:policy :fast-safe)
+  (:translate %memcpy/4)
+  (:args (dst        :scs (sb-vm::unsigned-reg))
+	 (src        :scs (sb-vm::unsigned-reg)))
+  (:info n-words)
+  (:arg-types sb-vm::unsigned-num
+	      sb-vm::unsigned-num
+	      (:constant (integer 5 64)))
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r0-offset)     r0)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r1-offset)     r1)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r2-offset)     r2)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::lexenv-offset) r3)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::nl2-offset)    r4)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::code-offset)   r5)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::nl3-offset)    r6)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r8-offset)     r8)
+  (:generator
+   32
+   (let ((regs (list r0 r1 r2 r3 r4 r5 r6 r8)))
+     (declare (type (integer 5 64) n-words))
+     (loop for n-left fixnum = n-words then (- n-left n)
+	for n fixnum = (min n-left 8)
+	while (plusp n-left)
+	do
+	  (emit-ldmia src n regs)
+	  (emit-stmia dst n regs)))))
+
+(sb-c:define-vop (%memcpy-n/4)
+  (:policy :fast-safe)
+  (:translate %memcpy/4)
+  (:args (dst        :scs (sb-vm::unsigned-reg))
+	 (src        :scs (sb-vm::unsigned-reg))
+	 (n-words    :scs (sb-vm::unsigned-reg)))
+  (:arg-types sb-vm::unsigned-num
+	      sb-vm::unsigned-num
+	      sb-vm::unsigned-num)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r0-offset)     r0)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r1-offset)     r1)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r2-offset)     r2)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::lexenv-offset) r3)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::nl2-offset)    r4)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::code-offset)   r5)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r8-offset)     r8)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::null-offset)   r10)
+  (:generator
+   50
+   ;; save NULL
+   (sb-assem:inst str r10 (sb-vm::@ sb-vm::nsp-tn (- sb-vm::n-word-bytes)))
+   (sb-assem:inst b loop8-test)
+   loop8
+   (let ((regs (list r0 r1 r2 r3 r4 r5 r8 r10)))
+     (emit-ldmia src 8 regs)
+     (emit-stmia dst 8 regs)
+     (sb-assem:inst sub n-words n-words 8))
+   loop8-test
+   (sb-assem:inst cmp n-words 8)
+   (sb-assem:inst b :ge loop8)
+   (sb-assem:inst b loop1-test)
+
+   loop1
+   (let ((regs (list r0)))
+     (emit-ldmia src 1 regs)
+     (emit-stmia dst 1 regs)
+     (sb-assem:inst sub n-words n-words 1))
+   loop1-test
+   (sb-assem:inst cmp n-words 1)
+   (sb-assem:inst b :ge loop1)
+   ;; restore NULL
+   (sb-assem:inst ldr r10 (sb-vm::@ sb-vm::nsp-tn (- sb-vm::n-word-bytes)))))
+
+
+
+(defmacro fast-memcpy/4 (dst dst-index src src-index n-words &key
+			 (dst-scale +fixnum-zero-mask+1+) (dst-offset 0)
+			 (src-scale +fixnum-zero-mask+1+) (src-offset 0))
+  (with-gensyms (dsap ssap)
+    `(let ((,dsap (maddress ,dst ,dst-index :scale ,dst-scale :offset ,dst-offset))
+	   (,ssap (maddress ,src ,src-index :scale ,src-scale :offset ,src-offset)))
+
+       (%memcpy/4 ,dsap ,ssap ,n-words))))

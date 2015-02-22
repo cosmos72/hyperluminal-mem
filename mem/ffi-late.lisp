@@ -136,6 +136,7 @@ count and expect memory lengths in words, not in bytes."
            (type mem-size start-index end-index))
 
   #?-(or hlmem/fast-memset (and hlmem/fast-mem (or x86 x86-64)))
+  #-abcl
   (when (> end-index start-index)
     (let ((n-words (the mem-word (- end-index start-index))))
       (when (> n-words 32)
@@ -149,37 +150,33 @@ count and expect memory lengths in words, not in bytes."
 
 
 
-(defun !memcpy-bytes (dst dst-byte src src-byte src-end)
+(defun !memcpy-bytes (dst dst-byte src src-byte n-bytes)
   (declare (type maddress dst src)
-           (type mem-word dst-byte src-byte src-end))
+           (type mem-word dst-byte src-byte n-bytes))
   (symbol-macrolet ((si src-byte)
-                    (di dst-byte)
-                    (end src-end))
-    (when (> end si)
-      (let ((n-bytes (the mem-word (- end si))))
-        #-abcl
-        (when (> n-bytes 32)
-          (unless (zerop di) (setf dst (cffi-sys:inc-pointer dst di)))
-          (unless (zerop si) (setf src (cffi-sys:inc-pointer src si)))
-          (osicat-posix:memcpy dst src n-bytes)
-          (return-from !memcpy-bytes nil))
+                    (di dst-byte))
+    #-abcl
+    (when (> n-bytes 32)
+      (unless (zerop di) (setf dst (cffi-sys:inc-pointer dst di)))
+      (unless (zerop si) (setf src (cffi-sys:inc-pointer src si)))
+      (osicat-posix:memcpy dst src n-bytes)
+      (return-from !memcpy-bytes nil))
         
-        (dotimes (i n-bytes)
-          (mset-byte dst (mem-size+ i di)
-                     (mget-byte src (mem-size+ i si))))))))
+    (dotimes (i n-bytes)
+      (mset-byte dst (mem-size+ i di)
+		 (mget-byte src (mem-size+ i si))))))
 
 
 #?+hlmem/fast-mem
-(defmacro %memcpy-unrolled-words (unroll-factor dst di src si end)
+(defmacro %memcpy-unrolled-words (unroll-factor dst di src si n)
   (check-type unroll-factor (unsigned-byte 8))
-  (with-gensyms (dsap ssap bulk-end)
-    (let ((vars (loop repeat unroll-factor collect (gensym "V")))
-          ;; round up to a power of 2
-          (unroll-factor-pow2 (ash 1 (integer-length (1- unroll-factor)))))
+  (with-gensyms (dsap ssap end bulk-end)
+    (let ((vars (loop repeat unroll-factor collect (gensym "V"))))
       `(let ((,dsap (sap=>fast-sap ,dst))
              (,ssap (sap=>fast-sap ,src))
-             (,bulk-end (mem-size+ ,si (logand ,(- unroll-factor-pow2)
-                                               (mem-size- ,end ,si)))))
+	     (,end  (mem-size+ ,si ,n))
+             (,bulk-end (mem-size+ ,si (logand ,n ,(- unroll-factor)))))
+
          (loop while (< ,si ,bulk-end) do
               (let (,@(loop for i fixnum from 0
                          for v in vars collect
@@ -197,37 +194,40 @@ count and expect memory lengths in words, not in bytes."
 
   
 
-(defun memcpy-words (dst dst-index src src-index src-end)
+(defun memcpy-words (dst dst-index src src-index n-words)
   (declare (type maddress dst src)
-           (type mem-size dst-index src-index src-end))
+           (type mem-size dst-index src-index n-words))
 
   (symbol-macrolet ((si src-index)
-                    (di dst-index)
-                    (end src-end))
+                    (di dst-index))
 
-    (when (< si end)
-      #?+hlmem/fast-memcpy
-      (fast-memcpy-words (sap=>fast-sap dst) di
-                         (sap=>fast-sap src) si (mem-size- src-end si))
+    #?+hlmem/fast-memcpy
+    (fast-memcpy-words (sap=>fast-sap dst) di (sap=>fast-sap src) si n-words)
       
-      #?-hlmem/fast-memcpy
-      (progn
-        #-abcl ;; no osicat-posix on ABCL yet :-(
-        #-(and)
-        (let ((n-words (mem-size- end si)))
-          (when (> n-words 128)
-            (unless (zerop di) (setf dst (cffi-sys:inc-pointer dst (* di +msizeof-word+))))
-            (unless (zerop si) (setf src (cffi-sys:inc-pointer src (* si +msizeof-word+))))
-            (osicat-posix:memcpy dst src (* n-words +msizeof-word+))
-            (return-from memcpy-words nil)))
+    #?-hlmem/fast-memcpy
+    (progn
+      #-abcl ;; no osicat-posix on ABCL yet :-(
+      #-(and)
+      (when (> n-words 128)
+	(unless (zerop di) (setf dst (cffi-sys:inc-pointer dst (* di +msizeof-word+))))
+	(unless (zerop si) (setf src (cffi-sys:inc-pointer src (* si +msizeof-word+))))
+	(osicat-posix:memcpy dst src (* n-words +msizeof-word+))
+	(return-from memcpy-words nil))
 
-        #?+hlmem/fast-mem
-        (%memcpy-unrolled-words #+x86-64 4 #-x86-64 2 dst di src si end)
+      #?+hlmem/fast-mem
+      (%memcpy-unrolled-words #+x86-64 4 #-x86-64 2 dst di src si n-words)
         
-        #?-hlmem/fast-mem
-        (loop while (< si end)
-           do
-             (mset-word dst di (mget-word src si))
-             (incf-mem-size si)
-             (incf-mem-size di))))))
+      #?-hlmem/fast-mem
+      (loop with end = (mem-size+ si n-words)
+	 while (< si end)
+	 do
+	   (mset-word dst di (mget-word src si))
+	   (incf-mem-size si)
+	   (incf-mem-size di)))))
 
+
+#?+hlmem/fast-memcpy
+(define-compiler-macro memcpy-words (&whole form dst dst-index src src-index n-words)
+  (if (constantp n-words)
+      `(fast-memcpy-words ,dst ,dst-index ,src ,src-index ,(eval n-words))
+      form))

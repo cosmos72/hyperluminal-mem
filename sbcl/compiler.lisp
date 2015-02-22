@@ -22,6 +22,7 @@ Implementation note: for SBCL, FAST-SAP is identical to normal CFFI-SYS:FOREIGN-
 i.e. they are SB-SYS:SYSTEM-AREA-POINTER"
   'cffi-sys:foreign-pointer)
 
+(deftype word () 'sb-ext:word)
 
 (defconstant +n-fixnum-tag-bits+ sb-vm:n-fixnum-tag-bits
   "Number of low bits that are always ZERO
@@ -55,3 +56,13 @@ in the representation of a FIXNUM")
 (defun fast-sap=>sap (x)
   (the fast-sap x))
 
+
+(declaim (inline fixnum+))
+(defun fixnum+ (a b)
+  (declare (type fixnum a b))
+  (the fixnum (+ a b)))
+
+(declaim (inline fixnum-))
+(defun fixnum- (a b)
+  (declare (type fixnum a b))
+  (the fixnum (- a b)))

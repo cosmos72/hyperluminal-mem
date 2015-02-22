@@ -21,9 +21,9 @@
 (eval-always
   (let* ((fast-mread   (get-fbound-symbol 'hl-asm (stringify 'fast-mread/  +msizeof-word+)))
          (fast-mwrite  (get-fbound-symbol 'hl-asm (stringify 'fast-mwrite/ +msizeof-word+)))
-         (fast-mem     (the boolean (and fast-mread fast-mwrite t))))
+         (fast-mem     (and fast-mread fast-mwrite)))
 
-    (set-feature 'hlmem/fast-mem fast-mem)
+    (set-feature 'hlmem/fast-mem (not (null fast-mem)))
     (if fast-mem
         (progn
           (defmacro fast-mget-word (ptr index &key (scale +msizeof-word+) (offset 0))
@@ -52,7 +52,7 @@
 (eval-always
   (let ((fast-memcpy  (get-fbound-symbol 'hl-asm (stringify 'fast-memcpy/  +msizeof-word+))))
 
-    (set-feature 'hlmem/fast-memcpy fast-memcpy)
+    (set-feature 'hlmem/fast-memcpy (not (null fast-memcpy)))
     (if fast-memcpy
         (defmacro fast-memcpy-words (dst dst-index src src-index n-words
                                      &key
@@ -71,7 +71,7 @@
 (eval-always
   (let ((fast-memset  (get-fbound-symbol 'hl-asm (stringify 'fast-memset/ +msizeof-word+))))
 
-    (set-feature 'hlmem/fast-memset fast-memset)
+    (set-feature 'hlmem/fast-memset (not (null fast-memset)))
     (if fast-memset
         (defmacro fast-memset-words (ptr index n-words fill-word
                                      &key (scale +msizeof-word+) (offset 0))

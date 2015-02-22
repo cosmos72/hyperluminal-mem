@@ -182,7 +182,10 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
              (type symbol type))
 
     (handler-case
-        (typep (code-char code) type)
+        (let ((ch (code-char code)))
+          (and (typep ch type)
+               ;; ABCL code-char wraps at #xFFFF
+               (eql code (char-code ch))))
       (condition () nil)))
 
   (defun %detect-most-positive-character ()

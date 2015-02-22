@@ -62,18 +62,6 @@ i.e. 1 means one mem-word."
 
 
 
-(defun !mdump (stream ptr &optional (start-index 0) (end-index (1+ start-index)))
-  "dump the contents of raw memory. useful for debugging"
-  (declare (type maddress ptr)
-           (type mem-size start-index end-index))
-  (loop while (< start-index end-index)
-     do
-       (format stream #.(format nil "~~~A,'0X " (* 2 +msizeof-word+))
-               (mget-word ptr start-index))
-       (incf-mem-size start-index)))
-
-
-
 (declaim (inline mem-int+ mem-int-))
 
 (defun mem-int+ (a &optional (b 0) (c 0))
@@ -122,6 +110,18 @@ i.e. 1 means one mem-word."
 
     
   
+(defun !mdump (stream ptr &optional (start-index 0) (end-index (1+ start-index)))
+  "dump the contents of raw memory. useful for debugging"
+  (declare (type maddress ptr)
+           (type mem-size start-index end-index))
+  (loop while (< start-index end-index)
+     do
+       (format stream #.(format nil "~~~A,'0X " (* 2 +msizeof-word+))
+               (mget-word ptr start-index))
+       (incf-mem-size start-index)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmacro %to-tag (word)
   `(logand +mem-tag/mask+ (ash ,word ,(- +mem-tag/shift+))))
