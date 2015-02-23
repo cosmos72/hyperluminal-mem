@@ -41,92 +41,94 @@ count and expect memory lengths in words, not in bytes."
 
 
            
-(defun !memset-bytes (ptr start-byte end-byte fill-byte)
+(defun !memset-bytes (ptr start-byte n-bytes fill-byte)
   (declare (type maddress ptr)
            (type (unsigned-byte 8) fill-byte)
-           (type mem-word start-byte end-byte))
+           (type mem-word start-byte n-bytes))
   
-  (when (< start-byte end-byte)
-    #-abcl
-    (let ((n-bytes (- end-byte start-byte)))
-      (declare (type mem-word n-bytes))
-      (when (> n-bytes 32)
-        (unless (zerop start-byte) (setf ptr (cffi-sys:inc-pointer ptr start-byte)))
-        (osicat-posix:memset ptr fill-byte n-bytes)
-        (return-from !memset-bytes nil)))
+  #-abcl
+  #+nil
+  (when (> n-bytes 32)
+    (unless (zerop start-byte) (setf ptr (cffi-sys:inc-pointer ptr start-byte)))
+    (osicat-posix:memset ptr fill-byte n-bytes)
+    (return-from !memset-bytes nil))
 
-    (let ((i start-byte))
-      (declare (type mem-word start-byte))
-      (loop while (< i end-byte) do
-           (mset-byte ptr i fill-byte)
-           (incf i)))))
+  (let ((i start-byte)
+        (end (the mem-word (+ start-byte n-bytes))))
+    (declare (type mem-word i end))
+    (loop while (< i end)
+       do
+         (mset-byte ptr i fill-byte)
+         (incf i))))
 
 
-(defun memset-words (ptr start-index end-index fill-word)
+(defun memset-words (ptr start-index n-words fill-word)
   (declare (optimize (speed 3) (safety 0) (debug 1))
            (type maddress ptr)
            (type mem-word fill-word)
-           (type mem-size start-index end-index))
+           (type mem-size start-index n-words))
 
   (symbol-macrolet ((i start-index)
                     (end end-index))
 
-    (when (< i end)
+    #?+hlmem/fast-memset
+    (fast-memset-words (sap=>fast-sap ptr) i n-words fill-word)
 
-      #?+hlmem/fast-memset
-      (fast-memset-words (sap=>fast-sap ptr) i (mem-size- end i) fill-word)
+    #?-hlmem/fast-memset
+    (progn
     
-      #?-hlmem/fast-memset
-      (progn
-        ;; ARM has no SAP+INDEX*SCALE+OFFSET addressing,
-        #?+(and hlmem/fast-mem (or x86 x86-64))
-        (let ((sap      (the fast-sap (sap=>fast-sap ptr)))
-              (bulk-end (mem-size+ i (logand -8 (- end i)))))
-          (loop while (< i bulk-end)
-             do
-               (fast-mset-word fill-word sap i :offset (* 0 +msizeof-word+))
-               (fast-mset-word fill-word sap i :offset (* 1 +msizeof-word+))
-               (fast-mset-word fill-word sap i :offset (* 2 +msizeof-word+))
-               (fast-mset-word fill-word sap i :offset (* 3 +msizeof-word+))
-               (fast-mset-word fill-word sap i :offset (* 4 +msizeof-word+))
-               (fast-mset-word fill-word sap i :offset (* 5 +msizeof-word+))
-               (fast-mset-word fill-word sap i :offset (* 6 +msizeof-word+))
-               (fast-mset-word fill-word sap i :offset (* 7 +msizeof-word+))
-               (incf-mem-size i 8))
+      ;; ARM has no SAP+INDEX*SCALE+OFFSET addressing,
+      #?+(and hlmem/fast-mem (or x86 x86-64))
+      (let ((sap      (the fast-sap (sap=>fast-sap ptr))))
 
-          (loop while (< i end-index)
-             do
-               (fast-mset-word fill-word sap i)
-               (incf i))))
+        (loop while (>= n-words 8)
+           do
+             (fast-mset-word fill-word sap i :offset (* 0 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 1 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 2 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 3 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 4 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 5 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 6 +msizeof-word+))
+             (fast-mset-word fill-word sap i :offset (* 7 +msizeof-word+))
+             (incf-mem-size i 8)
+             (decf-mem-size n-words 8))
+
+        (loop while (> n-words 0)
+           do
+             (fast-mset-word fill-word sap i)
+             (incf-mem-size i)
+             (decf-mem-size n-words))
       
       #?-(and hlmem/fast-mem (or x86 x86-64))
       (progn
         #-x86
         ;; 32-bit x86 is register-starved
-        (let ((bulk-end (the mem-size (+ i (logand -4 (the mem-size (- end i)))))))
-          (loop while (< i bulk-end)
-             do
-               (let ((i1 (mem-size+ i 1))
-                     (i2 (mem-size+ i 2))
-                     (i3 (mem-size+ i 3)))
-                 (mset-word ptr i  fill-word)
-                 (mset-word ptr i1 fill-word)
-                 (mset-word ptr i2 fill-word)
-                 (mset-word ptr i3 fill-word)
-                 (incf-mem-size i 4))))
+        (loop while (>= n-words 4)
+           do
+             (let ((i1 (mem-size+ i 1))
+                   (i2 (mem-size+ i 2))
+                   (i3 (mem-size+ i 3)))
+               (mset-word ptr i  fill-word)
+               (mset-word ptr i1 fill-word)
+               (mset-word ptr i2 fill-word)
+               (mset-word ptr i3 fill-word)
+               (incf-mem-size i 4)
+               (decf-mem-size n-words 4)))
         
-        (loop while (< i end)
+        (loop while (> n-words 0)
            do
              (mset-word ptr i fill-word)
-             (incf-mem-size i))))))
+             (incf-mem-size i)
+             (decf-mem-size n-words)))))))
 
 
 
 (declaim (inline mzero-bytes))
-(defun !mzero-bytes (ptr start-byte end-byte)
+(defun !mzero-bytes (ptr start-byte n-bytes)
   (declare (type maddress ptr)
-           (type mem-word start-byte end-byte))
-  (!memset-bytes ptr 0 start-byte end-byte))
+           (type mem-word start-byte n-bytes))
+  (!memset-bytes ptr 0 start-byte n-bytes))
 
 
 #?+(or hlmem/fast-memset (and hlmem/fast-mem (or x86 x86-64)))

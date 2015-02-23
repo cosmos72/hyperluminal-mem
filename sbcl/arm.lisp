@@ -262,16 +262,16 @@ suitable for LDR and STR addressing modes"
 
 
 
-(defknown %maddress
+(defknown %fast-sap+
     (fast-sap fixnum arm-fixnum-shift arm-offset)
     ;; cheat and use word
     ;; instead of fast-sap to avoid consing
     (word)
     (sb-c::flushable sb-c::foldable sb-c::movable sb-c::always-translatable))
 
-(sb-c:define-vop (%maddress)
+(sb-c:define-vop (%fast-sap+)
   (:policy :fast-safe)
-  (:translate %maddress)
+  (:translate %fast-sap+)
   (:args (sap   :scs (sb-vm::sap-reg))
 	 (index :scs (sb-vm::any-reg)))
   (:info shift offset)
@@ -289,9 +289,9 @@ suitable for LDR and STR addressing modes"
    (sb-assem:inst add r sap (arm-reg-shifter
 			     index (fixnum- shift +n-fixnum-tag-bits+)))))
 
-(sb-c:define-vop (%maddress-c)
+(sb-c:define-vop (%fast-sap+-c)
   (:policy :fast-safe)
-  (:translate %maddress)
+  (:translate %fast-sap+)
 
   (:args (sap   :scs (sb-vm::sap-reg)))
   (:info index shift offset)
@@ -309,10 +309,10 @@ suitable for LDR and STR addressing modes"
    1
    (sb-assem:inst add r sap (arm-reg-shifter offset))))
 
-(defmacro maddress (sap index &key (scale +fixnum-zero-mask+1+) (offset 0))
+(defmacro fast-sap+ (sap index &key (scale +fixnum-zero-mask+1+) (offset 0))
   (multiple-value-bind (index shift offset)
       (check-arm-fixnum-addressing index scale offset)
-    (list '%maddress sap index shift offset)))
+    (list '%fast-sap+ sap index shift offset)))
 
 
 (defun emit-bulk-transfer (kind tn n-words reg-list)
@@ -448,7 +448,7 @@ suitable for LDR and STR addressing modes"
 			 (dst-scale +fixnum-zero-mask+1+) (dst-offset 0)
 			 (src-scale +fixnum-zero-mask+1+) (src-offset 0))
   (with-gensyms (dsap ssap)
-    `(let ((,dsap (maddress ,dst ,dst-index :scale ,dst-scale :offset ,dst-offset))
-	   (,ssap (maddress ,src ,src-index :scale ,src-scale :offset ,src-offset)))
+    `(let ((,dsap (fast-sap+ ,dst ,dst-index :scale ,dst-scale :offset ,dst-offset))
+	   (,ssap (fast-sap+ ,src ,src-index :scale ,src-scale :offset ,src-offset)))
 
        (%memcpy/4 ,dsap ,ssap ,n-words))))

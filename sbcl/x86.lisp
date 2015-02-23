@@ -281,10 +281,8 @@ suitable for MOV addressing modes"
     `(progn
        (eval-always
          (defknown ,%name
-             ;;arg-types
-             (sb-ext:word)
-             ;;result-type
-             fixnum
+             (word) ;;arg-types
+             fixnum ;;result-type
              (sb-c::flushable sb-c::foldable sb-c::movable sb-c::always-translatable)))
 
        (eval-always
@@ -311,17 +309,17 @@ suitable for MOV addressing modes"
                    (sb-assem::inst shl y +n-fixnum-tag-bits+))))))
 
        (eval-always
-         (declaim (ftype (function (sb-ext:word) (values fixnum &optional)) ,name)
+         (declaim (ftype (function (word) (values fixnum &optional)) ,name)
                   (inline ,name)))
        (eval-always
          (defun ,name (x)
-           (declare (type sb-ext:word x))
+           (declare (type word x))
            (the fixnum (,%name x)))))))
 
 (define-fast-mword=>fixnum)
 
 
-
+               
 
 (defmacro define-fast-memcpy (&key memcpy-name type size)
   (declare (ignore type))
@@ -332,7 +330,9 @@ suitable for MOV addressing modes"
 
        (eval-always
          (defknown ,%memcpy-name
-             (fast-sap fast-sap word)
+             (fast-sap fixnum fast-sap fixnum sb-ext:word
+                       x86-fixnum-scale (signed-byte 32)
+                       x86-fixnum-scale (signed-byte 32))
              (values)
              (sb-c:always-translatable)))
 
@@ -340,12 +340,19 @@ suitable for MOV addressing modes"
          (sb-c:define-vop (,%memcpy-name)
            (:policy :fast-safe)
            (:translate ,%memcpy-name)
-           (:args (dst       :scs (sb-vm::sap-reg)      #-x86 :target #-x86 rsi)
-                  (src       :scs (sb-vm::sap-reg)      #-x86 :target #-x86 rdi)
+           (:args (dst       :scs (sb-vm::sap-reg))
+                  (dst-index :scs (sb-vm::any-reg))
+                  (src       :scs (sb-vm::sap-reg))
+                  (src-index :scs (sb-vm::any-reg))
                   (n-words   :scs (sb-vm::unsigned-reg) #-x86 :target #-x86 rcx))
-           (:arg-types sb-sys:system-area-pointer
-                       sb-sys:system-area-pointer
-                       sb-vm::unsigned-num)
+           (:info dst-scale dst-offset src-scale src-offset)
+           (:arg-types sb-sys:system-area-pointer sb-vm::tagged-num
+                       sb-sys:system-area-pointer sb-vm::tagged-num
+                       sb-vm::unsigned-num
+                       (:constant x86-fixnum-scale)
+                       (:constant (signed-byte 32))
+                       (:constant x86-fixnum-scale)
+                       (:constant (signed-byte 32)))
 
            #-x86 (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::rcx-offset) rcx)
            #-x86 (:temporary (:sc sb-vm::sap-reg      :offset sb-vm::rsi-offset) rsi)
@@ -364,10 +371,21 @@ suitable for MOV addressing modes"
                 (sb-assem:inst push rsi)
                 (sb-assem:inst push rdi)
                 (check-location-not-member dst       rsi)
+                (check-location-not-member dst-index rsi)
                 (check-location-not-member n-words   rsi rdi))
 
-              (sb-c::move rsi src)
-              (sb-c::move rdi dst)
+              (sb-assem:inst lea rsi
+                             (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                             :base src :index src-index
+                                             :scale (ash (the fixnum src-scale)
+                                                         (- +n-fixnum-tag-bits+))
+                                             :disp src-offset))
+              (sb-assem:inst lea rdi
+                             (sb-vm::make-ea #+x86 :dword #-x86 :qword
+                                             :base dst :index dst-index
+                                             :scale (ash (the fixnum dst-scale)
+                                                         (- +n-fixnum-tag-bits+))
+                                             :disp dst-offset))
               (sb-c::move rcx n-words)
               ;; (sb-assem:inst std) ; not needed
               (sb-assem:inst rep)
@@ -389,11 +407,8 @@ suitable for MOV addressing modes"
                (check-x86-fixnum-addressing dst-index dst-scale dst-offset)
              (multiple-value-bind (src-index src-scale src-offset)
                  (check-x86-fixnum-addressing src-index src-scale src-offset)
-               
-               (list ',%memcpy-name
-                     `(fast-sap+ ,dst ,dst-index :scale ,dst-scale :offset ,dst-offset)
-                     `(fast-sap+ ,src ,src-index :scale ,src-scale :offset ,src-offset)
-                     n-words))))))))
+               (list ',%memcpy-name dst dst-index src src-index n-words
+                     dst-scale dst-offset src-scale src-offset))))))))
 
 
 (define-fast-memcpy :memcpy-name fast-memcpy/4 :type (unsigned-byte 32) :size :dword)
@@ -417,7 +432,7 @@ suitable for MOV addressing modes"
 
        (eval-always
          (defknown ,%memset-name
-             (fast-sap fixnum sb-ext:word ,type
+             (fast-sap fixnum word ,type
                        x86-fixnum-scale (signed-byte 32))
              (values)
              (sb-c:always-translatable)))
@@ -493,3 +508,12 @@ suitable for MOV addressing modes"
 #+x86-64
 (define-fast-memset :memset-name fast-memset/8 :type (unsigned-byte 64) :size :qword)
 
+
+
+
+
+
+(define-fast-memcpy :memcpy-name fast-memcpy/4 :type (unsigned-byte 32) :size :dword)
+
+#+x86-64
+(define-fast-memcpy :memcpy-name fast-memcpy/8 :type (unsigned-byte 64) :size :qword)
