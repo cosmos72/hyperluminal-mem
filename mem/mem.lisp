@@ -294,6 +294,7 @@ To force big-endian ABI:
 #+abcl
 ;; on ABCL, we can set the endianity of java.nio.ByteBuffer, used to implement raw memory
 (eval-always
+  nil)
   
 
 #-abcl
