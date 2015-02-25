@@ -33,7 +33,7 @@
     `(%mget-t :byte ,ptr ,byte-index))
 
   (defmacro mset-byte (ptr byte-index value)
-    "Used only by MWRITE-MAGIC, and %DETECT-ENDIANITY, MEMSET and MEMCPY.
+    "Used only by MWRITE-MAGIC, and %DETECT-ENDIANITY, !MEMSET-bytes and !MEMCPY-BYTES.
   Warning: evaluates VALUE before the other arguments!"
     `(%mset-t ,value :byte ,ptr ,byte-index))
 
@@ -195,8 +195,8 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
 (eval-always
   (defconstant +most-positive-ascii-char+ +ascii-char/mask+))
 (eval-always
-  (set-feature 'hlmem/base-char<=ascii (<= +most-positive-base-char+ +most-positive-ascii-char+))
-  (set-feature 'hlmem/base-char>=ascii (>= +most-positive-base-char+ +most-positive-ascii-char+)))
+  (set-feature :hlmem/base-char<=ascii (<= +most-positive-base-char+ +most-positive-ascii-char+))
+  (set-feature :hlmem/base-char>=ascii (>= +most-positive-base-char+ +most-positive-ascii-char+)))
 
 
 
@@ -214,7 +214,7 @@ size of CPU word is ~S bits, expecting at least 32 bits" +mem-word/bits+))
    (error "cannot build HYPERLUMINAL-MEM: unsupported architecture.
 each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 
- (set-feature 'hlmem/base-char=character (= +most-positive-base-char+ +most-positive-character+))
+ (set-feature :hlmem/base-char=character (= +most-positive-base-char+ +most-positive-character+))
 
  #+sbcl
  ;; used on SBCL to access the internal representation of Lisp objects
@@ -230,7 +230,7 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 
 
 (eval-always
-  (defun %detect-endianity ()
+  (defun %detect-native-endianity ()
     (with-mem-words (p 1)
       (let ((little-endian 0)
             (big-endian 0))
@@ -244,19 +244,85 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
              (mset-byte p i bits))
 
         (let ((endianity (%mget-t :word p 0)))
-          (unless (or (eql endianity little-endian)
-                      (eql endianity big-endian))
-            (error "cannot build HYPERLUMINAL-MEM: unsupported architecture.
+          (cond
+            ((eql endianity little-endian) :little-endian)
+            ((eql endianity big-endian)    :big-endian)
+            (t (error "cannot build HYPERLUMINAL-MEM: unsupported architecture.
     CPU word endianity is #x~X, expecting either #x~X (little-endian) or #x~X (big-endian)"
-                   endianity little-endian big-endian))
+                      endianity little-endian big-endian))))))))
 
-          (defconstant +mem/little-endian+ (eql little-endian endianity))
           
-          endianity)))))
+(eval-always
+  (defconstant +mem/native-endianity+ (%detect-native-endianity)))
+
+(eval-always
+  (defun choose-endianity ()
+    "Choose the file format and ABI between :little-endian or :big-endian.
+
+By default, Hyperluminal-MEM file format and ABI is autodetected to match
+the endianity of CFFI-SYS raw memory, i.e. the CPU endianity.
+
+It is possible to compile Hyperluminal-MEM for a different endianity by adding
+an appropriate entry in the global variable `*FEATURES*` **before** compiling
+and loading Hyperluminal-MEM.
+
+To force little-endian ABI:
+  (pushnew :hyperluminal-mem/endianity/little *features*)
+
+To force big-endian ABI:
+  (pushnew :hyperluminal-mem/endianity/big *features*)"
+
+    ;;search for :hyperluminal-mem/endianity/{little,big} *features*
+    (let ((endianity (find-hldb-option/keyword 'endianity)))
+      (case endianity
+        ((nil)   +mem/native-endianity+)
+        (:little :little-endian)
+        (:big    :big-endian)
+        (otherwise
+         (error "cannot build HYPERLUMINAL-MEM: unsupported option ~S in ~S,
+  only ~S or ~S are supported"
+                (intern (concat-symbols 'hyperluminal-mem/endianity/ endianity) :keyword)
+                '*features*
+                :hyperluminal-mem/endianity/little
+                :hyperluminal-mem/endianity/big))))))
+                
+
+(eval-always
+  (defconstant +mem/chosen-endianity+ (choose-endianity)))
 
 
+#+abcl
+;; on ABCL, we can set the endianity of java.nio.ByteBuffer, used to implement raw memory
+(eval-always
+  
 
-(defconstant +mem-word/endianity+ (%detect-endianity))
+#-abcl
+(eval-always
+  ;; FIXME: support floats as well!
+  (defun %maybe-invert-endianity (type value)
+    (if (eql +mem/native-endianity+ +mem/chosen-endianity+)
+        value
+        (ecase (%msizeof type)
+          (1 value)
+          (2 (swap-bytes:swap-bytes-16 value))
+          (4 (swap-bytes:swap-bytes-32 value))
+          (8 (swap-bytes:swap-bytes-64 value)))))
+
+  (defmacro maybe-invert-endianity (type value)
+    (cond
+      ((eql +mem/native-endianity+ +mem/chosen-endianity+)
+       value)
+      ((constantp type)
+       (ecase (%msizeof (eval type))
+         (1 value)
+         (2 `(swap-bytes:swap-bytes-16 ,value))
+         (4 `(swap-bytes:swap-bytes-32 ,value))
+         (8 `(swap-bytes:swap-bytes-64 ,value))))
+      (t `(%maybe-invert-endianity ,type ,value)))))
+         
+          
+    
+    
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -271,20 +337,23 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
     #?+hlmem/fast-mem
     (when (eq +chosen-word-type+ (parse-type type))
       (return-from mget-t
-        `(fast-mget-word (sap=>fast-sap ,ptr) ,word-index)))
+        `(maybe-invert-endianity ,type
+          (fast-mget-word (sap=>fast-sap ,ptr) ,word-index))))
     ;; common case
-    `(%mget-t ,type ,ptr (the #+sbcl mem-word #-sbcl t
-                              (* ,word-index +msizeof-word+))))
+    `(maybe-invert-endianity ,type
+      (%mget-t ,type ,ptr (the #+sbcl mem-word #-sbcl t
+                               (* ,word-index +msizeof-word+)))))
   
 
   (defmacro mset-t (value type ptr word-index)
-    #?+hlmem/fast-mem
-    (when (eq +chosen-word-type+ (parse-type type))
-      (return-from mset-t
-        `(fast-mset-word ,value (sap=>fast-sap ,ptr) ,word-index)))
-    ;; common case
-    `(%mset-t ,value ,type ,ptr (the #+sbcl mem-word #-sbcl t
-                                     (* ,word-index +msizeof-word+)))))
+    (let ((value `(maybe-invert-endianity ,type ,value)))
+      #?+hlmem/fast-mem
+      (when (eq +chosen-word-type+ (parse-type type))
+        (return-from mset-t
+          `(fast-mset-word ,value (sap=>fast-sap ,ptr) ,word-index)))
+      ;; common case
+      `(%mset-t ,value ,type ,ptr (the #+sbcl mem-word #-sbcl t
+                                       (* ,word-index +msizeof-word+))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

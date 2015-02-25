@@ -19,11 +19,8 @@
 
   ;; convenience to mix CPU type with other features
   (set-feature 'x86 #+x86 t #-x86 nil)
-  (set-feature 'x86-64 
-	       #+(or x86-64 x86_64 x8664) t ;; too many names...
-	       #-(or x86-64 x86_64 x8664) nil)
-
-
+  ;; this relies on trivial-features to set #+x86-64 correctly on all compilers
+  (set-feature 'x86-64 #+x86-64 t #-x86-64 nil)
 
   (defun find-hldb-option/string (prefix)
     (declare (type symbol prefix))

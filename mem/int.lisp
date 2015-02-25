@@ -21,6 +21,22 @@
 (deftype mem-int     () `(  signed-byte ,+mem-int/bits+))
 (deftype mem-uint    () `(unsigned-byte ,+mem-int/value-bits+))
 
+
+;; use the fastest available implementation of mword=>mem-int
+;;
+;; deferred from fast-mem.lisp, it needs #?+hlmem/mem-int=fixnum
+;; computed in constants.lisp
+(eval-always
+  (let ((sym (get-fbound-symbol 'hl-asm (stringify 'fast-mword/ +msizeof-word+ '=>fixnum))))
+    
+    ;; hl-asm:fast-mword=>fixnum is usable for mword=>mem-int
+    ;; only if mem-int equals fixnum
+    (set-feature 'hlmem/mword=>mem-int
+                 ;; we store sym in the features!
+                 (if (get-feature :hlmem/mem-int=fixnum) sym nil))))
+     
+
+
 (defmacro mword=>mem-int (word)
   #?+hlmem/mword=>mem-int
   `(,(get-feature :hlmem/mword=>mem-int) ,word)

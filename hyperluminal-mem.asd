@@ -26,6 +26,8 @@
 
   :depends-on (#-abcl :cffi
                #-abcl :osicat
+               :swap-bytes ;; to support non-native endian formats
+               :trivial-features ;; for uniform #+x86-64
                :stmx)
 
   :components

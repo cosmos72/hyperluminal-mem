@@ -225,8 +225,8 @@
   (defconstant +mem-dfloat/inline?+ (mem-float/inline? :dfloat)))
 
 (eval-always
- (set-feature 'hlmem/sfloat/inline +mem-sfloat/inline?+)
- (set-feature 'hlmem/dfloat/inline +mem-dfloat/inline?+))
+ (set-feature :hlmem/sfloat/inline +mem-sfloat/inline?+)
+ (set-feature :hlmem/dfloat/inline +mem-dfloat/inline?+))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -251,8 +251,8 @@
   (unless (zerop (logand +mem-box/min-words+ (1- +mem-box/min-words+)))
     (error "+mem-box/min-words+ is ~S, instead it must be a power of two!" +mem-box/min-words+))
 
-  (set-feature 'hlmem/box/header-words +mem-box/header-words+)
-  (set-feature 'hlmem/box/min-words    +mem-box/min-words+))
+  (set-feature :hlmem/box/header-words +mem-box/header-words+)
+  (set-feature :hlmem/box/min-words    +mem-box/min-words+))
 
 
 

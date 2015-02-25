@@ -18,12 +18,15 @@
 (enable-#?-syntax)
 
 ;; if available, use fast-mread and fast-mwrite
+;;
+;; fast-mword=>mem-int must be defined later (in int.lisp)
+;; because it needs #?+hlmem/mem-int=fixnum computed in constants.lisp
 (eval-always
   (let* ((fast-mread   (get-fbound-symbol 'hl-asm (stringify 'fast-mread/  +msizeof-word+)))
          (fast-mwrite  (get-fbound-symbol 'hl-asm (stringify 'fast-mwrite/ +msizeof-word+)))
          (fast-mem     (and fast-mread fast-mwrite)))
 
-    (set-feature 'hlmem/fast-mem (not (null fast-mem)))
+    (set-feature :hlmem/fast-mem (not (null fast-mem)))
     (if fast-mem
         (progn
           (defmacro fast-mget-word (ptr index &key (scale +msizeof-word+) (offset 0))
@@ -37,22 +40,11 @@
           (fmakunbound 'fast-mset-word)))))
 
 
-;; use the fastest available implementation of mword=>mem-int
-(eval-always
-  (let ((sym (get-fbound-symbol 'hl-asm (stringify 'fast-mword/ +msizeof-word+ '=>fixnum))))
-    
-    ;; hl-asm:fast-mword=>fixnum is usable for mword=>mem-int
-    ;; only if mem-int equals fixnum
-    (set-feature 'hlmem/mword=>mem-int
-                 ;; we store sym in the features!
-                 (if (get-feature 'hlmem/mem-int=fixnum) sym nil))))
-     
-
 ;; if available, use fast-memcpy
 (eval-always
   (let ((fast-memcpy  (get-fbound-symbol 'hl-asm (stringify 'fast-memcpy/  +msizeof-word+))))
 
-    (set-feature 'hlmem/fast-memcpy (not (null fast-memcpy)))
+    (set-feature :hlmem/fast-memcpy (not (null fast-memcpy)))
     (if fast-memcpy
         (defmacro fast-memcpy-words (dst dst-index src src-index n-words
                                      &key
@@ -71,7 +63,7 @@
 (eval-always
   (let ((fast-memset  (get-fbound-symbol 'hl-asm (stringify 'fast-memset/ +msizeof-word+))))
 
-    (set-feature 'hlmem/fast-memset (not (null fast-memset)))
+    (set-feature :hlmem/fast-memset (not (null fast-memset)))
     (if fast-memset
         (defmacro fast-memset-words (ptr index n-words fill-word
                                      &key (scale +msizeof-word+) (offset 0))
@@ -82,11 +74,10 @@
         (fmakunbound 'fast-memset-words))))
 
 
-#?+(or hlmem/fast-mem hlmem/fast-memcpy hlmem/fast-memset)
-(deftype fast-sap () 'hl-asm:fast-sap)
-      
+
 #?+(or hlmem/fast-mem hlmem/fast-memcpy hlmem/fast-memset)
 (progn
+  (deftype fast-sap () 'hl-asm:fast-sap)
   (defmacro sap=>fast-sap (x)
     `(hl-asm:sap=>fast-sap ,x))
   (defmacro fast-sap=>sap (x)
