@@ -25,44 +25,7 @@
 
   (defmacro %mset-t (value type ptr &optional (byte-offset 0))
     `(ffi-mem-set ,value ,ptr ,(parse-type type) ,byte-offset)))
-
-			    
-(eval-always
-  (defmacro mget-t (type ptr word-index)
-    #?+hlmem/fast-mem
-    (when (eq +chosen-word-type+ (parse-type type))
-      (return-from mget-t
-        `(fast-mget-word (sap=>fast-sap ,ptr) ,word-index)))
-    ;; common case
-    `(%mget-t ,type ,ptr (the #+sbcl mem-word #-sbcl t
-                              (* ,word-index +msizeof-word+))))
   
-
-  (defmacro mset-t (value type ptr word-index)
-    #?+hlmem/fast-mem
-    (when (eq +chosen-word-type+ (parse-type type))
-      (return-from mset-t
-        `(fast-mset-word ,value (sap=>fast-sap ,ptr) ,word-index)))
-    ;; common case
-    `(%mset-t ,value ,type ,ptr (the #+sbcl mem-word #-sbcl t
-                                     (* ,word-index +msizeof-word+)))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-(eval-always
-  (defmacro mget-word (ptr word-index)
-    `(mget-t :word ,ptr ,word-index))
-
-  (defmacro mset-word (ptr word-index value)
-    "Warning: evaluates VALUE before the other arguments!"
-    `(mset-t ,value :word ,ptr ,word-index))
-
-  (defsetf mget-word mset-word))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 (eval-always
   (defmacro mget-byte (ptr byte-index)
@@ -75,7 +38,6 @@
     `(%mset-t ,value :byte ,ptr ,byte-index))
 
   (defsetf mget-byte mset-byte))
-  
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -281,7 +243,7 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 
              (mset-byte p i bits))
 
-        (let ((endianity (mget-word p 0)))
+        (let ((endianity (%mget-t :word p 0)))
           (unless (or (eql endianity little-endian)
                       (eql endianity big-endian))
             (error "cannot build HYPERLUMINAL-MEM: unsupported architecture.
@@ -295,3 +257,47 @@ each CHARACTER contains ~S bits, expecting at most 21 bits" +character/bits+))
 
 
 (defconstant +mem-word/endianity+ (%detect-endianity))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;; mem-word can be defined only now, it needs +mem-word/bits+
+(deftype mem-word    () `(unsigned-byte ,+mem-word/bits+))
+
+
+(eval-always
+  (defmacro mget-t (type ptr word-index)
+    #?+hlmem/fast-mem
+    (when (eq +chosen-word-type+ (parse-type type))
+      (return-from mget-t
+        `(fast-mget-word (sap=>fast-sap ,ptr) ,word-index)))
+    ;; common case
+    `(%mget-t ,type ,ptr (the #+sbcl mem-word #-sbcl t
+                              (* ,word-index +msizeof-word+))))
+  
+
+  (defmacro mset-t (value type ptr word-index)
+    #?+hlmem/fast-mem
+    (when (eq +chosen-word-type+ (parse-type type))
+      (return-from mset-t
+        `(fast-mset-word ,value (sap=>fast-sap ,ptr) ,word-index)))
+    ;; common case
+    `(%mset-t ,value ,type ,ptr (the #+sbcl mem-word #-sbcl t
+                                     (* ,word-index +msizeof-word+)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(eval-always
+  (defmacro mget-word (ptr word-index)
+    `(mget-t :word ,ptr ,word-index))
+
+  (defmacro mset-word (ptr word-index value)
+    "Warning: evaluates VALUE before the other arguments!"
+    `(mset-t ,value :word ,ptr ,word-index))
+
+  (defsetf mget-word mset-word))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

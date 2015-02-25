@@ -21,9 +21,6 @@
 (deftype mem-int     () `(  signed-byte ,+mem-int/bits+))
 (deftype mem-uint    () `(unsigned-byte ,+mem-int/value-bits+))
 
-(deftype mem-word    () `(unsigned-byte ,+mem-word/bits+))
-
-
 (defmacro mword=>mem-int (word)
   #?+hlmem/mword=>mem-int
   `(,(get-feature :hlmem/mword=>mem-int) ,word)
@@ -40,8 +37,9 @@
 (defmacro mem-int=>mword (value)
   #?+hlmem/mem-int=fixnum
   `(logior +mem-int/flag+
-           #+sbcl (logand +mem-word/mask+ ,value) ;; faster
-           #-sbcl (logand +mem-int/mask+ ,value))
+           ;; on some archs, SBCL is smart enough to optimize away this
+           #+(and sbcl (or x86 x86-64 arm)) (logand +mem-word/mask+ ,value)
+           #-(and sbcl (or x86 x86-64 arm)) (logand +mem-int/mask+ ,value))
 
   #?-hlmem/mem-int=fixnum
   `(logior +mem-int/flag+
