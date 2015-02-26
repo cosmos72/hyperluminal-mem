@@ -301,7 +301,7 @@ i.e. 1 means one mem-word."
 (defmacro mget-float/inline (type ptr index)
   (declare (type (member :float :double :sfloat :dfloat) type))
   (if (mem-float/inline? type)
-      (if +mem/little-endian+
+      (if (eql +mem/chosen-endianity+ :little-endian)
           `(mget-float-0 ,type ,ptr ,index)
           `(mget-float-N ,type ,ptr ,index))
       `(error "HYPERLUMINAL-MEM: cannot use inline ~As on this architecture" ,(cffi-type-name type))))
@@ -309,7 +309,7 @@ i.e. 1 means one mem-word."
 (defmacro mset-float/inline (type ptr index value)
   (declare (type (member :float :double :sfloat :dfloat) type))
   (if (mem-float/inline? type)
-      (if +mem/little-endian+
+      (if (eql +mem/chosen-endianity+ :little-endian)
           `(mset-float-0 ,type ,ptr ,index ,value)
           `(mset-float-N ,type ,ptr ,index ,value))
       `(error "HYPERLUMINAL-MEM: cannot use inline ~As on this architecture" ,(cffi-type-name type))))

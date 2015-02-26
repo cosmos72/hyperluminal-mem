@@ -102,6 +102,16 @@
   (defconstant +java-nio-byteorder-native+
     (java:jstatic "nativeOrder" "java.nio.ByteOrder"))
 
+  (defconstant +java-nio-byteorder-little-endian+
+    (java:jfield "java.nio.ByteOrder" "LITTLE_ENDIAN"))
+
+  (defconstant +java-nio-byteorder-big-endian+
+    (java:jfield "java.nio.ByteOrder" "BIG_ENDIAN"))
+
+  (define-global *current-java-nio-byteorder*
+      +java-nio-byteorder-native+
+    "The byte order currently in use. Will be set by mem/mem.lisp")
+
   (defconstant +java-nio-bytebuffer-allocate+
     (java:jmethod "java.nio.ByteBuffer" "allocate" "int"))
 
@@ -131,8 +141,22 @@
       (java:jmethod "java.nio.ByteBuffer" "putLong" "int" "long")
       (java:jmethod "java.nio.ByteBuffer" "putFloat" "int" "float")
       (java:jmethod "java.nio.ByteBuffer" "putDouble" "int" "double"))
-     'vector)))
+     'vector))
 
+  (defun ffi-endianity ()
+    (if (java:jequal *current-java-nio-byteorder* +java-nio-byteorder-little-endian+)
+        :little-endian
+        :big-endian))
+
+  (defun set-ffi-endianity (keyword)
+    (declare (type (member :little-endian :big-endian) keyword))
+    (setf *current-java-nio-byteorder*
+          (ecase keyword
+            (:little-endian +java-nio-byteorder-little-endian+)
+            (:big-endian    +java-nio-byteorder-big-endian+)))
+    keyword))
+
+(defsetf ffi-endianity set-ffi-endianity)
     
 
 
@@ -196,7 +220,7 @@ The obtained memory must be freed manually: call FFI-MEM-FREE on it when no long
   (cffi-sys:%foreign-alloc n-bytes)
   #+abcl
   (let ((ptr (java:jstatic +java-nio-bytebuffer-allocate+ nil n-bytes)))
-    (java:jcall +java-nio-bytebuffer-set-byteorder+ ptr +java-nio-byteorder-native+)
+    (java:jcall +java-nio-bytebuffer-set-byteorder+ ptr *current-java-nio-byteorder*)
     ptr))
 
 

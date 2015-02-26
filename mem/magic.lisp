@@ -25,10 +25,10 @@
       v)))
 
 (define-global *endian-magic*
-    (string-to-code-vector (if +mem/little-endian+ "hldb" "HLDB")))
+    (string-to-code-vector (if (eql +mem/chosen-endianity+ :little-endian) "hldb" "HLDB")))
 
 (define-global *x-endian-magic*
-    (string-to-code-vector (if +mem/little-endian+ "HLDB" "hldb")))
+    (string-to-code-vector (if (eql +mem/chosen-endianity+ :little-endian) "HLDB" "hldb")))
 
 
 (eval-always

@@ -105,25 +105,33 @@ followed by an array of words containing N in two's complement."
     ;; add 1, we just wrote N-WORDS prefix
     (incf-mem-size index)
 
-    #+sbcl
     ;; optimization: directly access SBCL internal representation of BIGNUMs.
     ;; does not work for FIXNUMs, so we must check!
     ;; N may be a FIXNUM when 32-bit ABI is used on 64-bit SBCL,
     ;; or when MWRITE-BOX/BIGNUM is called directly.
     (if (typep n 'fixnum)
         (%mwrite-bignum-loop ptr index n-words n)
+
+        #+sbcl
         (sb-sys:with-pinned-objects (n)
           (let ((src (cffi-sys:make-pointer 
                       (the sb-ext:word
-                        (+ +lisp-object-header-length+
-                           (logand +lisp-object-address-mask+
-                                   (sb-kernel:get-lisp-obj-address n)))))))
-            (memcpy-words ptr index src 0 n-words)
-            (incf-mem-size index n-words))))
-      
-    #-sbcl
-    (%mwrite-bignum-recurse ptr index n-words n)))
-    
+                           (+ +lisp-object-header-length+
+                              (logand +lisp-object-address-mask+
+                                      (sb-kernel:get-lisp-obj-address n)))))))
+            #?+hlmem/native-endianity
+            (progn
+              (memcpy-words ptr index src 0 n-words)
+              (incf-mem-size index n-words))
+
+            #?-hlmem/native-endianity
+            (dotimes (src-i n-words index)
+              (mset-word ptr index (mget-word/native-endianity src src-i))
+              (incf-mem-size index))))
+
+        #-sbcl
+        (%mwrite-bignum-recurse ptr index n-words n))))
+
 
 
 

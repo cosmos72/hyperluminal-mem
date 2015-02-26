@@ -26,7 +26,7 @@
 
   :depends-on (#-abcl :cffi
                #-abcl :osicat
-               :swap-bytes ;; to support non-native endian formats
+               #-abcl :swap-bytes ;; to support inverted endianity
                :trivial-features ;; for uniform #+x86-64
                :stmx)
 
@@ -62,8 +62,7 @@
 		 (:file "lang"           :depends-on ("package"))
 		 (:file "version"        :depends-on ("lang"))
 		 (:file "defs"           :depends-on ("lang"))
-		 (:file "fast-mem"       :depends-on ("defs"))
-		 (:file "mem"            :depends-on ("fast-mem"))
+		 (:file "mem"            :depends-on ("defs"))
 		 (:file "constants"      :depends-on ("mem"))
 		 (:file "symbols"        :depends-on ("constants"))
 		 (:file "int"            :depends-on ("symbols"))

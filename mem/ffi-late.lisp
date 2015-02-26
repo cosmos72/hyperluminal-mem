@@ -47,7 +47,6 @@ count and expect memory lengths in words, not in bytes."
            (type mem-word start-byte n-bytes))
   
   #-abcl
-  #+nil
   (when (> n-bytes 32)
     (unless (zerop start-byte) (setf ptr (cffi-sys:inc-pointer ptr start-byte)))
     (osicat-posix:memset ptr fill-byte n-bytes)

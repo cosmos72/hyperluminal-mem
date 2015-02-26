@@ -199,6 +199,9 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
   (set-feature :hlmem/base-char>=ascii (>= +most-positive-base-char+ +most-positive-ascii-char+)))
 
 
+;; mem-word can be defined only now, it needs +mem-word/bits+
+(eval-always
+  (deftype mem-word    () `(unsigned-byte ,+mem-word/bits+)))
 
 
 
@@ -288,85 +291,180 @@ To force big-endian ABI:
                 
 
 (eval-always
-  (defconstant +mem/chosen-endianity+ (choose-endianity)))
+  (defconstant +mem/chosen-endianity+ (choose-endianity))
+  (set-feature :hlmem/native-endianity (eql +mem/chosen-endianity+ +mem/native-endianity+)))
 
 
 #+abcl
-;; on ABCL, we can set the endianity of java.nio.ByteBuffer, used to implement raw memory
 (eval-always
-  nil)
-  
+  ;; on ABCL, we set the endianity on java.nio.ByteBuffer, used to implement raw memory:
+  ;; no need for conversions in mset-t and mget-t
+  (setf (ffi-endianity) +mem/chosen-endianity+)
+
+  (defmacro maybe-invert-endianity (type value)
+    (declare (ignore type))
+    value))
+
 
 #-abcl
 (eval-always
-  ;; FIXME: support floats as well!
+  #?+hlmem/native-endianity
+  (progn
+    (fmakunbound '%maybe-invert-endianity)
+    (defmacro maybe-invert-endianity (type value)
+      (declare (ignore type))
+      value))
+
+  
+  #?-hlmem/native-endianity
+  ;; FIXME: add support for floats!
   (defun %maybe-invert-endianity (type value)
-    (if (eql +mem/native-endianity+ +mem/chosen-endianity+)
-        value
-        (ecase (%msizeof type)
-          (1 value)
-          (2 (swap-bytes:swap-bytes-16 value))
-          (4 (swap-bytes:swap-bytes-32 value))
-          (8 (swap-bytes:swap-bytes-64 value)))))
+    (ecase (%msizeof type)
+      (1 value)
+      (2 (swap-bytes:swap-bytes-16 value))
+      (4 (swap-bytes:swap-bytes-32 value))
+      (8 (swap-bytes:swap-bytes-64 value))))
 
   (defmacro maybe-invert-endianity (type value)
-    (cond
-      ((eql +mem/native-endianity+ +mem/chosen-endianity+)
-       value)
-      ((constantp type)
-       (ecase (%msizeof (eval type))
-         (1 value)
-         (2 `(swap-bytes:swap-bytes-16 ,value))
-         (4 `(swap-bytes:swap-bytes-32 ,value))
-         (8 `(swap-bytes:swap-bytes-64 ,value))))
-      (t `(%maybe-invert-endianity ,type ,value)))))
+    (if (constantp type)
+        (ecase (%msizeof (eval type))
+          (1 value)
+          (2 `(swap-bytes:swap-bytes-16 ,value))
+          (4 `(swap-bytes:swap-bytes-32 ,value))
+          (8 `(swap-bytes:swap-bytes-64 ,value)))
+        `(%maybe-invert-endianity ,type ,value))))
          
           
     
-    
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; if available, use fast-mread and fast-mwrite
+;;
+;; fast-mword=>mem-int must be defined later (in int.lisp)
+;; because it needs #?+hlmem/mem-int=fixnum computed in constants.lisp
+(eval-always
+  (let* ((fast-mread   (get-fbound-symbol 'hl-asm (stringify 'fast-mread/  +msizeof-word+)))
+         (fast-mwrite  (get-fbound-symbol 'hl-asm (stringify 'fast-mwrite/ +msizeof-word+)))
+         (fast-mem     (and fast-mread fast-mwrite)))
+
+    (set-feature :hlmem/fast-mem (not (null fast-mem)))
+    (if fast-mem
+        (progn
+          (defmacro fast-mget-word/native-endianity (ptr index
+                                                     &key (scale +msizeof-word+) (offset 0))
+            `(,fast-mread ,ptr ,index :scale ,scale :offset ,offset))
+          (defmacro fast-mset-word/native-endianity (value ptr index
+                                                     &key (scale +msizeof-word+) (offset 0))
+            "Warning: returns no values"
+            `(,fast-mwrite ,value ,ptr ,index :scale ,scale :offset ,offset))
+
+          ;; honour +mem/chosen-endianity+ !
+          (defmacro fast-mget-word (ptr index &key (scale +msizeof-word+) (offset 0))
+            `(maybe-invert-endianity :word
+              (,fast-mread ,ptr ,index :scale ,scale :offset ,offset)))
+          (defmacro fast-mset-word (value ptr index &key (scale +msizeof-word+) (offset 0))
+            "Warning: returns no values"
+            `(,fast-mwrite (maybe-invert-endianity :word ,value)
+                           ,ptr ,index :scale ,scale :offset ,offset)))
+        ;; sanity
+        (progn
+          (fmakunbound 'fast-mget-word/native-endianity)
+          (fmakunbound 'fast-mset-word/native-endianity)
+          (fmakunbound 'fast-mget-word)
+          (fmakunbound 'fast-mset-word)))))
+
+
+;; if available, use fast-memcpy
+(eval-always
+  (let ((fast-memcpy  (get-fbound-symbol 'hl-asm (stringify 'fast-memcpy/  +msizeof-word+))))
+
+    (set-feature :hlmem/fast-memcpy (not (null fast-memcpy)))
+    (if fast-memcpy
+        (defmacro fast-memcpy-words (dst dst-index src src-index n-words
+                                     &key
+                                       (dst-scale +msizeof-word+) (dst-offset 0)
+                                       (src-scale +msizeof-word+) (src-offset 0))
+          `(progn
+             (,fast-memcpy ,dst ,dst-index ,src ,src-index ,n-words
+                           :dst-scale ,dst-scale :dst-offset ,dst-offset
+                           :src-scale ,src-scale :src-offset ,src-offset)
+             nil))
+        ;; sanity
+        (fmakunbound 'fast-memcpy-words))))
+
+
+;; if available, use fast-memset
+(eval-always
+  (let ((fast-memset  (get-fbound-symbol 'hl-asm (stringify 'fast-memset/ +msizeof-word+))))
+
+    (set-feature :hlmem/fast-memset (not (null fast-memset)))
+    (if fast-memset
+        (defmacro fast-memset-words (ptr index n-words fill-word
+                                     &key (scale +msizeof-word+) (offset 0))
+          `(progn
+             ;; honour +mem/chosen-endianity+ !
+             (,fast-memset ,ptr ,index ,n-words
+                           (maybe-invert-endianity :word ,fill-word)
+                           :scale ,scale :offset ,offset)
+             nil))
+        ;; sanity
+        (fmakunbound 'fast-memset-words))))
+
+
+
+#?+(or hlmem/fast-mem hlmem/fast-memcpy hlmem/fast-memset)
+(progn
+  (deftype fast-sap () 'hl-asm:fast-sap)
+  (defmacro sap=>fast-sap (x)
+    `(hl-asm:sap=>fast-sap ,x))
+  (defmacro fast-sap=>sap (x)
+    `(hl-asm:fast-sap=>sap ,x)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-;; mem-word can be defined only now, it needs +mem-word/bits+
-(deftype mem-word    () `(unsigned-byte ,+mem-word/bits+))
-
-
 (eval-always
-  (defmacro mget-t (type ptr word-index)
+  (defmacro mget-t/native-endianity (type ptr word-index)
     #?+hlmem/fast-mem
     (when (eq +chosen-word-type+ (parse-type type))
-      (return-from mget-t
-        `(maybe-invert-endianity ,type
-          (fast-mget-word (sap=>fast-sap ,ptr) ,word-index))))
+      (return-from mget-t/native-endianity
+        `(fast-mget-word/native-endianity (sap=>fast-sap ,ptr) ,word-index)))
     ;; common case
-    `(maybe-invert-endianity ,type
-      (%mget-t ,type ,ptr (the #+sbcl mem-word #-sbcl t
-                               (* ,word-index +msizeof-word+)))))
-  
+    `(%mget-t ,type ,ptr (the #+sbcl mem-word #-sbcl t
+                              (* ,word-index +msizeof-word+))))
+  (defmacro mset-t/native-endianity (value type ptr word-index)
+    #?+hlmem/fast-mem
+    (when (eq +chosen-word-type+ (parse-type type))
+      (return-from mset-t/native-endianity
+        `(fast-mset-word/native-endianity ,value (sap=>fast-sap ,ptr) ,word-index)))
+    ;; common case
+    `(%mset-t ,value ,type ,ptr (the #+sbcl mem-word #-sbcl t
+                                     (* ,word-index +msizeof-word+))))
 
+  (defmacro mget-t (type ptr word-index)
+    `(maybe-invert-endianity
+      ,type (mget-t/native-endianity ,type ,ptr ,word-index)))
   (defmacro mset-t (value type ptr word-index)
-    (let ((value `(maybe-invert-endianity ,type ,value)))
-      #?+hlmem/fast-mem
-      (when (eq +chosen-word-type+ (parse-type type))
-        (return-from mset-t
-          `(fast-mset-word ,value (sap=>fast-sap ,ptr) ,word-index)))
-      ;; common case
-      `(%mset-t ,value ,type ,ptr (the #+sbcl mem-word #-sbcl t
-                                       (* ,word-index +msizeof-word+))))))
+    `(mset-t/native-endianity
+      (maybe-invert-endianity ,type ,value) ,type ,ptr ,word-index)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (eval-always
+  (defmacro mget-word/native-endianity (ptr word-index)
+    `(mget-t/native-endianity :word ,ptr ,word-index))
+  (defmacro mset-word/native-endianity (ptr word-index value)
+    "Warning: evaluates VALUE before the other arguments!"
+    `(mset-t/native-endianity ,value :word ,ptr ,word-index))
+  (defsetf mget-word/native-endianity mset-word/native-endianity)
+
   (defmacro mget-word (ptr word-index)
     `(mget-t :word ,ptr ,word-index))
-
   (defmacro mset-word (ptr word-index value)
     "Warning: evaluates VALUE before the other arguments!"
     `(mset-t ,value :word ,ptr ,word-index))
-
   (defsetf mget-word mset-word))
 
 
