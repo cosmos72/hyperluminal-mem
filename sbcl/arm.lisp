@@ -108,6 +108,9 @@ suitable for LDR and STR addressing modes"
 	  (encode-arm-index+shift+large-offset index fixnum-shift offset)))))
 	    
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 (defmacro define-fast-mread-mwrite (&key mread-name mwrite-name type size)
 
   (let ((%mread-name  (concat-symbols '% mread-name))
@@ -223,6 +226,9 @@ suitable for LDR and STR addressing modes"
                           :type (unsigned-byte 32) :size :long)
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 (defmacro define-fast-mword=>fixnum ()
   (let* ((sizeof-word (truncate (integer-length sb-ext:most-positive-word) 8))
          (name  (concat-symbols 'fast-mword/ sizeof-word '=>fixnum))
@@ -260,13 +266,12 @@ suitable for LDR and STR addressing modes"
 (define-fast-mword=>fixnum)
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defknown %fast-sap+
     (fast-sap fixnum arm-fixnum-shift arm-offset)
-    ;; cheat and use word
-    ;; instead of fast-sap to avoid consing
-    (word)
+    (fast-sap)
     (sb-c::flushable sb-c::foldable sb-c::movable sb-c::always-translatable))
 
 (sb-c:define-vop (%fast-sap+)
@@ -279,10 +284,8 @@ suitable for LDR and STR addressing modes"
 	      (:constant arm-fixnum-shift)
 	      (:constant (member 0)))
 
-  ;; cheat and use sb-vm::unsigned-reg
-  ;; instead of sb-vm::sap-reg to avoid consing
-  (:results   (r :scs (sb-vm::unsigned-reg)))
-  (:result-types sb-vm::unsigned-num)
+  (:results   (r :scs (sb-vm::sap-reg)))
+  (:result-types sb-sys:system-area-pointer)
 
   (:generator
    2
@@ -300,10 +303,8 @@ suitable for LDR and STR addressing modes"
 	      (:constant integer)
 	      (:constant arm-offset))
 	      
-  ;; cheat and use sb-vm::unsigned-reg
-  ;; instead of sb-vm::sap-reg to avoid consing
-  (:results   (r :scs (sb-vm::unsigned-reg)))
-  (:result-types sb-vm::unsigned-num)
+  (:results   (r :scs (sb-vm::sap-reg)))
+  (:result-types sb-sys:system-area-pointer)
 
   (:generator
    1
@@ -347,19 +348,23 @@ suitable for LDR and STR addressing modes"
 (defun emit-stmia (tn n-words reg-list)
   (emit-bulk-transfer :store tn n-words reg-list))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 (defknown %memcpy/4
-    (word word word)
+    (fast-sap fast-sap word)
     (values)
     (sb-c:always-translatable))
 
 (sb-c:define-vop (%memcpy-1-4/4)
   (:policy :fast-safe)
   (:translate %memcpy/4)
-  (:args (dst        :scs (sb-vm::unsigned-reg))
-	 (src        :scs (sb-vm::unsigned-reg)))
+  (:args (dst        :scs (sb-vm::sap-reg))
+	 (src        :scs (sb-vm::sap-reg)))
   (:info n-words)
-  (:arg-types sb-vm::unsigned-num
-	      sb-vm::unsigned-num
+  (:arg-types sb-sys:system-area-pointer
+	      sb-sys:system-area-pointer
 	      (:constant (integer 1 4)))
   (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r0-offset)     r0)
   (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r1-offset)     r1)
@@ -374,11 +379,11 @@ suitable for LDR and STR addressing modes"
 (sb-c:define-vop (%memcpy-5-64/4)
   (:policy :fast-safe)
   (:translate %memcpy/4)
-  (:args (dst        :scs (sb-vm::unsigned-reg))
-	 (src        :scs (sb-vm::unsigned-reg)))
+  (:args (dst        :scs (sb-vm::sap-reg))
+	 (src        :scs (sb-vm::sap-reg)))
   (:info n-words)
-  (:arg-types sb-vm::unsigned-num
-	      sb-vm::unsigned-num
+  (:arg-types sb-sys:system-area-pointer
+	      sb-sys:system-area-pointer
 	      (:constant (integer 5 64)))
   (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r0-offset)     r0)
   (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r1-offset)     r1)
@@ -402,11 +407,11 @@ suitable for LDR and STR addressing modes"
 (sb-c:define-vop (%memcpy-n/4)
   (:policy :fast-safe)
   (:translate %memcpy/4)
-  (:args (dst        :scs (sb-vm::unsigned-reg))
-	 (src        :scs (sb-vm::unsigned-reg))
+  (:args (dst        :scs (sb-vm::sap-reg))
+	 (src        :scs (sb-vm::sap-reg))
 	 (n-words    :scs (sb-vm::unsigned-reg)))
-  (:arg-types sb-vm::unsigned-num
-	      sb-vm::unsigned-num
+  (:arg-types sb-sys:system-area-pointer
+	      sb-sys:system-area-pointer
 	      sb-vm::unsigned-num)
   (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r0-offset)     r0)
   (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r1-offset)     r1)
@@ -417,7 +422,7 @@ suitable for LDR and STR addressing modes"
   (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r8-offset)     r8)
   (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::null-offset)   r10)
   (:generator
-   50
+   48
    ;; save NULL
    (sb-assem:inst str r10 (sb-vm::@ sb-vm::nsp-tn (- sb-vm::n-word-bytes)))
    (sb-assem:inst b loop8-test)
@@ -452,3 +457,78 @@ suitable for LDR and STR addressing modes"
 	   (,ssap (fast-sap+ ,src ,src-index :scale ,src-scale :offset ,src-offset)))
 
        (%memcpy/4 ,dsap ,ssap ,n-words))))
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defknown %memset/4
+    (fast-sap fixnum word)
+    (values)
+    (sb-c:always-translatable))
+
+(sb-c:define-vop (%memset-1-7/4)
+  (:policy :fast-safe)
+  (:translate %memset/4)
+  (:args (sap        :scs (sb-vm::sap-reg))
+         (fill-word  :scs (sb-vm::unsigned-reg)))
+  (:info n-words)
+  (:arg-types sb-sys:system-area-pointer
+              sb-vm::unsigned-num
+	      (:constant (integer 1 7)))
+  (:generator
+   16
+   (dotimes (i (the (integer 1 7) n-words))
+     (sb-assem:inst str fill-word (arm-mem-shifter sap (* i 4))))))
+
+(sb-c:define-vop (%memset-n/4)
+  (:policy :fast-safe)
+  (:translate %memset/4)
+  (:args (sap        :scs (sb-vm::sap-reg))
+	 (fill-word  :scs (sb-vm::unsigned-reg) :target r0)
+	 (n-words    :scs (sb-vm::unsigned-reg)))
+  (:arg-types sb-sys:system-area-pointer
+	      sb-vm::unsigned-num
+	      sb-vm::unsigned-num)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r0-offset)     r0)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r1-offset)     r1)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r2-offset)     r2)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::lexenv-offset) r3)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::nl2-offset)    r4)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::code-offset)   r5)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::r8-offset)     r8)
+  (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::null-offset)   r10)
+  (:generator
+   32
+   ;; save NULL
+   (sb-assem:inst str r10 (sb-vm::@ sb-vm::nsp-tn (- sb-vm::n-word-bytes)))
+   (dolist (reg (list r0 r1 r2 r3 r4 r5 r8 r10))
+     (sb-c::move reg fill-word))
+   (sb-assem:inst b loop8-test)
+   loop8
+   (let ((regs (list r0 r1 r2 r3 r4 r5 r8 r10)))
+     (emit-stmia sap 8 regs)
+     (sb-assem:inst sub n-words n-words 8))
+   loop8-test
+   (sb-assem:inst cmp n-words 8)
+   (sb-assem:inst b :ge loop8)
+   (sb-assem:inst b loop1-test)
+
+   loop1
+   (let ((regs (list r0)))
+     (emit-stmia sap 1 regs)
+     (sb-assem:inst sub n-words n-words 1))
+   loop1-test
+   (sb-assem:inst cmp n-words 1)
+   (sb-assem:inst b :ge loop1)
+   ;; restore NULL
+   (sb-assem:inst ldr r10 (sb-vm::@ sb-vm::nsp-tn (- sb-vm::n-word-bytes)))))
+
+(defmacro fast-memset/4 (ptr index n-words fill-word &key
+			 (scale +fixnum-zero-mask+1+) (offset 0))
+  (with-gensyms (sap n)
+    `(let ((,sap (fast-sap+ ,ptr ,index :scale ,scale :offset ,offset))
+           (,n ,n-words))
+       (%memset/4 ,sap ,fill-word ,n))))

@@ -27,7 +27,7 @@
   #+arm
   (:export #:fast-sap      #:sap=>fast-sap  #:fast-sap=>sap
 	   #:fast-mread/4  #:fast-mwrite/4  #:fast-mword/4=>fixnum
-           #:fast-memcpy/4)
+           #:fast-memcpy/4 #:fast-memset/4)
 
   #+x86
   (:export #:fast-sap      #:sap=>fast-sap  #:fast-sap=>sap

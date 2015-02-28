@@ -317,22 +317,33 @@ To force big-endian ABI:
 
   
   #?-hlmem/native-endianity
-  ;; FIXME: add support for floats!
-  (defun %maybe-invert-endianity (type value)
-    (ecase (%msizeof type)
-      (1 value)
-      (2 (swap-bytes:swap-bytes-16 value))
-      (4 (swap-bytes:swap-bytes-32 value))
-      (8 (swap-bytes:swap-bytes-64 value))))
-
-  (defmacro maybe-invert-endianity (type value)
-    (if (constantp type)
-        (ecase (%msizeof (eval type))
+  (progn
+    ;; FIXME: add support for floats!
+    (defun %maybe-invert-endianity (type value)
+      (let ((size (%msizeof type)))
+        (case size
           (1 value)
-          (2 `(swap-bytes:swap-bytes-16 ,value))
-          (4 `(swap-bytes:swap-bytes-32 ,value))
-          (8 `(swap-bytes:swap-bytes-64 ,value)))
-        `(%maybe-invert-endianity ,type ,value))))
+          (2 (swap-bytes:swap-bytes-16 value))
+          (4 (swap-bytes:swap-bytes-32 value))
+          (8 (swap-bytes:swap-bytes-64 value))
+          (otherwise
+           (funcall (swap-bytes:find-swap-byte-function :size size
+                                                        :from :little-endian
+                                                        :to   :big-endian))))))
+
+    (defmacro maybe-invert-endianity (type value)
+      (if (constantp type)
+          (let ((size (%msizeof (eval type))))
+            (case size
+              (1 value)
+              (2 `(swap-bytes:swap-bytes-16 ,value))
+              (4 `(swap-bytes:swap-bytes-32 ,value))
+              (8 `(swap-bytes:swap-bytes-64 ,value))
+              (otherwise `(,(swap-bytes:find-swap-byte-function :size size
+                                                                :from :little-endian
+                                                                :to   :big-endian)
+                            ,value))))
+          `(%maybe-invert-endianity ,type ,value)))))
          
           
     
