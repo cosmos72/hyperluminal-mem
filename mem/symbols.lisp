@@ -15,8 +15,16 @@
 
 (in-package :hyperluminal-mem)
 
+(enable-#?-syntax)
 
 (eval-always
+ (define-symbol-macro +stmx-unbound-tvar+ stmx::+unbound-tvar+)
+ 
+ (define-symbol-macro +stmx-empty-tcell+
+     ;; stmx.util::+empty-tcell+ requires STMX >= 2.0.1
+     #?+(symbol :stmx.util :+empty-tcell+) stmx.util::+empty-tcell+
+     #?-(symbol :stmx.util :+empty-tcell+) stmx.util::*empty-tcell*)
+ 
 
  (define-global +package-keyword+          (find-package '#:keyword))
  (define-global +package-common-lisp+      (find-package '#:common-lisp))
@@ -77,8 +85,8 @@
 (eval-always
  (define-global +symbols-vector+ (coerce `(
 
- nil t  ,stmx::+unbound-tvar+ ,stmx.util::+empty-tcell+
-
+ nil t  ,+stmx-unbound-tvar+ ,+stmx-empty-tcell+
+     
  ,@(collect-symbols '#:common-lisp :expected-count 978 :skip-list '(nil t))
 
  0 0 0 0 0 0 0 0 0 0 0 0 0

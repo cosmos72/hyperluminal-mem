@@ -151,8 +151,8 @@
             h)
 
           nil t 'get-universal-time 'zerop 'foobar
-          stmx:+unbound-tvar+ 
-          stmx.util::+empty-tcell+
+          +stmx-unbound-tvar+ 
+          +stmx-empty-tcell+
           :compile-toplevel :load-toplevel :execute))
 
 

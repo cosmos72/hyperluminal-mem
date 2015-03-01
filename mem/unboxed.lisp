@@ -323,7 +323,7 @@ i.e. 1 means one mem-word."
   (if (or (typep value 'mem-unboxed-except-ratio-symbol)
           ;; (eq value nil) ;; redundant
           ;; (eq value t) ;; redundant
-          ;; (eq value +unbound-tvar+) ;; redundant
+          ;; (eq value +stmx-unbound-tvar+) ;; redundant
           
           (and (typep value 'ratio)
                (let ((numerator (numerator value))

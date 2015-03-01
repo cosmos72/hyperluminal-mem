@@ -44,7 +44,8 @@
 
                 #:tmap #:rbmap #:gmap #:gmap-pred #:gmap-count #:get-gmap #:set-gmap #:do-gmap
 
-                #:thash-table #:ghash-table #:ghash-table-test #:ghash-table-hash
+                ;; ghash-table-test and ghash-table-hash requite STMX >= 2.0.1
+                #:thash-table #:ghash-table ;; #:ghash-table-test #:ghash-table-hash
                 #:ghash-table-count #:get-ghash #:set-ghash #:do-ghash)
                 
 

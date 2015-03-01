@@ -25,8 +25,12 @@
         #:stmx.util
         #:hyperluminal-mem)
 
+  (:import-from #:stmx.lang
+                #:enable-#?-syntax)
+
   (:import-from #:hyperluminal-mem
-                #:!mdump #:+most-negative-int+ #:+most-positive-int+)
+                #:!mdump #:+most-negative-int+ #:+most-positive-int+
+                #:+stmx-unbound-tvar+  #:+stmx-empty-tcell+)
 
   (:export #:suite))
 

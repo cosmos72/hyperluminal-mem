@@ -22,65 +22,77 @@
 
 (enable-#?-syntax)
 
-(defmethod msize-object ((obj ghash-table) index)
-  (declare (type mem-size index))
 
-  (setf index (msize* index
-                      (ghash-table-test obj)
-                      (ghash-table-hash obj)
-                      (ghash-table-count obj)))
-  (do-ghash (key value) obj
-    (setf index (msize* index key value)))
-  index)
+#?-(and (symbol :stmx.util :ghash-table-test)
+        (symbol :stmx.util :ghash-table-hash))
+(log:warn "This version of STMX is too old, disabling (de)serialization
+  of ~A:~A, ~A:~A and their subclasses.
+  Upgrade to STMX 2.0.1 or later to re-enable it."
+          'stmx.util 'ghash-table 'stmx.util 'gmap)
 
 
-(defmethod mwrite-object ((obj ghash-table) ptr index end-index)
-  (declare (type mem-size index end-index))
+#?+(and (symbol :stmx.util :ghash-table-test)
+        (symbol :stmx.util :ghash-table-hash))
+(progn
+  (defmethod msize-object ((obj ghash-table) index)
+    (declare (type mem-size index))
 
-  (setf index (mwrite* ptr index end-index
-                       (ghash-table-test obj)
-                       (ghash-table-hash obj)
-                       (ghash-table-count obj)))
-  (do-ghash (key value) obj
-    (setf index (mwrite* ptr index end-index key value)))
-  index)
-
-
-;; we currently do NOT allow deserializing arbitrary functions as GHASH-TABLE predicates:
-;; it would allow a malicious remote user to execute arbitrary code!
-(define-global *ghash-table-trusted-test-list*
-    '(eq eql equal equalp = fixnum= char= char-equal string= string-equal))
+    (setf index (msize* index
+                        (ghash-table-test obj)
+                        (ghash-table-hash obj)
+                        (ghash-table-count obj)))
+    (do-ghash (key value) obj
+      (setf index (msize* index key value)))
+    index)
 
 
-(define-global *ghash-table-trusted-hash-list*
-    ;; also allow STMX.UTIL:SXHASH-EQUALP if it exists
-    '(sxhash identity #?+(symbol stmx.util sxhash-equalp) stmx.util:sxhash-equalp))
+  (defmethod mwrite-object ((obj ghash-table) ptr index end-index)
+    (declare (type mem-size index end-index))
+
+    (setf index (mwrite* ptr index end-index
+                         (ghash-table-test obj)
+                         (ghash-table-hash obj)
+                         (ghash-table-count obj)))
+    (do-ghash (key value) obj
+      (setf index (mwrite* ptr index end-index key value)))
+    index)
 
 
-(defun mread-object/ghash-table (type ptr index end-index)
-  (declare (type symbol type)
-           (type mem-size index end-index))
+  ;; we currently do NOT allow deserializing arbitrary functions as GHASH-TABLE predicates:
+  ;; it would allow a malicious remote user to execute arbitrary code!
+  (define-global *ghash-table-trusted-test-list*
+      '(eq eql equal equalp = fixnum= char= char-equal string= string-equal))
 
-  (with-mread* (test hash n index) (ptr index end-index)
 
-    (unless (member test *ghash-table-trusted-test-list* :test #'eq)
-      (error "HYPERLUMINAL-MEM: refusing to use untrusted ~S ~S value ~S,
+  (define-global *ghash-table-trusted-hash-list*
+      ;; also allow STMX.UTIL:SXHASH-EQUALP if it exists
+      '(sxhash identity #?+(symbol stmx.util sxhash-equalp) stmx.util:sxhash-equalp))
+
+
+  (defun mread-object/ghash-table (type ptr index end-index)
+    (declare (type symbol type)
+             (type mem-size index end-index))
+
+    (with-mread* (test hash n index) (ptr index end-index)
+
+      (unless (member test *ghash-table-trusted-test-list* :test #'eq)
+        (error "HYPERLUMINAL-MEM: refusing to use untrusted ~S ~S value ~S,
 expecting one of the trusted values ~S" type :test test *ghash-table-trusted-test-list*))
-    (unless (member hash *ghash-table-trusted-hash-list* :test #'eq)
-      (error "HYPERLUMINAL-MEM: refusing to use untrusted ~S ~S value ~S,
+      (unless (member hash *ghash-table-trusted-hash-list* :test #'eq)
+        (error "HYPERLUMINAL-MEM: refusing to use untrusted ~S ~S value ~S,
 expecting one of the trusted values ~S" type :hash hash *ghash-table-trusted-hash-list*))
-               
-    (check-type n mem-uint)
+      
+      (check-type n mem-uint)
 
-    (let ((obj (new type :test test :hash hash :initial-capacity n)))
-      (declare (type ghash-table obj))
+      (let ((obj (new type :test test :hash hash :initial-capacity n)))
+        (declare (type ghash-table obj))
 
-      (dotimes (i n)
-        (with-mread* (key value new-index) (ptr index end-index)
-          (setf (get-ghash obj key) value)
-          (setf index new-index)))
-  
-      (values obj index))))
+        (dotimes (i n)
+          (with-mread* (key value new-index) (ptr index end-index)
+            (setf (get-ghash obj key) value)
+            (setf index new-index)))
+        
+        (values obj index))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -88,20 +100,20 @@ expecting one of the trusted values ~S" type :hash hash *ghash-table-trusted-has
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defmethod mread-object ((type (eql 'ghash-table)) ptr index end-index
-                         &key &allow-other-keys)
-  (declare (type mem-size index end-index))
+  (defmethod mread-object ((type (eql 'ghash-table)) ptr index end-index
+                           &key &allow-other-keys)
+    (declare (type mem-size index end-index))
 
-  (mread-object/ghash-table type ptr index end-index))
+    (mread-object/ghash-table type ptr index end-index))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;   read THASH-TABLE                                                      ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmethod mread-object ((type (eql 'thash-table)) ptr index end-index
-                         &key &allow-other-keys)
-  (declare (type mem-size index end-index))
+  (defmethod mread-object ((type (eql 'thash-table)) ptr index end-index
+                           &key &allow-other-keys)
+    (declare (type mem-size index end-index))
 
-  (mread-object/ghash-table type ptr index end-index))
+    (mread-object/ghash-table type ptr index end-index)))
 
