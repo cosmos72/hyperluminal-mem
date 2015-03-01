@@ -19,7 +19,7 @@
 
 (asdf:defsystem :hyperluminal-mem
   :name "HYPERLUMINAL-MEM"
-  :version "0.6.0"
+  :version "0.6.1"
   :license "LLGPL"
   :author "Massimiliano Ghilardi"
   :description "High-performance serialization library, designed for untrusted data"
@@ -126,8 +126,8 @@
 
 
 (asdf:defsystem :hyperluminal-mem-test
-  :name "HYPERLUMINAL-MEM.TEST"
-  :version "0.6.0"
+  :name "HYPERLUMINAL-MEM-TEST"
+  :version "0.6.1"
   :author "Massimiliano Ghilardi"
   :license "LLGPL"
   :description "test suite for hyperluminal-mem"

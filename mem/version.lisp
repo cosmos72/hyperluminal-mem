@@ -16,7 +16,7 @@
 (in-package :hyperluminal-mem)
 
 
-(define-constant-once +hlmem-version+ '(0 6 0))
+(define-constant-once +hlmem-version+ '(0 6 1))
 
 (define-constant-once +hlmem-abi-version+ '(1 6 0))
 
