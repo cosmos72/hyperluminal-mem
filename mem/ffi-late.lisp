@@ -145,12 +145,13 @@ count and expect memory lengths in words, not in bytes."
            (type mem-size start-index n-words))
 
   #?-(or hlmem/fast-memset (and hlmem/fast-mem (or x86 x86-64)))
-  #-abcl
-  (when (> n-words 32)
-    (unless (zerop start-index)
-      (setf ptr (cffi-sys:inc-pointer ptr (* start-index +msizeof-word+))))
-    (osicat-posix:memset ptr 0 (* n-words +msizeof-word+))
-    (return-from mzero-words nil))
+  (progn
+    #-abcl
+    (when (> n-words 32)
+      (unless (zerop start-index)
+	(setf ptr (cffi-sys:inc-pointer ptr (* start-index +msizeof-word+))))
+      (osicat-posix:memset ptr 0 (* n-words +msizeof-word+))
+      (return-from mzero-words nil)))
 
   (memset-words ptr 0 start-index n-words))
   

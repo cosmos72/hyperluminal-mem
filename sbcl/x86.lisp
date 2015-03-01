@@ -18,12 +18,12 @@
 (deftype x86-scale () '(member 1 2 4 8))
 
 (defmacro x86-fixnum-scale ()
-  ''#.(case +n-fixnum-tag-bits+
-        (1 '(member 2 4 8 16))
-        (2 '(member 4 8 16 32))
-        (otherwise
-         `(member ,@(loop for i in '(1 2 4 8)
-                       collect (ash i +n-fixnum-tag-bits+))))))
+  (case +n-fixnum-tag-bits+
+    (1 ''(member 2 4 8 16))
+    (2 ''(member 4 8 16 32))
+    (otherwise
+     '`(member ,@(loop for i in '(1 2 4 8)
+		    collect (ash i +n-fixnum-tag-bits+))))))
 
 (deftype x86-fixnum-scale () (x86-fixnum-scale))
 
@@ -38,7 +38,7 @@ suitable for MOV addressing modes"
         (when (typep offset '(signed-byte 32))
           (return-from check-x86-fixnum-addressing (values 0 +fixnum-zero-mask+1+ offset)))))
     (check-type offset (signed-byte 32))
-    (check-type scale #.(x86-fixnum-scale))
+    (check-type scale x86-fixnum-scale)
     (values index scale offset)))
 
 

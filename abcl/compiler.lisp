@@ -16,101 +16,115 @@
 (in-package :hyperluminal-abcl)
 
 
+(deftype fast-sap () 'ffi-address)
 
 (deftype fast-sap/4 ()
   "A faster implementation of foreign pointers (sap).
-Implementation note: for ABCL, FAST-SAP/4 is java.nio.IntBuffer
-while normal SAP are java.nio.ByteBuffer"
-  'java:java-object)
+Implementation note: for ABCL, FAST-SAP/4 is the same as normal SAP,
+i.e. java.nio.ByteBuffer. We sometimes use java.nio.IntBuffer, but
+only internally because creating them is a relatively slow
+instantiation, while sap=>fast-sap/4 is supposed to be *fast*"
+  'ffi-address)
 
 (deftype fast-sap/8 ()
   "A faster implementation of foreign pointers (sap).
-Implementation note: for ABCL, FAST-SAP/8 is java.nio.LongBuffer
-while normal SAP are java.nio.ByteBuffer"
-  'java:java-object)
+Implementation note: for ABCL, FAST-SAP/8 is the same as normal SAP,
+i.e. java.nio.ByteBuffer. We sometimes use java.nio.LongBuffer, but
+only internally because creating them is a relatively slow
+instantiation, while sap=>fast-sap/8 is supposed to be *fast*"
+  'ffi-address)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defconstant +jclass-int-array+ (java:jclass-of (java:jnew-array "int" 0)))
+(defconstant +jclass-int-array+  (java:jclass-of (java:jnew-array "int" 0)))
 (defconstant +jclass-long-array+ (java:jclass-of (java:jnew-array "long" 0)))
 
-(defconstant +sap=>fast-sap/4+
+(defconstant +sap=>buf4+
   (java:jmethod "java.nio.ByteBuffer" "asIntBuffer"))
-(defconstant +sap=>fast-sap/8+
+(defconstant +sap=>buf8+
   (java:jmethod "java.nio.ByteBuffer" "asLongBuffer"))
-(defconstant +copy-fast-sap/4+
-  (java:jmethod "java.nio.IntBuffer" "duplicate"))
-(defconstant +copy-fast-sap/8+
+(defconstant +copy-buf4+
+  (java:jmethod "java.nio.IntBuffer"  "duplicate"))
+(defconstant +copy-buf8+
   (java:jmethod "java.nio.LongBuffer" "duplicate"))
-(defconstant +fast-sap/4-position+
-  (java:jmethod "java.nio.IntBuffer" "position"))
-(defconstant +fast-sap/8-position+
+(defconstant +buf4-position+
+  (java:jmethod "java.nio.IntBuffer"  "position"))
+(defconstant +buf8-position+
   (java:jmethod "java.nio.LongBuffer" "position"))
-(defconstant +fast-sap/4-setposition+
-  (java:jmethod "java.nio.IntBuffer" "position" "int"))
-(defconstant +fast-sap/8-setposition+
+(defconstant +buf4-set-position+
+  (java:jmethod "java.nio.IntBuffer"  "position" "int"))
+(defconstant +buf8-set-position+
   (java:jmethod "java.nio.LongBuffer" "position" "int"))
-(defconstant +fast-sap/4-get+
-  (java:jmethod "java.nio.IntBuffer" "get" "int"))
-(defconstant +fast-sap/4-put+
-  (java:jmethod "java.nio.IntBuffer" "put" "int" "int"))
-(defconstant +fast-sap/8-get+
+(defconstant +buf4-get+
+  (java:jmethod "java.nio.IntBuffer"  "get" "int"))
+(defconstant +buf4-put+
+  (java:jmethod "java.nio.IntBuffer"  "put" "int" "int"))
+(defconstant +buf8-get+
   (java:jmethod "java.nio.LongBuffer" "get" "int"))
-(defconstant +fast-sap/8-put+
+(defconstant +buf8-put+
   (java:jmethod "java.nio.LongBuffer" "put" "int" "long"))
-(defconstant +fast-sap/4-bulkget+
-  (java:jmethod "java.nio.IntBuffer" "get" +jclass-int-array+ "int" "int"))
-(defconstant +fast-sap/4-bulkput+
-  (java:jmethod "java.nio.IntBuffer" "put" +jclass-int-array+ "int" "int"))
-(defconstant +fast-sap/8-bulkget+
+(defconstant +buf4-bulkget+
+  (java:jmethod "java.nio.IntBuffer"  "get" +jclass-int-array+ "int" "int"))
+(defconstant +buf4-bulkput+
+  (java:jmethod "java.nio.IntBuffer"  "put" +jclass-int-array+ "int" "int"))
+(defconstant +buf8-bulkget+
   (java:jmethod "java.nio.LongBuffer" "get" +jclass-long-array+ "int" "int"))
-(defconstant +fast-sap/8-bulkput+
+(defconstant +buf8-bulkput+
   (java:jmethod "java.nio.LongBuffer" "put" +jclass-long-array+ "int" "int"))
 
 
          
 (declaim (inline sap=>fast-sap/4))
 (defun sap=>fast-sap/4 (x)
-  (java:jcall +sap=>fast-sap/4+ x))
+  x)
 
 (declaim (inline sap=>fast-sap/8))
 (defun sap=>fast-sap/8 (x)
-  (java:jcall +sap=>fast-sap/8+ x))
+  x)
 
-(declaim (inline copy-fast-sap/4))
-(defun copy-fast-sap/4 (x)
-  (java:jcall +copy-fast-sap/4+ x))
+(declaim (inline sap=>buf4 (x)))
+(defun sap=>buf4 (x)
+  (java:jcall +sap=>buf4+ x))
 
-(declaim (inline copy-fast-sap/8))
-(defun copy-fast-sap/8 (x)
-  (java:jcall +copy-fast-sap/8+ x))
+(declaim (inline sap=>buf8 (x)))
+(defun sap=>buf8 (x)
+  (java:jcall +sap=>buf8+ x))
 
-(declaim (inline fast-sap/4-position))
-(defun fast-sap/4-position (sap)
-  (java:jcall +fast-sap/4-position+ sap))
+(declaim (inline sap=>buf8))
+(declaim (inline copy-buf4))
+(defun copy-buf4 (x)
+  (java:jcall +copy-buf4+ x))
 
-(declaim (inline fast-sap/8-position))
-(defun fast-sap/8-position (sap)
-  (java:jcall +fast-sap/8-position+ sap))
+(declaim (inline copy-buf8))
+(defun copy-buf8 (x)
+  (java:jcall +copy-buf8+ x))
 
-(declaim (inline fast-sap/4-setposition))
-(defun fast-sap/4-setposition (sap index)
-  (java:jcall +fast-sap/4-setposition+ sap index)
+(declaim (inline buf4-position))
+(defun buf4-position (sap)
+  (java:jcall +buf4-position+ sap))
+
+(declaim (inline buf8-position))
+(defun buf8-position (sap)
+  (java:jcall +buf8-position+ sap))
+
+(declaim (inline buf4-set-position))
+(defun buf4-set-position (sap index)
+  (java:jcall +buf4-set-position+ sap index)
   index)
 
-(declaim (inline fast-sap/8-setposition))
-(defun fast-sap/8-setposition (sap index)
-  (java:jcall +fast-sap/8-setposition+ sap index)
+(declaim (inline buf8-set-position))
+(defun buf8-set-position (sap index)
+  (java:jcall +buf8-set-position+ sap index)
   index)
 
-(defsetf fast-sap/4-position fast-sap/4-setposition)
-(defsetf fast-sap/8-position fast-sap/8-setposition)
+(defsetf buf4-position buf4-set-position)
+(defsetf buf8-position buf8-set-position)
 
-(defmacro fast-sap/4-incposition (sap index &key (scale 1) (offset 0))
-  `(incf (the fixnum (fast-sap/4-position ,sap))
+(defmacro buf4-inc-position (sap index &key (scale 1) (offset 0))
+  `(incf (the fixnum (buf4-position ,sap))
 	 (fixnum+ (fixnum* ,index ,scale) ,offset)))
 
-(defmacro fast-sap/8-incposition (sap index &key (scale 1) (offset 0))
-  `(incf (the fixnum (fast-sap/8-position ,sap))
+(defmacro buf8-inc-position (sap index &key (scale 1) (offset 0))
+  `(incf (the fixnum (buf8-position ,sap))
 	 (fixnum+ (fixnum* ,index ,scale) ,offset)))
 

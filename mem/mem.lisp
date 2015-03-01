@@ -427,14 +427,10 @@ To force big-endian ABI:
 (let ((fast-sym (get-symbol 'hl-asm (stringify 'fast-sap/ +msizeof-word+)
 			    :errorp t))
       (to-fast-sym (get-symbol 'hl-asm (stringify 'sap=>fast-sap/ +msizeof-word+)
-			       :errorp t))
-      (from-fast-sym (get-symbol 'hl-asm (stringify 'fast-sap/ +msizeof-word+ '=>sap)
-				 :errorp t)))
+			       :errorp t)))
   (deftype fast-sap () fast-sym)
   (defmacro sap=>fast-sap (x)
-    `(,to-fast-sym ,x))
-  (defmacro fast-sap=>sap (x)
-    `(,from-fast-sym ,x)))
+    `(,to-fast-sym ,x)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

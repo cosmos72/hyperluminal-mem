@@ -140,7 +140,7 @@
                              (:file "magic"         :depends-on ("package"))
                              (:file "mem"           :depends-on ("package"))
                              (:file "abi"           :depends-on ("mem"))
-                             (:file "ffi"           :depends-on ("mem"))
+                             (:file "memcpy"        :depends-on ("mem"))
                              (:file "stmx-objects"  :depends-on ("abi"))))))
 
 

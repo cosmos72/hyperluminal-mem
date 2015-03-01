@@ -30,8 +30,7 @@
 	 (incf index))))
 
 (defun memcpy-test (&optional (n-words 16))
-  (declare (type mem-size n-words)
-           (type fixnum n-loops))
+  (declare (type mem-size n-words))
   
   (with-mem-words (src n-words)
     (with-mem-words (dst n-words)
