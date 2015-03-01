@@ -323,26 +323,22 @@ To force big-endian ABI:
       (let ((size (%msizeof type)))
         (case size
           (1 value)
-          (2 (swap-bytes:swap-bytes-16 value))
-          (4 (swap-bytes:swap-bytes-32 value))
-          (8 (swap-bytes:swap-bytes-64 value))
+          (2 (swap-bytes/2 value))
+          (4 (swap-bytes/4 value))
+          (8 (swap-bytes/8 value))
           (otherwise
-           (funcall (swap-bytes:find-swap-byte-function :size size
-                                                        :from :little-endian
-                                                        :to   :big-endian))))))
+           (funcall (find-swap-bytes/n size) value)))))
 
     (defmacro maybe-invert-endianity (type value)
       (if (constantp type)
           (let ((size (%msizeof (eval type))))
             (case size
               (1 value)
-              (2 `(swap-bytes:swap-bytes-16 ,value))
-              (4 `(swap-bytes:swap-bytes-32 ,value))
-              (8 `(swap-bytes:swap-bytes-64 ,value))
-              (otherwise `(,(swap-bytes:find-swap-byte-function :size size
-                                                                :from :little-endian
-                                                                :to   :big-endian)
-                            ,value))))
+              (2 `(swap-bytes/2 ,value))
+              (4 `(swap-bytes/4 ,value))
+              (8 `(swap-bytes/8 ,value))
+              (otherwise
+               `(,(find-swap-bytes/n size) ,value))))
           `(%maybe-invert-endianity ,type ,value)))))
          
           

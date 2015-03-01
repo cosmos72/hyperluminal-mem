@@ -26,7 +26,8 @@
 
   :depends-on (#-abcl :cffi
                #-abcl :osicat
-               #-abcl :swap-bytes ;; to support inverted endianity
+               ;; support inverted endianity. ABCL has built-in support, CLISP 2.49 has too old asdf
+               #-(or abcl clisp) :swap-bytes
                :trivial-features ;; for uniform #+x86-64
                :stmx)
 
@@ -35,8 +36,8 @@
 
    (:module :lang
     :components ((:file "package")
-		 (:file "lang"           :depends-on ("package"))))
-                  
+		 (:file "lang"           :depends-on ("package"))
+                 (:file "swap-bytes"     :depends-on ("package"))))
 
    (:module :ffi
     :components ((:file "package")

@@ -27,11 +27,17 @@
                 #:with-gensyms #:when-bind)
   
   (:export #:eval-compile-constant #:check-compile-constant
-	   #:or-func  #:and-func
-	   #:stringify #:concat-symbols
+	   #:or-func    #:and-func
+	   #:stringify  #:concat-symbols
            #:get-symbol #:get-fbound-symbol #:have-symbol?
 	   #:check-vector-index
-	   #:fixnum*         #:fixnum+       #:fixnum-))
+
+	   #:fixnum*        #:fixnum+       #:fixnum-
+           #:find-swap-bytes/n
+           #:swap-bytes/2   #:swap-bytes/4  #:swap-bytes/8))
+    
+    
+
 	   
 
 

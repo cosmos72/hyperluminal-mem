@@ -18,7 +18,7 @@
 
 (defpackage #:hyperluminal-mem-test
 
-  (:nicknames #:hlm-test)
+  (:nicknames #:hlm-test #:hlmem-test)
 
   (:use #:cl
         #:fiveam
