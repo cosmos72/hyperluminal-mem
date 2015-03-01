@@ -13,25 +13,20 @@
 ;; See the Lisp Lesser General Public License for more details.
 
 
-;;;; * HYPERLUMINAL-MEM
+;;;; * HYPERLUMINAL-ABCL
 
 (in-package :cl-user)
 
-(defpackage #:hyperluminal-lang
 
-  (:nicknames #:hl-lang)
+(macrolet ((define-package/reexport (package-name (&key reexport-from) &rest body)
+	     (let ((reexport (find-package reexport-from)))
+	       `(defpackage ,package-name
+		  ,@body
+		  (:use ,(package-name reexport))
+		  (:export
+		   ,@(loop for s being the external-symbols of (find-package reexport-from)
+			collect (symbol-name s)))))))
 
-  (:use #:cl)
-
-  (:import-from #:stmx.lang
-                #:with-gensyms #:when-bind)
-  
-  (:export #:eval-compile-constant #:check-compile-constant
-	   #:or-func  #:and-func
-	   #:stringify #:concat-symbols
-           #:get-symbol #:get-fbound-symbol #:have-symbol?
-	   #:check-vector-index
-	   #:fixnum*         #:fixnum+       #:fixnum-))
-	   
-
-
+  (define-package/reexport #:hyperluminal-asm
+      (:reexport-from #:hl-abcl)
+    (:nicknames #:hl-asm)))

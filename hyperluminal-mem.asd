@@ -46,15 +46,23 @@
     :depends-on (:lang))
                   
                                
-   #+(and sbcl (or x86 x86-64 arm))
+   #+abcl
+   (:module :abcl
+    :components ((:file "package")
+		 (:file "export"         :depends-on ("package"))
+		 (:file "compiler"       :depends-on ("package"))
+		 (:file "java"           :depends-on ("compiler")))
+    :depends-on (:lang :ffi))
+                  
+   #+(and sbcl (or arm x86 x86-64))
    (:module :sbcl
     :components ((:file "package")
 		 (:file "export"         :depends-on ("package"))
 		 (:file "compiler"       :depends-on ("package"))
-		 #+(or x86 x86-64)
-		 (:file "x86"            :depends-on ("compiler"))
 		 #+arm
-		 (:file "arm"            :depends-on ("compiler")))
+		 (:file "arm"            :depends-on ("compiler"))
+		 #+(or x86 x86-64)
+		 (:file "x86"            :depends-on ("compiler")))
     :depends-on (:lang :ffi))
                   
    (:module :mem
@@ -111,7 +119,8 @@
 						      "box/symbol"
 						      "object")))
     :depends-on (:lang :ffi
-		 #+(and sbcl (or x86 x86-64 arm)) :sbcl))))
+		 #+abcl :abcl
+		 #+(and sbcl (or arm x86 x86-64)) :sbcl))))
 
 
 

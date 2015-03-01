@@ -424,12 +424,17 @@ To force big-endian ABI:
 
 
 #?+(or hlmem/fast-mem hlmem/fast-memcpy hlmem/fast-memset)
-(progn
-  (deftype fast-sap () 'hl-asm:fast-sap)
+(let ((fast-sym (get-symbol 'hl-asm (stringify 'fast-sap/ +msizeof-word+)
+			    :errorp t))
+      (to-fast-sym (get-symbol 'hl-asm (stringify 'sap=>fast-sap/ +msizeof-word+)
+			       :errorp t))
+      (from-fast-sym (get-symbol 'hl-asm (stringify 'fast-sap/ +msizeof-word+ '=>sap)
+				 :errorp t)))
+  (deftype fast-sap () fast-sym)
   (defmacro sap=>fast-sap (x)
-    `(hl-asm:sap=>fast-sap ,x))
+    `(,to-fast-sym ,x))
   (defmacro fast-sap=>sap (x)
-    `(hl-asm:fast-sap=>sap ,x)))
+    `(,from-fast-sym ,x)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

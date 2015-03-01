@@ -72,14 +72,24 @@ Returns a symbol interned in current package"
   (intern (apply #'stringify syms-ints-and-strings)))
 
 
-(defun get-symbol (package-name symbol-name)
+(defun get-symbol (package-name symbol-name &key errorp)
   (declare (type (or symbol string package) package-name)
            (type (or symbol string)         symbol-name))
   (when (symbolp package-name) (setf package-name (string package-name)))
   (when (symbolp symbol-name)  (setf symbol-name  (string symbol-name)))
-  (when-bind pkg (find-package package-name)
-    (find-symbol symbol-name pkg)))
+  (let ((pkg (find-package package-name)))
+    (if pkg
+	(multiple-value-bind (sym kind) (find-symbol symbol-name pkg)
+	  (if kind
+	      (values sym kind)
+	      (when errorp
+		(error "no symbol ~A in package ~A"
+		       symbol-name package-name))))
+	(when errorp 
+	  (error "no package ~A" package-name)))))
 
+
+  
 (defun have-symbol? (package-name symbol-name)
   (declare (type (or symbol string package) package-name)
            (type (or symbol string)         symbol-name))
@@ -105,3 +115,19 @@ Returns a symbol interned in current package"
 	      `(error "out of range index ~S: vector has ~S elements"
 		      ,idx ,len))))))
 
+
+
+(declaim (inline fixnum*))
+(defun fixnum* (a b)
+  (declare (type fixnum a b))
+  (the fixnum (* a b)))
+
+(declaim (inline fixnum+))
+(defun fixnum+ (a b)
+  (declare (type fixnum a b))
+  (the fixnum (+ a b)))
+
+(declaim (inline fixnum-))
+(defun fixnum- (a b)
+  (declare (type fixnum a b))
+  (the fixnum (- a b)))
