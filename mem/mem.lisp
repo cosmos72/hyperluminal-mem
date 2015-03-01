@@ -354,8 +354,8 @@ To force big-endian ABI:
 ;; fast-mword=>mem-int must be defined later (in int.lisp)
 ;; because it needs #?+hlmem/mem-int=fixnum computed in constants.lisp
 (eval-always
-  (let* ((fast-mread   (get-fbound-symbol 'hl-asm (stringify 'fast-mread/  +msizeof-word+)))
-         (fast-mwrite  (get-fbound-symbol 'hl-asm (stringify 'fast-mwrite/ +msizeof-word+)))
+  (let* ((fast-mread   (get-fbound-symbol 'hlm-asm (stringify 'fast-mread/  +msizeof-word+)))
+         (fast-mwrite  (get-fbound-symbol 'hlm-asm (stringify 'fast-mwrite/ +msizeof-word+)))
          (fast-mem     (and fast-mread fast-mwrite)))
 
     (set-feature :hlmem/fast-mem (not (null fast-mem)))
@@ -387,7 +387,7 @@ To force big-endian ABI:
 
 ;; if available, use fast-memcpy
 (eval-always
-  (let ((fast-memcpy  (get-fbound-symbol 'hl-asm (stringify 'fast-memcpy/  +msizeof-word+))))
+  (let ((fast-memcpy  (get-fbound-symbol 'hlm-asm (stringify 'fast-memcpy/  +msizeof-word+))))
 
     (set-feature :hlmem/fast-memcpy (not (null fast-memcpy)))
     (if fast-memcpy
@@ -406,7 +406,7 @@ To force big-endian ABI:
 
 ;; if available, use fast-memset
 (eval-always
-  (let ((fast-memset  (get-fbound-symbol 'hl-asm (stringify 'fast-memset/ +msizeof-word+))))
+  (let ((fast-memset  (get-fbound-symbol 'hlm-asm (stringify 'fast-memset/ +msizeof-word+))))
 
     (set-feature :hlmem/fast-memset (not (null fast-memset)))
     (if fast-memset
@@ -424,9 +424,9 @@ To force big-endian ABI:
 
 
 #?+(or hlmem/fast-mem hlmem/fast-memcpy hlmem/fast-memset)
-(let ((fast-sym (get-symbol 'hl-asm (stringify 'fast-sap/ +msizeof-word+)
+(let ((fast-sym (get-symbol 'hlm-asm (stringify 'fast-sap/ +msizeof-word+)
 			    :errorp t))
-      (to-fast-sym (get-symbol 'hl-asm (stringify 'sap=>fast-sap/ +msizeof-word+)
+      (to-fast-sym (get-symbol 'hlm-asm (stringify 'sap=>fast-sap/ +msizeof-word+)
 			       :errorp t)))
   (deftype fast-sap () fast-sym)
   (defmacro sap=>fast-sap (x)

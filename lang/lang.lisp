@@ -13,7 +13,7 @@
 ;; See the Lisp Lesser General Public License for more details.
 
 
-(in-package :hyperluminal-lang)
+(in-package :hyperluminal-mem-lang)
 
 (eval-when (:compile-toplevel :load-toplevel)
   (pushnew :hyperluminal-mem *features*)

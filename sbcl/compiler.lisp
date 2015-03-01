@@ -13,7 +13,7 @@
 ;; See the Lisp Lesser General Public License for more details.
 
 
-(in-package :hyperluminal-sbcl)
+(in-package :hyperluminal-mem-sbcl)
 
 
 (deftype fast-sap ()

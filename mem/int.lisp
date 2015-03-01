@@ -27,9 +27,9 @@
 ;; deferred from fast-mem.lisp, it needs #?+hlmem/mem-int=fixnum
 ;; computed in constants.lisp
 (eval-always
-  (let ((sym (get-fbound-symbol 'hl-asm (stringify 'fast-mword/ +msizeof-word+ '=>fixnum))))
+  (let ((sym (get-fbound-symbol 'hlm-asm (stringify 'fast-mword/ +msizeof-word+ '=>fixnum))))
     
-    ;; hl-asm:fast-mword=>fixnum is usable for mword=>mem-int
+    ;; hlm-asm:fast-mword=>fixnum is usable for mword=>mem-int
     ;; only if mem-int equals fixnum
     (set-feature 'hlmem/mword=>mem-int
                  ;; we store sym in the features!

@@ -12,13 +12,13 @@
 ;; of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ;; See the Lisp Lesser General Public License for more details.
 
-;;;; * HYPERLUMINAL-MEM.TEST
+;;;; * HYPERLUMINAL-MEM-TEST
 
 (in-package :cl-user)
 
-(defpackage #:hyperluminal-mem.test
+(defpackage #:hyperluminal-mem-test
 
-  (:nicknames #:hlmem.test)
+  (:nicknames #:hlm-test)
 
   (:use #:cl
         #:fiveam
@@ -33,6 +33,6 @@
 
 
 
-(in-package :hyperluminal-mem.test)
+(in-package :hyperluminal-mem-test)
 
 (fiveam:def-suite suite)

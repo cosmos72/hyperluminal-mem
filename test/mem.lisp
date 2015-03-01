@@ -13,7 +13,7 @@
 ;; See the Lisp Lesser General Public License for more details.
 
 
-(in-package :hyperluminal-mem.test)
+(in-package :hyperluminal-mem-test)
 
 (declaim (notinline array-mwrite-test array-mwrite-slow-test))
 

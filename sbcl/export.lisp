@@ -27,6 +27,6 @@
 		   ,@(loop for s being the external-symbols of (find-package reexport-from)
 			collect (symbol-name s)))))))
 
-  (define-package/reexport #:hyperluminal-asm
-      (:reexport-from #:hl-sbcl)
-    (:nicknames #:hl-asm)))
+  (define-package/reexport #:hyperluminal-mem-asm
+      (:reexport-from #:hlm-sbcl)
+    (:nicknames #:hlm-asm)))

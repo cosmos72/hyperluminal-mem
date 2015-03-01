@@ -124,7 +124,7 @@
 
 
 
-(asdf:defsystem :hyperluminal-mem.test
+(asdf:defsystem :hyperluminal-mem-test
   :name "HYPERLUMINAL-MEM.TEST"
   :version "0.6.0"
   :author "Massimiliano Ghilardi"
@@ -145,5 +145,5 @@
 
 
 (defmethod asdf:perform ((op asdf:test-op) (system (eql (asdf:find-system :hyperluminal-mem))))
-  (asdf:load-system :hyperluminal-mem.test)
-  (eval (read-from-string "(fiveam:run! 'hyperluminal-mem.test:suite)")))
+  (asdf:load-system :hyperluminal-mem-test)
+  (eval (read-from-string "(fiveam:run! 'hyperluminal-mem-test:suite)")))

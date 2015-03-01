@@ -13,7 +13,7 @@
 ;; See the Lisp Lesser General Public License for more details.
 
 
-(in-package :hyperluminal-mem.test)
+(in-package :hyperluminal-mem-test)
 
 (def-suite memcpy-suite :in suite)
 (in-suite memcpy-suite)

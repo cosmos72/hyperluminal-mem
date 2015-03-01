@@ -18,9 +18,9 @@
 (in-package :cl-user)
 
 
-(defpackage #:hyperluminal-abcl
-  (:nicknames #:hl-abcl)
-  (:use #:cl #:hyperluminal-lang #:hyperluminal-ffi)
+(defpackage #:hyperluminal-mem-abcl
+  (:nicknames #:hlm-abcl)
+  (:use #:cl #:hyperluminal-mem-lang #:hyperluminal-mem-ffi)
   (:import-from #:stmx.lang
                 #:eval-always  #:with-gensym  #:with-gensyms)
 

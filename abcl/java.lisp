@@ -13,7 +13,7 @@
 ;; See the Lisp Lesser General Public License for more details.
 
 
-(in-package :hyperluminal-abcl)
+(in-package :hyperluminal-mem-abcl)
 
 
 (defun fast-memcpy/4 (dst dst-index src src-index n-words &key

@@ -17,9 +17,9 @@
 
 (in-package :cl-user)
 
-(defpackage #:hyperluminal-ffi
+(defpackage #:hyperluminal-mem-ffi
 
-  (:nicknames #:hl-ffi)
+  (:nicknames #:hlm-ffi)
 
   (:use #:cl)
 

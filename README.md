@@ -128,17 +128,17 @@ In case you get errors:
 After loading Hyperluminal-mem for the first time, it is recommended to run
 the test suite to check that everything works as expected. From the REPL, run:
 
-    CL-USER> (ql:quickload "hyperluminal-mem.test")
+    CL-USER> (ql:quickload "hyperluminal-mem-test")
     ;; lots of output...
 
-    CL-USER> (fiveam:run! 'hyperluminal-mem.test:suite)
+    CL-USER> (fiveam:run! 'hyperluminal-mem-test:suite)
     ;; even more output...
-     Did 2505 checks.
-        Pass: 2505 (100%)
+     Did 3364 checks.
+        Pass: 3364 (100%)
         Skip: 0 ( 0%)
         Fail: 0 ( 0%)
         
-Note: `(ql:quickload "hyperluminal-mem.test")` intentionally works only
+Note: `(ql:quickload "hyperluminal-mem-test")` intentionally works only
 **after** `(ql:quickload "hyperluminal-mem")` has completed successfuly.
 
 The test suite should report zero Skip and zero Fail; the number of Pass may vary.

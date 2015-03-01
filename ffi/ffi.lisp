@@ -13,7 +13,7 @@
 ;; See the Lisp Lesser General Public License for more details.
 
 
-(in-package :hyperluminal-ffi)
+(in-package :hyperluminal-mem-ffi)
 
 (deftype ffi-address ()
   #-abcl 'cffi-sys:foreign-pointer

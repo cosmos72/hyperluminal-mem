@@ -13,7 +13,7 @@
 ;; See the Lisp Lesser General Public License for more details.
 
 
-(in-package :hyperluminal-mem.test)
+(in-package :hyperluminal-mem-test)
 
 
 (defun mset-int-test (ptr index &optional (num-threads 8) (iterations 300000000))

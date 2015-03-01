@@ -17,9 +17,9 @@
 
 (in-package :cl-user)
 
-(defpackage #:hyperluminal-lang
+(defpackage #:hyperluminal-mem-lang
 
-  (:nicknames #:hl-lang)
+  (:nicknames #:hlm-lang)
 
   (:use #:cl)
 
