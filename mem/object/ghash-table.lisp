@@ -25,7 +25,7 @@
 
 #?-(and (symbol :stmx.util :ghash-table-test)
         (symbol :stmx.util :ghash-table-hash))
-(log:warn "This version of STMX is too old, disabling (de)serialization
+(log:warn "Found an old version of STMX, disabling (de)serialization
   of ~A:~A, ~A:~A and their subclasses.
   Upgrade to STMX 2.0.1 or later to re-enable it."
           'stmx.util 'ghash-table 'stmx.util 'gmap)

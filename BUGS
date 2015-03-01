@@ -1,20 +1,18 @@
 See https://github.com/cosmos72/superluminal-db/issues
 
-
 KNOWN BUGS
 
-- test 'ghash-table fails on ABCL because (sxhash #0A42)
-  returns different values at each call
+see https://github.com/cosmos72/hyperluminal-mem/issues
+
+FIXED BUGS
 
 - on SBCL, allocating large buffers (0.5GB) with (cffi-sys:with-foreign-pointer ...)
   returns a foreign pointer so it seems to succeed,
   but actually accessing the buffer crashes with "Memory fault at ..."
+
+  There's a patch floating on SBCL mailing list, and hyperluminal-mem
+  now avoids stack-allocating large buffers
   
-
-FIXED BUGS
-
-- none yet
-
 NOT BUGS
 
 - none yet
