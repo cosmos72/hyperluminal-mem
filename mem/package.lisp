@@ -17,6 +17,8 @@
 
 (in-package :cl-user)
 
+(stmx.lang:enable-#?-syntax)
+
 (defpackage #:hyperluminal-mem
 
   (:nicknames #:hlm-mem #:hlmem)
@@ -42,11 +44,16 @@
 
                 #:_ #:tcell #:tcons #:tlist #:tstack #:tfifo
 
-                #:tmap #:rbmap #:gmap #:gmap-pred #:gmap-count #:get-gmap #:set-gmap #:do-gmap
+                #:tmap #:rbmap #:gmap #:gmap-pred #:gmap-count
+                #:get-gmap #:set-gmap #:do-gmap
 
-                ;; ghash-table-test and ghash-table-hash requite STMX >= 2.0.1
-                #:thash-table #:ghash-table ;; #:ghash-table-test #:ghash-table-hash
-                #:ghash-table-count #:get-ghash #:set-ghash #:do-ghash)
+                #:thash-table #:ghash-table
+                #:ghash-table-count #:get-ghash #:set-ghash #:do-ghash
+
+                ;; ghash-table-test and ghash-table-hash require STMX >= 2.0.1
+                #?+(symbol :stmx.util :ghash-table-test) #:ghash-table-test
+                #?+(symbol :stmx.util :ghash-table-hash) #:ghash-table-hash)
+
                 
 
   (:export #:hlmem-version #:hlmem-abi-version
