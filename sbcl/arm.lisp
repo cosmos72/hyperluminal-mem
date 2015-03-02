@@ -313,7 +313,7 @@ suitable for LDR and STR addressing modes"
 (defmacro fast-sap+ (sap index &key (scale +fixnum-zero-mask+1+) (offset 0))
   (multiple-value-bind (index shift offset)
       (check-arm-fixnum-addressing index scale offset)
-    (list '%fast-sap+ sap index shift offset)))
+    `(%fast-sap+ ,sap ,index ,shift ,offset)))
 
 
 (defun emit-bulk-transfer (kind tn n-words reg-list)
@@ -347,6 +347,55 @@ suitable for LDR and STR addressing modes"
 
 (defun emit-stmia (tn n-words reg-list)
   (emit-bulk-transfer :store tn n-words reg-list))
+
+#-(and) ;; unfinished
+(progn
+  (eval-when (:compile-toplevel :load-toplevel :execute)
+    ;; DEFINE-ARG-TYPE requires that any :PRINTER be defined at
+    ;; compile-time...  Why?
+    (defun print-pld (value stream dstate)
+      (declare (type stream stream)
+               (ignore dstate))
+      (princ "pld " stream)
+      (princ value stream)))
+
+  (sb-disassem:define-instruction-format
+      (pld 32
+           :default-printer '(:name :tab "[" rn ", " rm shift "]"))
+      (cond       :field (byte 4 28) :value #xf)
+    (opcode-1   :field (byte 4 25) :value #x7)
+    (up-p       :field (byte 1 23))
+    (read-p     :field (byte 1 22))
+    (rn         :field (byte 4 16) :type 'sb-vm::reg)
+    (opcode-2   :field (byte 4 12) :value #b1111)
+    (shift      :field (list (byte 5 7) (byte 2 5)) :type 'sb-vm::immediate-shift)
+    (register-shift-p :field (byte 1 4) :value 0)
+    (rm :field (byte 4 0) :type 'sb-vm::reg)))
+
+(defun emit-pld (address &optional (segment (sb-assem::%%current-segment%%)))
+  (flet ((compute-opcode (direction)
+           (if (eq direction :down) #b10101 #b11101)))
+    (sb-impl::aver (typep address 'sb-vm::memory-operand))
+    (let* ((base      (sb-vm::memory-operand-base      address))
+           (offset    (sb-vm::memory-operand-offset    address))
+           (direction (sb-vm::memory-operand-direction address))
+           (mode      (sb-vm::memory-operand-mode      address))
+           (cond-bits #xf))
+      (sb-impl::aver (eq mode :offset))
+      (cond
+        ((integerp offset)
+         (sb-impl::aver (typep offset '(unsigned-byte 12)))
+         (sb-vm::emit-dp-instruction segment cond-bits #b01 1
+                                     (compute-opcode direction)
+                                     (sb-c::tn-offset base) #xf
+                                     offset))
+        (t
+         (sb-vm::emit-dp-instruction segment cond-bits #b01 1
+                                     (compute-opcode direction)
+                                     (sb-c::tn-offset base) #xf
+                                     (sb-vm::encode-shifter-operand offset)))))))
+  
+  
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -429,6 +478,7 @@ suitable for LDR and STR addressing modes"
    loop8
    (let ((regs (list r0 r1 r2 r3 r4 r5 r8 r10)))
      (emit-ldmia src 8 regs)
+     (emit-pld (sb-vm::@ src 256))
      (emit-stmia dst 8 regs)
      (sb-assem:inst sub n-words n-words 8))
    loop8-test
