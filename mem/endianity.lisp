@@ -46,29 +46,31 @@
 
 (eval-always
   (defun choose-endianity ()
-    "Choose the file format and ABI between :little-endian or :big-endian.
+    "Choose the serialized format ABI between little endian or big endian.
 
-By default, Hyperluminal-MEM file format and ABI is autodetected to match
-the endianity of CFFI-SYS raw memory, i.e. the CPU endianity.
+By default, Hyperluminal-MEM uses little-endian ABI.
 
 It is possible to compile Hyperluminal-MEM for a different endianity by adding
 an appropriate entry in the global variable `*FEATURES*` **before** compiling
 and loading Hyperluminal-MEM.
 
+To force native endianity:
+  (pushnew :hyperluminal-mem/endianity/native *features*)
+To force non-native endianity:
+  (pushnew :hyperluminal-mem/endianity/inverted *features*)
 To force little-endian ABI:
   (pushnew :hyperluminal-mem/endianity/little *features*)
-
 To force big-endian ABI:
   (pushnew :hyperluminal-mem/endianity/big *features*)"
 
     ;;search for :hyperluminal-mem/endianity/{little,big,native,inverted} *features*
     (let ((endianity (find-hldb-option/keyword 'endianity)))
       (case endianity
-        ((nil :native) +mem/native-endianity+)
+        (:native    +mem/native-endianity+)
         (:inverted  (if (eq +mem/native-endianity+ :little-endian)
                         :big-endian
                         :little-endian))
-        (:little :little-endian)
+        ((nil :little) :little-endian)
         (:big    :big-endian)
         (otherwise
          (error "cannot build HYPERLUMINAL-MEM: unsupported option ~S in ~S,

@@ -15,9 +15,9 @@ Hyperluminal-mem is designed and optimized for the following objectives:
   as for example serialized packets or files received from the internet.
 - portability: the serialization format is fairly portable.
   It is independent from the Lisp implementation,
-  and only depends on endianity (small or big endian)
-  and on user's choice between 32 and 64 bit formats.
-  Conversion between small and big endian format is trivial.
+  and only depends on user's choice between little or big endian (default is little endian)
+  and between 32 and 64 bit formats (default is CPU native width)
+  Conversion between little and big endian formats is trivial.
 - ease of use: adding support for user-defined types is usually
   straightforward.
 
