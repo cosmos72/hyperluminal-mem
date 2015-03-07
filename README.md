@@ -21,7 +21,12 @@ Hyperluminal-mem is designed and optimized for the following objectives:
 - ease of use: adding support for user-defined types is usually
   straightforward.
 
-### Latest news, 24th January 2015
+### Latest news, 2nd March 2015
+
+Hyperluminal-mem 0.6.1 is included in the newest Quicklisp distribution.
+You can now load it with: `(ql:quickload "hyperluminal-mem")`
+
+### News, 24th January 2015
 
 Released version 0.5.2. License change from GPLv3 to LLGPL!
 
@@ -99,10 +104,31 @@ may or **may not** work on other, untested Common Lisp implementations.
 Installation and loading
 ------------------------
 
-Hyperluminal-mem is available from [GitHub](https://github.com/cosmos72/hyperluminal-mem).
-The simplest way to obtain it is to first install [Quicklisp](http://www.quicklisp.org)
-then download Hyperluminal-mem into your Quicklisp local-projects folder.
-Open a shell and run the commands:
+### From [Quicklisp](http://www.quicklisp.org)
+
+Since 2nd March 2015, hyperluminal-mem is available from Quicklisp.
+The simplest way to obtain it is to first install
+[Quicklisp](http://www.quicklisp.org) then run these commands from REPL:
+
+    CL-USER> (ql:quickload "hyperluminal-mem")
+    ;; lots of output...
+    CL-USER> (use-package :hlmem)
+     
+If all goes well, this will load Hyperluminal-mem and its dependencies,
+CFFI, OSICAT and STMX.
+
+Since hyperluminal-mem was added to QuickLisp quite recently (2 March 2015),
+it may happen that your Quicklisp installation can't find it.
+In such case, you need to first update your QuickLisp installation as described
+[here](http://www.quicklisp.org/beta) - search for "To get updated software" in the page.
+
+
+### Latest version - from [GitHub](https://github.com/cosmos72/hyperluminal-mem)
+
+In case you want to use the "latest and greatest" version directly
+from the author, in order to get the newest features, improvements, bug fixes,
+and occasionally new bugs, you need to download it into your Quicklisp
+local-projects folder. Open a shell and run the commands:
 
     $ cd ~/quicklisp/local-projects
     $ git clone git://github.com/cosmos72/hyperluminal-mem.git
@@ -126,8 +152,23 @@ In case you get errors:
         CL-USER> (ql:quickload "osicat")
         CL-USER> (ql:quickload "stmx")
 
-- check that you downloaded Hyperluminal-mem creating an `hyperluminal-mem/` folder inside
-  your Quicklisp local-projects folder, usually `~/quicklisp/local-projects`
+- if you tried to download the stable version from Quicklisp,
+  check that your quicklisp is updated and knows about hyperluminal-mem:
+
+        CL-USER> (ql:system-apropos "hyperluminal-mem")
+        
+  should print something like
+
+        #<SYSTEM hyperluminal-mem / hyperluminal-mem-20150302-git / quicklisp 2015-03-02>
+        #<SYSTEM hyperluminal-mem-test / hyperluminal-mem-20150302-git / quicklisp 2015-03-02>
+     
+  If it doesn't, you need to update Quicklisp as described
+  [here](http://www.quicklisp.org/beta) - search for "To get updated
+  software" in the page.
+  
+- if you tried to download the latest version from Github,
+  check that you downloaded hyperluminal-mem creating an `hyperluminal-mem/` folder
+  inside your Quicklisp local-projects folder, usually `~/quicklisp/local-projects`
 
 
 ### Testing that it works
@@ -165,7 +206,12 @@ Hyperluminal-mem reads and writes serialized data to raw memory,
 using CFFI foreign pointers - equivalent to C/C++ pointers.
 
 The most direct way to save serialized data to disk, and to load it back,
-is to open a file then map it to memory with the POSIX mmap() system call.
+is to open a file then map it to memory with the POSIX mmap() system call
+provided by OSICAT library.
+
+An alternative, suitable both for files and network sockets,
+is to allocate a raw memory buffer with `(hlmem:malloc-words)`
+then use the POSIX read() and write() calls provided by OSICAT library.
 
 Basic usage
 -----------
