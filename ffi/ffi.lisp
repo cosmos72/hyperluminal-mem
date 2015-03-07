@@ -67,11 +67,12 @@
   
 (defun ffi-sizeof (type)
   (declare (type keyword type))
-  #-abcl
-  (cffi-sys:%foreign-type-size type)
+  (the fixnum
+       #-abcl
+       (cffi-sys:%foreign-type-size type)
   
-  #+abcl
-  (ffi-type-descriptor-size (%ffi-type-descriptor type)))
+       #+abcl
+       (ffi-type-descriptor-size (%ffi-type-descriptor type))))
 
 
 

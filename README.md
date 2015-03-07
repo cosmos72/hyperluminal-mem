@@ -4,7 +4,7 @@ Hyperluminal-mem
 Summary
 -------
 Hyperluminal-mem is a high-performance serialization/deserialization library
-for Common Lisp.
+for Common Lisp, designed for untrusted data.
 
 Features
 --------
@@ -33,19 +33,9 @@ Released version 0.5.2. License change from GPLv3 to LLGPL!
 Older versions were bundled together with Hyperluminal-DB in a single GPLv3 package.
 Hyperluminal-DB is now a separate project, still under GPLv3.
 
-### News, 9th February 2014
+### Older news
  
-Released version 0.5.0.
- 
-The serialization library is tested, documented and ready to use.
-It may still contain some rough edges and small bugs.
-
-### News, 1st February 2014
-
-The serialization library works and is in BETA status.
-
-The memory-mapped database (built on top of the serialization library)
-is in the early-implementation stage, not yet ready for general use.
+See [doc/NEWS.md](doc/news.md)
 
 Supported systems
 -----------------
@@ -57,7 +47,6 @@ Hyperluminal-mem is currently tested on the following Common Lisp implementation
   * version 1.1.14       (x86)      on Debian GNU/Linux jessie (x86_64)
   * version 1.2.8        (armhf)    on Debian GNU/Linux wheezy (armhf) inside Qemu
   * version 1.1.15       (powerpc)  on Debian GNU/Linux jessie (powerpc) inside Qemu
-  * version 1.2.8        (sparc)    on Debian GNU/Linux jessie (sparc) inside Qemu
   
 * [ABCL](http://www.abcl.org/)
   * version 1.3.1 on OpenJDK 1.7.0_65 (x86_64) on Debian GNU/Linux jessie (x86_64)
@@ -65,7 +54,11 @@ Hyperluminal-mem is currently tested on the following Common Lisp implementation
   Note: on ABCL, memory buffers are implemented using java.nio.ByteBuffer instead of CFFI-SYS
   raw memory pointers due to currently limited compatibility between ABCL and CFFI/OSICAT libraries.
   Memory-mapped files are supported, and internally use `java.nio.channels.FileChannel.map()`
-  instead of OSICAT-POSIX `(mmap)`
+  instead of OSICAT-POSIX `(mmap)`.
+  
+  Futhermore, hyperluminal-mem test suite fails on ABCL versions up to 1.3.1
+  due to a bug in EQUALP implementation. The author contributed a fix to ABCL,
+  which should included in the next release.
 
 * [CCL](http://ccl.clozure.com/)
   * version 1.10         (x86_64)   on Debian GNU/Linux jessie (x86_64)
@@ -88,7 +81,7 @@ Hyperluminal-mem is currently tested on the following Common Lisp implementation
 
 ### Unsupported systems
 
-* [ECL](http://ecls.sourceforge.net/) version 13.5.1 has some known issues
+* [ECL](http://ecls.sourceforge.net/) versions 13.5.1 and 15.2.1 have some known issues
   with CFFI, OSICAT and STMX, three libraries required by Hyperluminal-mem.
   Once support for these three libraries improves, Hyperluminal-mem can be tested on it too.
 

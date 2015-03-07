@@ -23,11 +23,8 @@
 
 (declaim (inline box-words/sfloat box-words/dfloat))
 
-(defconstant +box-words/sfloat+
-  #.(ceiling +msizeof-sfloat+ +msizeof-word+)) ;; round up
-
-(defconstant +box-words/dfloat+
-  #.(ceiling +msizeof-dfloat+ +msizeof-word+)) ;; round up
+(defconstant +box-words/sfloat+ +sfloat/words+)
+(defconstant +box-words/dfloat+ +dfloat/words+)
 
 (defun box-words/sfloat (index value)
   "Return the number of words needed to store single-float VALUE in memory, not including BOX header."

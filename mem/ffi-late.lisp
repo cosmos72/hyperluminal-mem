@@ -40,6 +40,9 @@ count and expect memory lengths in words, not in bytes."
   (ffi-mem-free ptr))
 
 
+(defun !hex (value)
+  (format nil "#x~X" value))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; memset ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
            
