@@ -47,6 +47,7 @@ Hyperluminal-mem is currently tested on the following Common Lisp implementation
   * version 1.1.14       (x86)      on Debian GNU/Linux jessie (x86_64)
   * version 1.2.8        (armhf)    on Debian GNU/Linux wheezy (armhf) inside Qemu
   * version 1.1.15       (powerpc)  on Debian GNU/Linux jessie (powerpc) inside Qemu
+  * version 1.2.8        (sparc)    on Debian GNU/Linux wheezy (sparc) inside Qemu
   
 * [ABCL](http://www.abcl.org/)
   * version 1.3.1 on OpenJDK 1.7.0_65 (x86_64) on Debian GNU/Linux jessie (x86_64)
@@ -71,13 +72,6 @@ Hyperluminal-mem is currently tested on the following Common Lisp implementation
   
 * [CMUCL](http://www.cons.org/cmucl/)
   * version 20d Unicode  (x86)      on Debian GNU/Linux jessie  (x86_64)
-
-
-### Partially supported systems
-
-* [SBCL](http://sbcl.org/) version 1.2.8 running on Linux SPARC almost works,
-  except that MREAD and MWRITE of DOUBLE-FLOAT signal a SIGBUS error
-  due to wrong alignment - see [issue #5](https://github.com/cosmos72/hyperluminal-mem/issues/5)
 
 ### Unsupported systems
 
