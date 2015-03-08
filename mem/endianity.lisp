@@ -37,13 +37,13 @@
             ((eql endianity little-endian) :little-endian)
             ((eql endianity big-endian)    :big-endian)
             (t (error "cannot build HYPERLUMINAL-MEM: unsupported architecture.
-    CPU word endianity is #x~X, expecting either #x~X (little-endian) or #x~X (big-endian)"
+  CPU word endianity is #x~X, expecting either #x~X (little-endian) or #x~X (big-endian)"
                       endianity little-endian big-endian))))))))
 
-          
 (eval-always
-  (defconstant +mem/native-endianity+ (%detect-native-endianity)))
+  (defconstant +mem/initial-native-endianity+ (%detect-native-endianity)))
 
+          
 (eval-always
   (defun choose-endianity ()
     "Choose the serialized format ABI between little endian or big endian.
@@ -66,12 +66,12 @@ To force big-endian ABI:
     ;;search for :hyperluminal-mem/endianity/{little,big,native,inverted} *features*
     (let ((endianity (find-hldb-option/keyword 'endianity)))
       (case endianity
-        (:native    +mem/native-endianity+)
-        (:inverted  (if (eq +mem/native-endianity+ :little-endian)
+        (:native    +mem/initial-native-endianity+)
+        (:inverted  (if (eq +mem/initial-native-endianity+ :little-endian)
                         :big-endian
                         :little-endian))
-        ((nil :little) :little-endian)
-        (:big    :big-endian)
+        ((nil :little)  :little-endian)
+        (:big           :big-endian)
         (otherwise
          (error "cannot build HYPERLUMINAL-MEM: unsupported option ~S in ~S,
   expecting one of ~S"
@@ -83,25 +83,29 @@ To force big-endian ABI:
                   :hyperluminal-mem/endianity/inverted)))))))
                 
 
+
 (eval-always
-  (defconstant +mem/chosen-endianity+ (choose-endianity))
-  (set-feature :hlmem/native-endianity (eql +mem/chosen-endianity+ +mem/native-endianity+)))
+  (defconstant +mem/chosen-endianity+ (choose-endianity)))
 
-
-
-(fmakunbound '%maybe-invert-endianity)
-(fmakunbound 'maybe-invert-endianity)
+#-abcl
+(eval-always
+  (defconstant +mem/native-endianity+ +mem/initial-native-endianity+))
 
 #+abcl
 (eval-always
   ;; on ABCL, we set the endianity on java.nio.ByteBuffer, used to implement raw memory:
-  ;; no need for conversions in mset-t and mget-t
-  (setf (ffi-endianity) +mem/chosen-endianity+)
+  ;; no need for explicit conversions, so endianity always appears to be "native"
+  (defconstant +mem/native-endianity+ +mem/chosen-endianity+)
+  (setf (ffi-endianity) +mem/chosen-endianity+))
 
-  (defmacro maybe-invert-endianity/integer (type value)
-    (declare (ignore type))
-    value))
 
+(eval-always
+  (set-feature :cpu/little-endian      (eql +mem/native-endianity+ :little-endian))
+  (set-feature :hlmem/native-endianity (eql +mem/chosen-endianity+ +mem/native-endianity+)))
+
+
+(fmakunbound '%maybe-invert-endianity)
+(fmakunbound 'maybe-invert-endianity)
 
 #?+hlmem/native-endianity
 (progn
@@ -109,7 +113,6 @@ To force big-endian ABI:
   (defmacro maybe-invert-endianity/integer (type value)
     (declare (ignore type))
     value))
-
   
 #?-hlmem/native-endianity
 (progn
@@ -136,93 +139,3 @@ To force big-endian ABI:
         `(%maybe-invert-endianity/integer ,type ,value))))
 
 
-
-
-(declaim (inline mset-sfloat))
-(defun mset-sfloat (value ptr byte-offset)
-  (declare (type single-float value)
-           (type maddress ptr))
-  #+abcl
-  (%mset-t value :sfloat ptr byte-offset)
-
-  #-abcl
-  (progn
-    #?+hlmem/native-endianity
-    (%mset-t value :sfloat ptr byte-offset)
-    
-    #?-hlmem/native-endianity
-    (progn
-      #-sbcl (%mset-t value :sfloat ptr byte-offset)
-      (let* ((bits     
-              #+sbcl (the (unsigned-byte 32)
-                          (logand #.+mem-sfloat/mask+
-                                  (sb-kernel:single-float-bits value)))
-              #-sbcl (%mget-t :sfloat-word ptr byte-offset))
-             (xbits (maybe-invert-endianity/integer :sfloat-word bits)))
-        (%mset-t xbits :sfloat-word ptr byte-offset)))))
-
-
-(declaim (inline mget-sfloat))
-(defun mget-sfloat (ptr byte-offset)
-  (declare (type maddress ptr))
-  #+abcl
-  (%mget-t :sfloat ptr byte-offset)
-
-  #-abcl
-  (progn
-    #?+hlmem/native-endianity
-    (%mget-t :sfloat ptr byte-offset)
-    
-    #?-hlmem/native-endianity
-    (let* ((xbits (%mget-t :sfloat-word ptr byte-offset))
-           (bits  (maybe-invert-endianity/integer :sfloat-word xbits)))
-      #+sbcl
-      (sb-kernel:make-single-float (the (signed-byte 32) bits))
-      #-sbcl
-      (with-mem-words (tmp #.+sfloat/words+)
-        (%mset-t bits :sfloat-word tmp 0)
-        (%mget-t :sfloat tmp 0)))))
-
-
-(declaim (inline mset-dfloat))
-(defun mset-dfloat (value ptr byte-offset)
-  (declare (type double-float value)
-           (type maddress ptr))
-  #+abcl
-  (%mset-t value :dfloat ptr byte-offset)
-
-  #-abcl
-  (progn
-    #?+hlmem/native-endianity
-    (%mset-t value :dfloat ptr byte-offset)
-    
-    #?-hlmem/native-endianity
-    (progn
-      (%mset-t value :dfloat ptr byte-offset)
-      (let* ((bits  (%mget-t :dfloat-word ptr byte-offset))
-             (xbits (maybe-invert-endianity/integer :dfloat-word bits)))
-        (%mset-t xbits :dfloat-word ptr byte-offset)))))
-
-
-(declaim (inline mget-dfloat))
-(defun mget-dfloat (ptr byte-offset)
-  (declare (type maddress ptr))
-  #+abcl
-  (%mget-t :dfloat ptr byte-offset)
-
-  #-abcl
-  (progn
-    #?+hlmem/native-endianity
-    (%mget-t :dfloat ptr byte-offset)
-    
-    #?-hlmem/native-endianity
-    (let* ((xbits (%mget-t :dfloat-word ptr byte-offset))
-           (bits  (maybe-invert-endianity/integer :dfloat-word xbits)))
-      #+sbcl
-      (sb-kernel:make-double-float (the (signed-byte 32) (ash bits -32))
-                                   (logand bits #xFFFFFFFF))
-      
-      #-sbcl
-      (with-mem-words (tmp #.+dfloat/words+)
-        (%mset-t bits :dfloat-word tmp 0)
-        (%mget-t :dfloat tmp 0)))))

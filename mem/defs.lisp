@@ -26,7 +26,7 @@
 
   (defconstant +native-word-type+ (ffi-native-type-name +chosen-word-type+))
 
-  (declaim (inline sfloat-word-type dfloat-word-type))
+  (declaim (inline sfloat-word-type dfloat-word-type half-dfloat-word-type))
   
   (defun parse-type (type)
     (case type
@@ -36,32 +36,38 @@
       (:word   +chosen-word-type+) ;; :word is mapped to a CFFI type by (choose-word-type)
       (:sfloat-word (sfloat-word-type)) ;; an unsigned integer as wide as :sfloat
       (:dfloat-word (dfloat-word-type)) ;; an unsigned integer as wide as :dfloat
+      (:half-dfloat-word (half-dfloat-word-type)) ;; an unsigned integer half as wide as :dfloat
       (otherwise type)))
 
 
-  (defun choose-float-word-type (type lisp-type)
+  (defun choose-float-word-type (type lisp-type &key half-width)
     (let ((types '(:unsigned-char :unsigned-short :unsigned-int
                    :unsigned-long :unsigned-long-long)))
       (loop
-         with float-size fixnum = (ffi-sizeof (parse-type type))
+         with float-size fixnum = (/ (ffi-sizeof (parse-type type)) (if half-width 2 1))
          for type in types
          do
            (when (= float-size (ffi-sizeof type))
              (return type))
          finally
-           (error "cannot compile STMX: no CFFI integer type as wide as ~S (~S bytes),
-  tried ~S" lisp-type float-size types))))
+           (error "cannot compile STMX: no CFFI integer type as wide as ~A~S (~S bytes),
+  tried ~S" (if half-width "half " "") lisp-type float-size types))))
 
   (defconstant +sfloat-type+ (parse-type :sfloat))
   (defconstant +dfloat-type+ (parse-type :dfloat))
   (defconstant +sfloat-word-type+ (choose-float-word-type :sfloat 'single-float))
   (defconstant +dfloat-word-type+ (choose-float-word-type :dfloat 'double-dloat))
+  (defconstant +half-dfloat-word-type+ (choose-float-word-type :dfloat 'double-dloat
+                                                               :half-width t))
 
   (defun sfloat-word-type ()
      +sfloat-word-type+)
 
   (defun dfloat-word-type ()
-     +dfloat-word-type+))
+     +dfloat-word-type+)
+
+  (defun half-dfloat-word-type ()
+     +half-dfloat-word-type+))
 
 
 
@@ -93,12 +99,16 @@
 (eval-always
   (defconstant +msizeof-sfloat+  (msizeof :sfloat))
   (defconstant +msizeof-dfloat+  (msizeof :dfloat))
+  (defconstant +msizeof-half-dfloat+  (/ +msizeof-dfloat+ 2))
   (defconstant +msizeof-byte+    (msizeof :byte))
   (defconstant +msizeof-word+    (msizeof :word))
   (defconstant +sfloat/words+    (ceiling +msizeof-sfloat+ +msizeof-word+))
   (defconstant +dfloat/words+    (ceiling +msizeof-dfloat+ +msizeof-word+))
-  (set-feature 'hlmem/sfloat/words +sfloat/words+)
-  (set-feature 'hlmem/dfloat/words +dfloat/words+))
+  (defconstant +half-dfloat/words+ (ceiling +msizeof-half-dfloat+ +msizeof-word+))
+
+  (set-feature :hlmem/sfloat/words +sfloat/words+)
+  (set-feature :hlmem/dfloat/words +dfloat/words+)
+  (set-feature :hlmem/half-dfloat/words +half-dfloat/words+))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

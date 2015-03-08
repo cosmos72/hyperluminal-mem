@@ -19,7 +19,15 @@
   (pushnew :hyperluminal-mem *features*)
 
   #-(and)
-  (pushnew :hyperluminal-mem/debug *features*))  
+  (pushnew :hyperluminal-mem/debug *features*)
+
+  #+abcl ;; #?+abcl is used in mem/float.lisp
+  (set-feature :abcl)
+
+  ;; does CPU allow unaligned reads and writes of double-floats?
+  ;; used in mem/float.lisp to split double-float reads and writes,
+  ;; otherwise SPARC (and possibly other CPUs) will signal SIGBUS
+  (set-feature :cpu/double-float/unaligned #+sparc nil))
 
 
 (defun eval-compile-constant (name form)

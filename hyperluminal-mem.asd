@@ -19,7 +19,7 @@
 
 (asdf:defsystem :hyperluminal-mem
   :name "HYPERLUMINAL-MEM"
-  :version "0.6.1"
+  :version "0.6.2"
   :license "LLGPL"
   :author "Massimiliano Ghilardi"
   :description "High-performance serialization library, designed for untrusted data"
@@ -73,7 +73,8 @@
 		 (:file "defs"           :depends-on ("lang"))
 		 (:file "native-mem"     :depends-on ("defs"))
 		 (:file "endianity"      :depends-on ("native-mem"))
-		 (:file "mem"            :depends-on ("endianity"))
+		 (:file "float"          :depends-on ("endianity"))
+		 (:file "mem"            :depends-on ("float"))
 		 (:file "constants"      :depends-on ("mem"))
 		 (:file "symbols"        :depends-on ("constants"))
 		 (:file "int"            :depends-on ("symbols"))
@@ -129,7 +130,7 @@
 
 (asdf:defsystem :hyperluminal-mem-test
   :name "HYPERLUMINAL-MEM-TEST"
-  :version "0.6.1"
+  :version "0.6.2"
   :author "Massimiliano Ghilardi"
   :license "LLGPL"
   :description "test suite for hyperluminal-mem"

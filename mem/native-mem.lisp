@@ -181,6 +181,10 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
   (defconstant +mem-dfloat/bits+   (* +mem-byte/bits+ +msizeof-dfloat+)))
 (eval-always
   (defconstant +mem-dfloat/mask+   (1- (ash 1 +mem-dfloat/bits+))))
+(eval-always
+  (defconstant +mem-half-dfloat/bits+   (* +mem-byte/bits+ +msizeof-half-dfloat+)))
+(eval-always
+  (defconstant +mem-half-dfloat/mask+   (1- (ash 1 +mem-half-dfloat/bits+))))
   
 
 
