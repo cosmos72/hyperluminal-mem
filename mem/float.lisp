@@ -76,8 +76,8 @@
     (%mset-t value :dfloat ptr byte-offset)
 
     (let ((n1 (%mget-t :half-dfloat-word ptr byte-offset))
-          (n2 (%mget-t :half-dfloat-word ptr (the mem-word (+ byte-offset +msizeof-half-dfloat+)))))
-
+          (n2 (%mget-t :half-dfloat-word ptr
+                       (the mem-word (+ byte-offset +msizeof-half-dfloat+)))))
       ;; always return HI LO
       #?+little-endian (values n2 n1)
       #?-little-endian (values n1 n2))))
@@ -174,10 +174,10 @@
       ;; i.e. when mem-word is 4 bytes, we do *not* write 8-byte double-floats,
       ;; instead we split double-floats in LO and HI words, and write them separately
       ;; using configured endianity
-      (%mset-t (maybe-invert-endianity/integer :word hi) ; not :half-dfloat-word,
+      (%mset-t (maybe-invert-endianity/integer :word lo) ; not :half-dfloat-word,
                                         ; in case word > half-double-float
                :word ptr byte-offset)
-      (%mset-t (maybe-invert-endianity/integer :word lo) ; idem
+      (%mset-t (maybe-invert-endianity/integer :word hi) ; idem
                :word ptr (the mem-word (+ byte-offset +msizeof-word+)))
       value)
     
@@ -214,6 +214,7 @@
                                                         (the mem-word (+ byte-offset
                                                                          +msizeof-word+)))))
            (hi (maybe-invert-endianity/integer :half-dfloat-word xhi)))
+
       (make-dfloat hi lo))
     
     #?-(or (eql :hlmem/dfloat/words 1) (eql :hlmem/dfloat/words 2))
