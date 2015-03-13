@@ -40,6 +40,6 @@
            #:ffi-defstruct
            
            #:os-getpagesize #:fd #:+bad-fd+ #:bad-fd?
-           #:os-open-fd-rw  #:os-close-fd   #:os-stat-fd-size #:os-truncate-fd
-           #:os-mmap-fd-rw  #:os-munmap-ptr #:os-msync-ptr))
+           #:os-open-fd     #:os-close-fd   #:os-stat-fd-size #:os-truncate-fd
+           #:os-mmap-fd     #:os-munmap-ptr #:os-msync-ptr))
 

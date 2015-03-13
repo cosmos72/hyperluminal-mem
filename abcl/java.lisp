@@ -102,7 +102,8 @@
     (let* ((index (fixnum+ (fixnum* index scale) offset))
 	   (end   (fixnum+ index n-words)))
       (loop while (< index end) do
-	   (ffi-mem-set fill-word ptr :unsigned-int index))
+	   (ffi-mem-set fill-word ptr :unsigned-int index)
+           (incf index))
 	     
       (return-from fast-memset/4 nil)))
 
@@ -112,7 +113,7 @@
 	 (buf   (java:jnew-array "int" n)))
 
     (unless (zerop fill-word)
-      (dotimes (i n-words)
+      (dotimes (i n)
 	(java:jarray-set buf fill-word i)))
 
     ;; buf4 i.e. java.nio.IntBuffer offsets are counted in ints, not in bytes
@@ -135,8 +136,9 @@
     (let* ((index (fixnum+ (fixnum* index scale) offset))
 	   (end   (fixnum+ index n-words)))
       (loop while (< index end) do
-	   (ffi-mem-set fill-word ptr :unsigned-long index))
-	     
+	   (ffi-mem-set fill-word ptr :unsigned-long index)
+           (incf index))
+
       (return-from fast-memset/8 nil)))
 
   (let* ((ptr   (sap=>buf8 ptr))
@@ -145,7 +147,7 @@
 	 (buf   (java:jnew-array "long" n)))
 
     (unless (zerop fill-word)
-      (dotimes (i n-words)
+      (dotimes (i n)
 	(java:jarray-set buf fill-word i)))
 
     ;; buf8 i.e. java.nio.LongBuffer offsets are counted in longs, not in bytes

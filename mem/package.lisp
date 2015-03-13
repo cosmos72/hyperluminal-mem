@@ -59,7 +59,7 @@
   (:export #:hlmem-version #:hlmem-abi-version
 	   
            #:maddress     #:mem-word       #:mem-size    #:+msizeof-word+
-           #:mread-magic  #:mwrite-magic   
+           #:mread-word   #:mwrite-word    #:mread-magic  #:mwrite-magic
 
            #:mget-unboxed #:mset-unboxed   #:mset-fulltag-and-value
            #:msize        #:mwrite         #:mread

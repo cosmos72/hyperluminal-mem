@@ -38,10 +38,19 @@
   #+abcl (null fd))
 
 
-(defun os-open-fd-rw (filename)
-  #-abcl (osicat-posix:open filename (logior osicat-posix:o-rdwr osicat-posix:o-creat))
+(defun os-open-fd (filename &key (read t) (write nil))
+  #-abcl
+  (let ((mode (cond
+                ((and read write) osicat-posix:o-rdwr)
+                (write            osicat-posix:o-wronly)
+                (t                osicat-posix:o-rdonly))))
+    (osicat-posix:open filename (logior mode osicat-posix:o-creat)))
   #+abcl
-  (let ((f (java:jnew "java.io.RandomAccessFile" filename "rw")))
+  (let* ((mode (cond
+                 ((and read write) "rw")
+                 (write            "w")
+                 (t                "r")))
+         (f (java:jnew "java.io.RandomAccessFile" filename mode)))
     (java:jcall "getChannel" f)))
 
 
@@ -63,20 +72,22 @@
   #+abcl (java:jcall "truncate" fd bytes))
 
 
-(defun os-mmap-fd-rw (fd offset-bytes length-bytes)
+(defun os-mmap-fd (fd &key (offset-bytes 0) (length-bytes (os-stat-fd-size fd))
+                        (read t) (write nil))
   (declare (type fd fd))
 
   #-abcl
-  (osicat-posix:mmap +null-pointer+ length-bytes
-                     (logior osicat-posix:prot-read osicat-posix:prot-write)
-                     osicat-posix:map-shared
-                     fd offset-bytes)
+  (let ((prot (logior
+               (if read  osicat-posix:prot-read  osicat-posix:prot-none)
+               (if write osicat-posix:prot-write osicat-posix:prot-none))))
+    (osicat-posix:mmap +null-pointer+ length-bytes prot
+                       osicat-posix:map-shared
+                       fd offset-bytes))
 
   #+abcl
-  (let ((fd (java:jcall "map" fd
-                        (java:jfield "java.nio.channels.FileChannel$MapMode" "READ_WRITE")
-                        offset-bytes
-                        length-bytes)))
+  (let* ((prot (java:jfield "java.nio.channels.FileChannel$MapMode"
+                            (if write "READ_WRITE" "READ_ONLY")))
+         (fd (java:jcall "map" fd prot offset-bytes length-bytes)))
     (java:jcall +java-nio-bytebuffer-set-byteorder+ fd +java-nio-byteorder-native+)
     fd))
 

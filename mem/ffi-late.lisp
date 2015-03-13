@@ -126,7 +126,7 @@ count and expect memory lengths in words, not in bytes."
              (decf-mem-size n-words))))))
 
 #?+hlmem/fast-memset
-(define-compiler-macro memcpy-words (&whole form ptr start-index n-words fill-word)
+(define-compiler-macro memset-words (&whole form ptr start-index n-words fill-word)
   (if (constantp n-words)
       `(fast-memset-words ,ptr ,start-index ,(eval n-words) ,fill-word)
       form))

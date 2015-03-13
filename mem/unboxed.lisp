@@ -121,6 +121,29 @@ i.e. 1 means one mem-word."
        (incf-mem-size start-index)))
 
 
+;; function versions of mget-word and mset-word macros, only used for debugging.
+;; Useful because SBCL VOPs hlm-sbcl:%fast-mread/N and hlm-sbcl:%fast-mwrite/N
+;; cannot be invoked from interpreted code (i.e. REPL).
+;; They depend on mem-size, so they can be defined only down here.
+
+(declaim (inline mread-word))
+(defun mread-word (ptr word-index)
+  (declare (optimize (space 0) (compilation-speed 0) (safety 0) (debug 1) (speed 3))
+           (type maddress ptr)
+           (type mem-size word-index))
+  (the mem-word (mget-word ptr word-index)))
+
+(declaim (inline mwrite-word))
+(defun mwrite-word (ptr word-index value)
+  (declare (optimize (space 0) (compilation-speed 0) (safety 0) (debug 1) (speed 3))
+           (type maddress ptr)
+           (type mem-size word-index)
+           (type mem-word value))
+  (mset-word ptr word-index value)
+  ;; fast-mset-word returns no values!
+  value)
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmacro %to-tag (word)

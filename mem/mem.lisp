@@ -164,5 +164,5 @@
     `(mset-t ,value :word ,ptr ,word-index))
   (defsetf mget-word mset-word))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
