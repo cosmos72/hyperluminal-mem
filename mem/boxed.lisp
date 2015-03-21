@@ -194,7 +194,7 @@ was concurrently modified while being written"
 (declaim (inline %mread-box))
 (defun %mread-box (ptr index end-index boxed-type)
   "Read a boxed value from the memory starting at (PTR+INDEX) and return it.
-Return the number of words actually read as additional value.
+Return (1+ the offset of last word actually read) as additional value.
 Skips over BOX header."
   (declare (type maddress ptr)
            (type mem-size index end-index)
@@ -208,7 +208,7 @@ Skips over BOX header."
 (declaim (notinline mread-box2))
 (defun mread-box2 (ptr index end-index boxed-type)
   "Read a boxed value from the memory starting at (PTR+INDEX).
-Return the value and the number of words actually read as multiple values."
+Return the value and (1+ the offset of last word actually read) as multiple values."
   (declare (type maddress ptr)
            (type mem-size index)
            (type mem-box-type boxed-type))
@@ -226,7 +226,7 @@ Return the value and the number of words actually read as multiple values."
 
 (defun mread-box (ptr index end-index)
   "Read a boxed value from the memory starting at (PTR+INDEX).
-Return the value and the number of words actually read as multiple values."
+Return the value and (1+ the offset of last word actually read) as multiple values."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   

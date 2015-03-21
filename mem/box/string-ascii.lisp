@@ -82,17 +82,18 @@ not including BOX header words."
                                 (incf-mem-size index)
                                 (incf ,i +msizeof-word+))))
                        
-                       (let ((,word 0))
-                         (declare (type mem-word ,word))
-                         (loop for ,i from 0 below n-chars-remainder do
-                              (setf
-                               ,word
-                               (logior ,word
-                                       (the mem-word
-                                            (ash (ascii-char-to-word
-                                                  ,char-func (+ ,i n-chars-truncate))
-                                                 (* ,i +mem-byte/bits+))))))
-                         (mset-word ptr index ,word))))))
+                       (unless (zerop n-chars-remainder)
+                         (let ((,word 0))
+                           (declare (type mem-word ,word))
+                           (loop for ,i from 0 below n-chars-remainder do
+                                (setf
+                                 ,word
+                                 (logior ,word
+                                         (the mem-word
+                                              (ash (ascii-char-to-word
+                                                    ,char-func (+ ,i n-chars-truncate))
+                                                   (* ,i +mem-byte/bits+))))))
+                           (mset-word ptr index ,word)))))))
         
       (if (typep string 'simple-string)
           (loop-write schar)
@@ -170,13 +171,14 @@ For this reason only codes in the range 0 ... +most-positive-byte+ can be read
                                 (incf-mem-size index)
                                 (word-to-ascii-chars ,word ,char-func ,i)
                                 (incf ,i +msizeof-word+))))
-                       
-                       (let ((,word (mget-word ptr index)))
-                         (declare (type mem-word ,word))
-                         (loop for ,i from 0 below n-chars-remainder do
-                              (setf (,char-func result (+ ,i n-chars-truncate))
-                                    (word-to-ascii-char ,word))
-                              (setf ,word (ash ,word (- +mem-byte/bits+)))))))))
+
+                       (unless (zerop n-chars-remainder)
+                         (let ((,word (mget-word ptr index)))
+                           (declare (type mem-word ,word))
+                           (loop for ,i from 0 below n-chars-remainder do
+                                (setf (,char-func result (+ ,i n-chars-truncate))
+                                      (word-to-ascii-char ,word))
+                                (setf ,word (ash ,word (- +mem-byte/bits+))))))))))
       (loop-read schar))
 
     result))

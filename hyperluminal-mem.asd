@@ -149,5 +149,5 @@
 
 
 (defmethod asdf:perform ((op asdf:test-op) (system (eql (asdf:find-system :hyperluminal-mem))))
-  (asdf:load-system :hyperluminal-mem-test)
+  (ql:quickload "hyperluminal-mem-test")
   (eval (read-from-string "(fiveam:run! 'hyperluminal-mem-test:suite)")))
