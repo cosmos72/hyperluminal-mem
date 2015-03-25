@@ -41,7 +41,7 @@ count and expect memory lengths in words, not in bytes."
 
 
 (defun !hex (value)
-  (format nil "#x~X" value))
+  (format t "#x~X" value))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; memset ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

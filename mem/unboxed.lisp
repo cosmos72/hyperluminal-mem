@@ -397,7 +397,7 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
       ;; because it's faster and more used
       #?+(or hlmem/mem-int>fixnum hlmem/mem-int=fixnum)
       ((typep value 'fixnum)
-       (return-from mset-unboxed (mset-int ptr index value)))
+       (return-from mset-unboxed (mset-int ptr index (the fixnum value))))
 
       ;; value is a character?
       ((characterp value) (setf tag +mem-tag/character+

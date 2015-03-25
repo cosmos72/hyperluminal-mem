@@ -240,7 +240,7 @@
 (eval-always
   (defconstant +mem-box/max-words+    (min
                                        +most-positive-size+
-                                       (* (1+ +most-positive-vid+) +mem-box/min-words+)))
+                                       (* +most-positive-vid+ +mem-box/min-words+)))
   (defconstant +mem-box/header-words+ 1 "boxed values have a 1 CPU-word header"))
 
 (eval-always

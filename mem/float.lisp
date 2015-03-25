@@ -114,7 +114,9 @@
   #?-(or abcl hlmem/native-endianity)
   (let* ((bits  (sfloat-bits value ptr byte-offset))
          (xbits (maybe-invert-endianity/integer :sfloat-word bits)))
-    (%mset-t xbits :sfloat-word ptr byte-offset)))
+    (%mset-t xbits :sfloat-word ptr byte-offset)
+    value))
+
 
 
 (declaim (inline mget-sfloat))
@@ -156,7 +158,9 @@
            (type mem-word byte-offset))
 
   #?+hlmem/dfloat/native
-  (%mset-t value :dfloat ptr byte-offset)
+  (progn
+    (%mset-t value :dfloat ptr byte-offset)
+    value)
 
   #?-hlmem/dfloat/native
   (multiple-value-bind (hi lo) (dfloat-bits value ptr byte-offset)
