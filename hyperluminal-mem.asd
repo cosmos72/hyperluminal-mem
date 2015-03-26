@@ -92,8 +92,9 @@
 		 (:file "box/list"       :depends-on ("box"))
 		 (:file "box/array"      :depends-on ("box"))
 		 (:file "box/vector"     :depends-on ("box/array"))
-		 (:file "box/string-utf-21" :depends-on ("box/vector"))
-		 (:file "box/string-utf-8"  :depends-on ("box/vector"))
+		 (:file "box/string-helper" :depends-on ("box/vector"))
+		 (:file "box/string-utf-21" :depends-on ("box/vector" "box/string-helper"))
+		 (:file "box/string-utf-8"  :depends-on ("box/vector" "box/string-helper"))
 		 (:file "box/string-ascii"  :depends-on ("box/vector"))
 		 (:file "box/bit-vector" :depends-on ("box/vector"))
 		 (:file "box/symbol"     :depends-on ("box"))
@@ -143,8 +144,9 @@
                 :components ((:file "package")
                              (:file "magic"         :depends-on ("package"))
                              (:file "mem"           :depends-on ("package"))
-                             (:file "abi"           :depends-on ("mem"))
                              (:file "memcpy"        :depends-on ("mem"))
+                             (:file "abi"           :depends-on ("mem"))
+                             (:file "string"        :depends-on ("abi"))
                              (:file "stmx-objects"  :depends-on ("abi"))))))
 
 

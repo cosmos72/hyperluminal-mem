@@ -191,6 +191,8 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
 (eval-always
   (defconstant +most-positive-character+ (%detect-most-positive-character)))
 (eval-always
+  (set-feature :hlmem/character<=FFFF    (<= +most-positive-character+ #xFFFF)))
+(eval-always
   ;; round up characters to 21 bits (unicode)
   (defconstant +character/bits+          (max 21 (integer-length +most-positive-character+))))
 (eval-always
@@ -214,6 +216,8 @@ Assumes that (funcall PRED LOw) = T and (funcall PRED HIGH) = NIL."
   (set-feature :hlmem/base-char<=ascii (<= +most-positive-base-char+ +most-positive-ascii-char+))
   (set-feature :hlmem/base-char>=ascii (>= +most-positive-base-char+ +most-positive-ascii-char+)))
 
+;; Unicode codepoints numeric range"
+(deftype codepoint () `(integer 0 #x10FFFF))
 
 ;; mem-word can be defined only now, it needs +mem-word/bits+
 (eval-always
