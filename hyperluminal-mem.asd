@@ -82,6 +82,7 @@
 		 (:file "ffi-late"       :depends-on ("unboxed"))
 		 (:file "box"            :depends-on ("version" "unboxed" "ffi-late"))
 		 (:file "magic"          :depends-on ("box"))
+		 (:file "unicode"        :depends-on ("box"))
 		 
 		 (:file "box/bignum"     :depends-on ("box"))
 		 (:file "box/ratio"      :depends-on ("box/bignum"))
@@ -92,9 +93,7 @@
 		 (:file "box/list"       :depends-on ("box"))
 		 (:file "box/array"      :depends-on ("box"))
 		 (:file "box/vector"     :depends-on ("box/array"))
-		 (:file "box/string-helper" :depends-on ("box/vector"))
-		 (:file "box/string-utf-21" :depends-on ("box/vector" "box/string-helper"))
-		 (:file "box/string-utf-8"  :depends-on ("box/vector" "box/string-helper"))
+		 (:file "box/string-utf-8"  :depends-on ("box/vector" "unicode"))
 		 (:file "box/string-ascii"  :depends-on ("box/vector"))
 		 (:file "box/bit-vector" :depends-on ("box/vector"))
 		 (:file "box/symbol"     :depends-on ("box"))
@@ -117,7 +116,6 @@
 						      "box/list"
 						      "box/array"
 						      "box/vector"
-						      "box/string-utf-21"
 						      "box/string-utf-8"
 						      "box/string-ascii"
 						      "box/bit-vector"

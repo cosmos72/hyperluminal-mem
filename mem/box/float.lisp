@@ -21,23 +21,23 @@
 ;;;;    boxed    SINGLE-FLOATs and DOUBLE-FLOATs                             ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(declaim (inline box-words/sfloat box-words/dfloat))
+(declaim (inline msize-box/sfloat msize-box/dfloat))
 
-(defconstant +box-words/sfloat+ +sfloat/words+)
-(defconstant +box-words/dfloat+ +dfloat/words+)
+(defconstant +msize-box/sfloat+ +sfloat/words+)
+(defconstant +msize-box/dfloat+ +dfloat/words+)
 
-(defun box-words/sfloat (index value)
+(defun msize-box/sfloat (index value)
   "Return the number of words needed to store single-float VALUE in memory, not including BOX header."
   (declare (ignore value)
            (type mem-size index))
-  (mem-size+ index +box-words/sfloat+))
+  (mem-size+ index +msize-box/sfloat+))
 
 
-(defun box-words/dfloat (index value)
+(defun msize-box/dfloat (index value)
   "Return the number of words needed to store a BOX containing double-float VALUE in memory."
   (declare (ignore value)
            (type mem-size index))
-  (mem-size+ index +box-words/dfloat+))
+  (mem-size+ index +msize-box/dfloat+))
   
 
 
@@ -50,7 +50,7 @@ ABI: single-float is stored raw (usually means IEEE format)"
            (type mem-size index end-index)
            (type single-float value))
 
-  (let1 n-words +box-words/sfloat+
+  (let1 n-words +msize-box/sfloat+
     (check-mem-overrun ptr index end-index n-words)
 
     (mset-t value :sfloat ptr index)
@@ -66,7 +66,7 @@ ABI: double-float is stored raw (usually means IEEE format)"
            (type mem-size index end-index)
            (type double-float value))
 
-  (let1 n-words +box-words/dfloat+
+  (let1 n-words +msize-box/dfloat+
     (check-mem-overrun ptr index end-index n-words)
     
     (mset-t value :dfloat ptr index)
@@ -79,7 +79,7 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))
   
-  (let1 n-words +box-words/sfloat+
+  (let1 n-words +msize-box/sfloat+
     (check-mem-length ptr index end-index n-words)
 
     (values
@@ -93,7 +93,7 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
-  (let1 n-words +box-words/dfloat+
+  (let1 n-words +msize-box/dfloat+
     (check-mem-length ptr index end-index n-words)
 
     (values

@@ -22,7 +22,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/list (index list)
+(defun msize-box/list (index list)
   "Return the number of words needed to store LIST in mmap memory, not including BOX header."
   (declare (type list list))
 

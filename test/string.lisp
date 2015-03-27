@@ -32,7 +32,7 @@
       ;;
       ;; It can represent the codepoints #xFFFE and #xFFFF,
       ;; but they are reserved too so we do not test them.
-      (unless (hlmem::%codepoint-is-reserved i)
+      (unless (hlmem::%codepoint-is-reserved code)
         (multiple-value-bind (ch1 ch2) (hlmem::%codepoint->utf-16 code)
           (vector-push-extend ch1 string)
           (when ch2
@@ -40,7 +40,7 @@
     string))
 
 
-#?-hlmem/character<=ffff
+#?-hlmem/character<=FFFF
 (defun make-rainbow-string ()
   (let* ((n #x110000)
          (string (make-string n)))

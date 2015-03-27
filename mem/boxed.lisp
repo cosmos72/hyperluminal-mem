@@ -18,7 +18,7 @@
 (enable-#?-syntax)
 
 
-(defun box-words/unallocated (index value)
+(defun msize-box/unallocated (index value)
   (declare (ignore index value))
   (error "internal error! attempt to write boxed-type +MEM-BOX/UNALLOCATED+"))
 
@@ -48,8 +48,11 @@
     (let* ((syms +mem-boxed-type-syms+)
            (array (make-array (length syms))))
 
-      (loop for i from 0 below (length syms) do
-           (setf (svref array i) (fdefinition (concat-symbols 'box-words/ (svref syms i)))))
+      (loop for i from 0 below (length syms)
+         for sym = (svref syms i)
+         when sym ;; skip NILs
+         do
+           (setf (svref array i) (fdefinition (concat-symbols 'msize-box/ sym))))
       array))
 
 
@@ -57,8 +60,11 @@
     (let* ((syms +mem-boxed-type-syms+)
             (array (make-array (length syms))))
 
-       (loop for i from 0 below (length syms) do
-            (setf (svref array i) (fdefinition (concat-symbols 'mwrite-box/ (svref syms i)))))
+      (loop for i from 0 below (length syms)
+         for sym = (svref syms i)
+         when sym ;; skip NILs
+         do
+            (setf (svref array i) (fdefinition (concat-symbols 'mwrite-box/ sym))))
        array))
 
 
@@ -66,7 +72,10 @@
     (let* ((syms +mem-boxed-type-syms+)
            (array (make-array (length syms))))
 
-      (loop for i from 0 below (length syms) do
+      (loop for i from 0 below (length syms)
+         for sym = (svref syms i)
+         when sym ;; skip NILs
+         do
            (setf (svref array i) (fdefinition (concat-symbols 'mread-box/ (svref syms i)))))
       array))
 

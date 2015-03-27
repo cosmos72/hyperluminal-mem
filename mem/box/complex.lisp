@@ -25,17 +25,17 @@
 ;;;;    boxed    COMPLEXes                                                   ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(declaim (inline box-words/complex-sfloat))
+(declaim (inline msize-box/complex-sfloat))
 
-(defconstant +box-words/complex-sfloat+ (* 2 +box-words/sfloat+))
+(defconstant +msize-box/complex-sfloat+ (* 2 +msize-box/sfloat+))
 
-(defun box-words/complex-sfloat (index value)
+(defun msize-box/complex-sfloat (index value)
   "Return the number of words needed to store a complex-sfloat VALUE in mmap memory.
 Does not count the space needed by BOX header."
   (declare (ignore value)
            (type mem-size index))
 
-  (mem-size+ index +box-words/complex-sfloat+))
+  (mem-size+ index +msize-box/complex-sfloat+))
 
   
 (defun mwrite-box/complex-sfloat (ptr index end-index value)
@@ -47,8 +47,8 @@ ABI: Writes real part, then imaginary part."
            (type mem-size index end-index)
            (type complex-sfloat value))
 
-  (let* ((n-words-real +box-words/sfloat+)
-         (n-words-imag +box-words/sfloat+)
+  (let* ((n-words-real +msize-box/sfloat+)
+         (n-words-imag +msize-box/sfloat+)
          (n-words (+ n-words-real n-words-imag)))
     (check-mem-overrun ptr index end-index n-words)
 
@@ -64,8 +64,8 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
-  (let* ((n-words-real +box-words/sfloat+)
-         (n-words-imag +box-words/sfloat+)
+  (let* ((n-words-real +msize-box/sfloat+)
+         (n-words-imag +msize-box/sfloat+)
          (n-words (+ n-words-real n-words-imag)))
     (check-mem-length ptr index end-index n-words)
 
@@ -82,17 +82,17 @@ Assumes BOX header was already read."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(declaim (inline box-words/complex-dfloat))
+(declaim (inline msize-box/complex-dfloat))
 
-(defconstant +box-words/complex-dfloat+ (* 2 +box-words/dfloat+))
+(defconstant +msize-box/complex-dfloat+ (* 2 +msize-box/dfloat+))
 
-(defun box-words/complex-dfloat (index value)
+(defun msize-box/complex-dfloat (index value)
   "Return the number of words needed to store a complex-dfloat VALUE in mmap memory.
 Does not count the space needed by BOX header."
   (declare (ignore value)
            (type mem-size index))
 
-  (mem-size+ index +box-words/complex-dfloat+))
+  (mem-size+ index +msize-box/complex-dfloat+))
 
   
 (defun mwrite-box/complex-dfloat (ptr index end-index value)
@@ -104,8 +104,8 @@ ABI: Writes real part, then imaginary part."
            (type mem-size index end-index)
            (type complex-dfloat value))
 
-  (let* ((n-words-real +box-words/dfloat+)
-         (n-words-imag +box-words/dfloat+)
+  (let* ((n-words-real +msize-box/dfloat+)
+         (n-words-imag +msize-box/dfloat+)
          (n-words (+ n-words-real n-words-imag)))
     (check-mem-overrun ptr index end-index n-words)
 
@@ -121,8 +121,8 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
-  (let* ((n-words-real +box-words/dfloat+)
-         (n-words-imag +box-words/dfloat+)
+  (let* ((n-words-real +msize-box/dfloat+)
+         (n-words-imag +msize-box/dfloat+)
          (n-words (+ n-words-real n-words-imag)))
     (check-mem-length ptr index end-index n-words)
 
@@ -139,7 +139,7 @@ Assumes BOX header was already read."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun box-words/complex-rational (index value)
+(defun msize-box/complex-rational (index value)
   "Return the number of words needed to store a complex-rational VALUE in mmap memory.
 Does not count the space needed by BOX header."
   (declare (type complex-rational value))

@@ -75,7 +75,6 @@
 (defun os-mmap-fd (fd &key (offset-bytes 0) (length-bytes (os-stat-fd-size fd))
                         (read t) (write nil))
   (declare (type fd fd))
-
   #-abcl
   (let ((prot (logior
                (if read  osicat-posix:prot-read  osicat-posix:prot-none)
@@ -83,7 +82,8 @@
     (osicat-posix:mmap +null-pointer+ length-bytes prot
                        osicat-posix:map-shared
                        fd offset-bytes))
-
+  #+abcl
+  (declare (ignore read))
   #+abcl
   (let* ((prot (java:jfield "java.nio.channels.FileChannel$MapMode"
                             (if write "READ_WRITE" "READ_ONLY")))
@@ -94,7 +94,8 @@
 
 (defun os-munmap-ptr (ptr length-bytes)
   (declare (type ffi-address ptr))
-  #-abcl (osicat-posix:munmap ptr length-bytes)
+  #-abcl
+  (osicat-posix:munmap ptr length-bytes)
 
   ;; Java MappedByteBuffer docs say it is unmapped when garbage collected.
   #+abcl

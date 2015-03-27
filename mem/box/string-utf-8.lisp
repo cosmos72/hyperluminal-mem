@@ -23,9 +23,9 @@
 (enable-#?-syntax)
 
 
-(declaim (inline box-words/string-utf-8))
+(declaim (inline msize-box/string-utf-8))
 
-(defun box-words/string-utf-8 (index string)
+(defun msize-box/string-utf-8 (index string)
   "Return the number of words needed to store STRING in memory, not including BOX header."
   (declare (optimize (speed 3) (safety 0) (debug 1))
            (type string string)
@@ -67,81 +67,11 @@
     (mem-size+ index 1 (ceiling n-bytes +msizeof-word+))))
 
 
-(declaim (inline %codepoint->utf-8-word %utf-8-word->codepoint))
-
-(declaim (inline %character->utf-8-word %utf-8-word->character %mwrite-string))
-
-
-(defun %codepoint->utf-8-word (n)
-  (declare (optimize (speed 3) (safety 0) (debug 1))
-           (type (unsigned-byte #.+character/bits+) n))
-
-  (let ((word 0)
-        (bits 0))
-    (cond
-      ((<= n #x7F) (setf word n
-                         bits 8))
-      ((<= n #x7FF) (setf word (logior #x80C0
-                                       (ash (logand n #x03F)  8)
-                                       (ash (logand n #x7C0) -6))
-                          bits 16))
-      ((<= n #xFFFF) (setf word (logior #x8080E0
-                                        (ash (logand n #x003F)  16)
-                                        (ash (logand n #x0FC0)   2)
-                                        (ash (logand n #xF000) -12))
-                           bits 24))
-      (t             (setf word (logior #x808080F0
-                                        (ash (logand n #x00003F)  24)
-                                        (ash (logand n #x000FC0)  10)
-                                        (ash (logand n #x03F000) -4)
-                                        (ash (logand n #x1C0000) -18))
-                           bits 32)))
-    (values word bits)))
 
 
 
-(defun invalid-utf8-error (byte)
-  (declare (type (unsigned-byte 8) byte))
-  (error "invalid byte. UTF-8 sequence cannot start with #x~X" byte))
 
-
-(defun %utf-8-word->codepoint (word)
-  (declare (optimize (speed 3) (safety 0) (debug 1))
-           (type mem-word word))
-
-  (let ((n 0)
-        (bits 0)
-        (byte0 (logand #xFF word)))
-
-    (cond
-      ((<= byte0 #x7F) (setf n byte0
-                             bits 8))
-      
-      ((<= byte0 #xDF)
-       (setf n (logior (ash (logand #x3F00 word) -8)
-                       (ash (logand #x001F word)  6))
-             bits 16))
-
-      ((<= byte0 #xEF)
-       (setf n (logior (ash (logand #x3F0000 word) -16)
-                       (ash (logand #x003F00 word)  -2)
-                       (ash (logand #x00000F word)  12))
-             bits 24))
-      
-      ((<= byte0 #xF7)
-       (setf n (logior (ash (logand #x3F000000 word) -24)
-                       (ash (logand #x003F0000 word) -10)
-                       (ash (logand #x00003F00 word)   4)
-                       (ash (logand #x00000007 word)  18))
-             bits 32))
-
-      (t
-       (invalid-utf8-error byte0)))
-
-    (values n bits)))
-                   
-
-
+(declaim (inline %mwrite-string-utf-8))
 (defun %mwrite-string-utf-8 (ptr index end-index string n-chars)
   "Write characters from string STRING to the memory starting at (PTR+INDEX).
 Return the number of words actually written.
@@ -245,6 +175,7 @@ ABI: writes string length as mem-int, followed by packed array of UTF-8 encoded 
 
 
 
+(declaim (inline %mread-string-utf-8))
 (defun %mread-string-utf-8 (ptr index end-index n-codepoints)
   (declare (type maddress ptr)
            (type mem-size index end-index)

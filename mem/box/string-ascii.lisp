@@ -32,9 +32,9 @@
   #?-hlmem/base-char>=ascii 'character)
 
 
-(declaim (inline box-words/ascii-string))
+(declaim (inline msize-box/ascii-string))
 
-(defun box-words/ascii-string (index string)
+(defun msize-box/ascii-string (index string)
   "Return the number of words needed to store ascii-string STRING in mmap memory,
 not including BOX header words."
   (declare (type ascii-string string)

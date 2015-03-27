@@ -60,24 +60,24 @@ Otherwise return the whole LIST"
 	first
 	list)))
 
-(defun %to-string-list (syms-ints-and-strings-list)
-  (declare (type list syms-ints-and-strings-list))
-  (loop for s in (unwrap-list-1 syms-ints-and-strings-list)
-     collect (etypecase s
-	       (integer (format nil "~S" s))
-	       (symbol (symbol-name s))
-	       (string s))))
-  
-(defun stringify (&rest syms-ints-and-strings)
-  "Concatenate the strings, integers and/or names of specified symbols.
-Returns a string"
-  (the string
-    (apply #'concatenate 'string (%to-string-list syms-ints-and-strings))))
+(defun stringify (&rest things)
+  "Print the things to a string and return it"
+  (let ((s (make-array 0 :element-type 'character :adjustable t :fill-pointer 0))
+        (*print-array*    t)
+        (*print-base*     10)
+        (*print-escape*   nil)
+        (*print-gensym*   nil)
+        (*print-pretty*   nil)
+        (*print-radix*    nil)
+        (*print-readably* nil))
+    (dolist (thing (unwrap-list-1 things))
+      (format s "~A" thing))
+    s))
 
-(defun concat-symbols (&rest syms-ints-and-strings)
-  "Concatenate the strings, integers and/or names of specified symbols.
-Returns a symbol interned in current package"
-  (intern (apply #'stringify syms-ints-and-strings)))
+(defun concat-symbols (&rest things)
+  "Print the things to a string, the convert the string into a symbol interned in current package.
+Return the symbol"
+  (intern (apply #'stringify things)))
 
 
 (defun get-symbol (package-name symbol-name &key errorp)

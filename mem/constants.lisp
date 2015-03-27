@@ -315,8 +315,7 @@
 (defconstant +mem-box/list+             15 "box is a cons or list")
 (defconstant +mem-box/array+            16 "box is a N-dimensional array")
 (defconstant +mem-box/vector+           17 "box is a 1-dimensional array, i.e. a vector")
-
-(defconstant +mem-box/string-utf-21+    18 "box is a string, i.e. a (vector character)")
+                                        ; 18 is currently unused (was +mem-box/string-utf-21+)
 (defconstant +mem-box/string-utf-8+     19 "box is a string, i.e. a (vector character)")
 (defconstant +mem-box/string+           +mem-box/string-utf-8+ "default string format is UTF-8")
 
@@ -344,6 +343,6 @@
     #(bignum ratio sfloat dfloat
       complex-sfloat complex-dfloat complex-rational
       pathname hash-table list
-      array vector string-utf-21 string-utf-8 ascii-string bit-vector symbol))
+      array vector nil string-utf-8 ascii-string bit-vector symbol))
 
 

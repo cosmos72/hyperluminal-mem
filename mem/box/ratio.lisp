@@ -22,7 +22,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/ratio (index value)
+(defun msize-box/ratio (index value)
   "Return the number of words needed to store a BOX containing ratio VALUE in mmap memory.
 Does not count the space needed by BOX header."
   (declare (type ratio value)

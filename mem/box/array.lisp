@@ -90,7 +90,7 @@
       
 
 
-(defun box-words/array (index array)
+(defun msize-box/array (index array)
   "Return the number of words needed to store ARRAY in mmap memory,
 not including BOX header."
   (declare (type mem-size index)

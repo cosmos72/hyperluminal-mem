@@ -22,7 +22,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/bit-vector (index vector)
+(defun msize-box/bit-vector (index vector)
   "Return the number of words needed to store bit-vector VALUE in mmap memory,
 not including BOX header."
   (declare (type bit-vector vector)

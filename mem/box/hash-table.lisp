@@ -22,7 +22,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun box-words/hash-table (index htable)
+(defun msize-box/hash-table (index htable)
   "Return the number of words needed to store hash-table HTABLE in mmap memory,
 not including BOX header."
   (declare (type hash-table htable)
