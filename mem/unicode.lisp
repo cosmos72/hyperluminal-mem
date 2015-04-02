@@ -45,7 +45,7 @@
 
 
 
-#?-hlmem/character<=FFFF
+#?-hlmem/character=utf-16
 (progn
   (declaim (inline %codepoint->character))
   (defun %codepoint->character (code)
@@ -59,7 +59,7 @@
 
 
 ;; support UTF-16 strings used at least by CMUCL and ABCL
-#?+hlmem/character<=FFFF
+#?+hlmem/character=utf-16
 (progn
   (defmacro %utf-16->codepoint (code string char-func i n-chars)
     "Convert utf-16 CODE to Unicode codepoint. If CODE is a high-surrogate,
@@ -98,7 +98,7 @@ In any case, convert the code or the high/low surrogate pair to a codepoint."
 
   (let ((word n)
         (bits 8))
-    (declare (type (integer 0 #xbfbf8ff4) word)
+    (declare (type (unsigned-byte 32) word)
              (type (member 8 16 24 32) bits))
     (cond
       ((<= n #x7F))
@@ -132,12 +132,13 @@ In any case, convert the code or the high/low surrogate pair to a codepoint."
            (type mem-word word))
 
   (let ((n 0)
-        (bits 0)
+        (bits 8)
         (byte0 (logand #xFF word)))
-
+    
+    (declare (type codepoint n)
+             (type (member bits 8 16 24 32 bits)))
     (cond
-      ((<= byte0 #x7F) (setf n byte0
-                             bits 8))
+      ((<= byte0 #x7F) (setf n byte0))
       
       ((<= byte0 #xDF)
        (setf n (logior (ash (logand #x3F00 word) -8)

@@ -31,6 +31,12 @@
            (type string string)
            (type mem-size index))
 
+  #?+hlmem/character=utf-8
+  (let ((n-chars (length string)))
+    ;; +1 to store N-CHARS prefix
+    (mem-size+ index 1 (ceiling n-chars +msizeof-word+)))
+  
+  #?-hlmem/character=utf-8
   (let ((n-bytes 0))
     (declare (type ufixnum n-bytes))
 
@@ -42,7 +48,7 @@
                  (incf (the fixnum n-bytes)
 
                        ;; support UTF-16 strings. Used at least by CMUCL and ABCL
-                       #?+hlmem/character<=FFFF
+                       #?+hlmem/character=utf-16
                        (cond
                          ((<= code #x7F) 1)
                          ((<= code #x7FF) 2)
@@ -51,7 +57,7 @@
                          (t 3))
 
                        ;; easier, strings contain Unicode codepoints
-                       #?-hlmem/character<=FFFF
+                       #?-hlmem/character=utf-16
                        (cond
                          ((<= code #x7F) 1)
                          ((<= code #x7FF) 2)
@@ -59,7 +65,7 @@
                          (t 4))))))
       (cond
         ((typep string '(simple-array character)) (%count-utf-8-bytes))
-        #?-hlmem/base-char<=ascii-char ;; if base-char<=ascii-char, we write an ASCII string
+        #?-hlmem/base-char<=ascii ;; if base-char<=ascii, we write an ASCII string
         ((typep string '(simple-array base-char)) (%count-utf-8-bytes))
         (t                                        (%count-utf-8-bytes))))
 
@@ -72,6 +78,72 @@
 
 
 (declaim (inline %mwrite-string-utf-8))
+
+#?+hlmem/character=utf-8
+(defun %mwrite-string-utf-8 (ptr index end-index string n-chars)
+  "Write characters from string STRING to the memory starting at (PTR+INDEX).
+Return the number of words actually written.
+
+ABI: characters will be stored using UTF-8 encoding."
+  (declare (optimize (speed 3) (safety 0) (debug 1))
+           (type maddress ptr)
+           (type mem-size index end-index)
+           (type string string)
+           (type ufixnum n-chars))
+
+  (check-mem-overrun ptr index end-index (fixnum+ 1 n-chars))
+  
+  ;; easy, UTF-8 chars are stored literally, so 1-byte each
+  (mset-int ptr index n-chars)
+  (incf-mem-size index)
+
+  (macrolet
+      ((%utf8-chars-to-word (&rest chars)
+         `(logior
+           ,@(loop for ch in chars
+                for shift = 0 then (fixnum+ shift 8)
+                collect `(ash (the (unsigned-byte 8) (char-code ,ch)) ,shift))))
+
+       (%utf8-string-chars-to-word (char-func start-offset)
+         `(%utf8-chars-to-word
+           ,@(loop for i below +msizeof-word+
+                  collect `(,char-func string (the ufixnum (+ ,start-offset ,i))))))
+       
+       (%mwrite-utf-8-words (char-func &key (unroll t))
+         `(let ((i 0)
+                ,@(when unroll `((bulk-end (fixnum- n-chars +msizeof-word+)))))
+            (declare (type ufixnum i))
+            ,@(when unroll
+                 `((loop while (< i bulk-end)
+                      do
+                        (let ((word (the mem-word (%utf8-string-chars-to-word ,char-func i))))
+                          (mset-word ptr index word)
+                          (incf i +msizeof-word+)
+                          (incf-mem-size index)))))
+            (when (< i n-chars)
+              (let ((word 0))
+                (declare (type mem-word word))
+                (loop
+                   while (< i n-chars)
+                   do
+                     (setf word (logior (the mem-word (ash word 8))
+                                        (the (unsigned-byte 8)
+                                             (char-code (,char-func string i)))))
+                     (incf i))
+                (mset-word ptr index word)
+                (incf-mem-size index))))))
+              
+    (cond
+      ((typep string '(simple-array character)) (%mwrite-utf-8-words schar))
+      #?-hlmem/base-char<=ascii ;; if base-char<=ascii, we write an ASCII string
+      ((typep string '(simple-array base-char)) (%mwrite-utf-8-words schar))
+      (t                                        (%mwrite-utf-8-words  char :unroll nil)))
+
+    index))
+  
+
+
+#?-hlmem/character=utf-8
 (defun %mwrite-string-utf-8 (ptr index end-index string n-chars)
   "Write characters from string STRING to the memory starting at (PTR+INDEX).
 Return the number of words actually written.
@@ -85,12 +157,12 @@ ABI: characters will be stored using UTF-8 encoding."
 
   (let ((save-index index)
         (i 0)
-        #?+hlmem/character<=FFFF (n-codepoints 0)
+        #?+hlmem/character=utf-16 (n-codepoints 0)
         (word 0)
         (word-bits 0)
         (word-bits-left +mem-word/bits+))
     (declare (type mem-size save-index)
-             (type fixnum i #?+hlmem/character<=FFFF n-codepoints)
+             (type fixnum i #?+hlmem/character=utf-16 n-codepoints)
              (type (integer 0 #.(1- +mem-word/bits+)) word-bits)
              (type (integer 1 #.+mem-word/bits+) word-bits-left))
 
@@ -104,23 +176,23 @@ ABI: characters will be stored using UTF-8 encoding."
                    (incf (the fixnum i))
 
                    ;; if strings are UTF-16, skip naked (and invalid) low surrogates
-                   (when #?+hlmem/character<=FFFF (not (%code-is-low-surrogate code))
-                         #?+hlmem/character<=FFFF t
+                   (when #?+hlmem/character=utf-16 (not (%code-is-low-surrogate code))
+                         #?+hlmem/character=utf-16 t
                                                    
                      (multiple-value-bind (next next-bits)
                          (%codepoint->utf-8-word
 
                           ;; support UTF-16 strings.
-                          #?+hlmem/character<=FFFF
+                          #?+hlmem/character=utf-16
                           (%utf-16->codepoint code string ,char-func i n-chars)
 
-                          #?-hlmem/character<=FFFF
+                          #?-hlmem/character=utf-16
                           code)
 
                        (declare (type mem-word word next)
                                 (type (integer 0 32) next-bits))
 
-                       #?+hlmem/character<=FFFF
+                       #?+hlmem/character=utf-16
                        (incf n-codepoints)
                        
                        (setf word (logior word (logand +mem-word/mask+ (ash next word-bits)))
@@ -139,7 +211,7 @@ ABI: characters will be stored using UTF-8 encoding."
 
       (cond
         ((typep string '(simple-array character)) (%mwrite-utf-8-words schar))
-        #?-hlmem/base-char<=ascii-char ;; if base-char<=ascii-char, we write an ASCII string
+        #?-hlmem/base-char<=ascii ;; if base-char<=ascii, we write an ASCII string
         ((typep string '(simple-array base-char)) (%mwrite-utf-8-words schar))
         (t                                        (%mwrite-utf-8-words  char))))
 
@@ -149,8 +221,8 @@ ABI: characters will be stored using UTF-8 encoding."
       (incf-mem-size index))
 
     (mset-int ptr save-index
-              #?+hlmem/character<=FFFF n-codepoints
-              #?-hlmem/character<=FFFF n-chars)
+              #?+hlmem/character=utf-16 n-codepoints
+              #?-hlmem/character=utf-16 n-chars)
 
     index))
 
@@ -187,9 +259,9 @@ ABI: writes string length as mem-int, followed by packed array of UTF-8 encoded 
         (next 0)
         (next-bits 0)
         (result
-         #?+hlmem/character<=FFFF (make-array  n-codepoints :element-type 'character
+         #?+hlmem/character=utf-16 (make-array  n-codepoints :element-type 'character
                                                :adjustable t :fill-pointer 0)
-         #?-hlmem/character<=FFFF (make-string n-codepoints :element-type 'character)))
+         #?-hlmem/character=utf-16 (make-string n-codepoints :element-type 'character)))
 
     (declare (type mem-word word next)
              (type (integer 0 #.+mem-word/bits+) word-bits word-bits-left next-bits))
@@ -216,13 +288,13 @@ ABI: writes string length as mem-int, followed by packed array of UTF-8 encoded 
 
       (multiple-value-bind (code bits) (%utf-8-word->codepoint word)
 
-        #?+hlmem/character<=FFFF
+        #?+hlmem/character=utf-16
         (multiple-value-bind (ch1 ch2) (%codepoint->utf-16 code)
           (vector-push-extend ch1 result)
           (when ch2
             (vector-push-extend ch2 result)))
 
-        #?-hlmem/character<=FFFF
+        #?-hlmem/character=utf-16
         (setf (schar result i) (%codepoint->character code))
         
         (setf word      (ash word (- bits))

@@ -21,7 +21,7 @@
 (in-suite mem-string-suite)
 
 
-#?+hlmem/character<=FFFF
+#?+hlmem/character=utf-16
 (defun make-rainbow-string ()
   (let* ((n #x110000)
          (string (make-array n :element-type 'character :adjustable t :fill-pointer 0)))
@@ -40,7 +40,7 @@
     string))
 
 
-#?-hlmem/character<=FFFF
+#?-hlmem/character=utf-16
 (defun make-rainbow-string ()
   (let* ((n #x110000)
          (string (make-string n)))
