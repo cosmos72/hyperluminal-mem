@@ -22,6 +22,8 @@
 
 (enable-#?-syntax)
 
+(deftype utf8-n-bytes () '(integer 0 4))
+(deftype word-n-bytes () '(integer 0 #.+msizeof-word+))
 
 (defmacro %code-is-high-surrogate (code)
   `(<= #xD800 ,code #xDBFF))
@@ -125,6 +127,39 @@ In any case, convert the code or the high/low surrogate pair to a codepoint."
   (declare (type (unsigned-byte 8) byte))
   (error "invalid byte. UTF-8 sequence cannot start with #x~X" byte))
 
+(defun invalid-utf8-continuation-error (byte)
+  (declare (type (unsigned-byte 8) byte))
+  (error "invalid byte. UTF-8 sequence cannot continue with #x~X" byte))
+
+
+(declaim (inline %utf-8-is-single-byte?))
+(defun %utf-8-is-single-byte? (byte)
+  (declare (optimize (speed 3) (safety 0) (debug 1))
+           (type (unsigned-byte 8) byte))
+  (<= byte #x7F))
+
+(declaim (inline %utf-8-is-first-byte?))
+(defun %utf-8-is-first-byte? (byte)
+  (declare (optimize (speed 3) (safety 0) (debug 1))
+           (type (unsigned-byte 8) byte))
+  (or (<= byte #x7F) (>= byte #xC0)))
+
+
+(declaim (inline %utf-8-first-byte->length))
+(defun %utf-8-first-byte->length (byte)
+  "Return the expected length, in bytes, of a UTF-8 multi-byte sequence
+given its first byte. Return 0 if BYTE is not a valid first byte for UTF-8 sequences"
+  (declare (optimize (speed 3) (safety 0) (debug 1))
+           (type (unsigned-byte 8) byte))
+  (cond ((<= byte #x7F) 1)
+        ((<= byte #xBF) 0)
+        ((<= byte #xDF) 2)
+        ((<= byte #xEF) 3)
+        ((<= byte #xF7) 4)
+        (t              0)))
+
+
+
 
 (declaim (inline %utf-8-word->codepoint))
 (defun %utf-8-word->codepoint (word)
@@ -139,6 +174,8 @@ In any case, convert the code or the high/low surrogate pair to a codepoint."
              (type (member bits 8 16 24 32 bits)))
     (cond
       ((<= byte0 #x7F) (setf n byte0))
+      
+      ((<= byte0 #xBF) (invalid-utf8-error byte0))
       
       ((<= byte0 #xDF)
        (setf n (logior (ash (logand #x3F00 word) -8)
