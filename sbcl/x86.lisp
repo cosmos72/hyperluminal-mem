@@ -178,14 +178,15 @@ suitable for MOV addressing modes"
 
 	   
 
+#+x86-64
+(define-fast-mread-mwrite :mread-name fast-mread/8 :mwrite-name fast-mwrite/8
+                          :type (unsigned-byte 64) :size :qword)
+
 
 (define-fast-mread-mwrite :mread-name fast-mread/4 :mwrite-name fast-mwrite/4
                           :type (unsigned-byte 32) :size :dword)
 
 
-#+x86-64
-(define-fast-mread-mwrite :mread-name fast-mread/8 :mwrite-name fast-mwrite/8
-                          :type (unsigned-byte 64) :size :qword)
 
 
 (defmacro define-fast-sap* ()
@@ -411,10 +412,10 @@ suitable for MOV addressing modes"
                      dst-scale dst-offset src-scale src-offset))))))))
 
 
-(define-fast-memcpy :memcpy-name fast-memcpy/4 :type (unsigned-byte 32) :size :dword)
-
 #+x86-64
 (define-fast-memcpy :memcpy-name fast-memcpy/8 :type (unsigned-byte 64) :size :qword)
+
+(define-fast-memcpy :memcpy-name fast-memcpy/4 :type (unsigned-byte 32) :size :dword)
 
 
 
@@ -503,17 +504,10 @@ suitable for MOV addressing modes"
 
 
 
-(define-fast-memset :memset-name fast-memset/4 :type (unsigned-byte 32) :size :dword)
-
 #+x86-64
 (define-fast-memset :memset-name fast-memset/8 :type (unsigned-byte 64) :size :qword)
 
+(define-fast-memset :memset-name fast-memset/4 :type (unsigned-byte 32) :size :dword)
 
 
 
-
-
-(define-fast-memcpy :memcpy-name fast-memcpy/4 :type (unsigned-byte 32) :size :dword)
-
-#+x86-64
-(define-fast-memcpy :memcpy-name fast-memcpy/8 :type (unsigned-byte 64) :size :qword)
