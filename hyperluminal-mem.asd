@@ -123,8 +123,12 @@
 						      "object")))
     :depends-on (:lang :ffi
 		 #+abcl :abcl
-		 #+(and sbcl (or arm x86 x86-64)) :sbcl))))
+		 #+(and sbcl (or arm x86 x86-64)) :sbcl))
 
+   (:module :tree
+    :components ((:file "package")
+		 (:file "b+tree"         :depends-on ("package")))
+    :depends-on (:mem))))
 
 
 (asdf:defsystem :hyperluminal-mem-test
