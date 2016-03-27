@@ -59,46 +59,47 @@
            (b+node-size value))
   (setf (svref node 2) value))
 
+(declaim (inline next-power-of-2 round-n-items))
 
-(defun round-up-to-power-of-2 (n)
+(defun next-power-of-2 (n)
   (declare (type b+node-size n))
-  (if (or (<= n 2)
-          (zerop (logand n (1- n))))
-      n
-      (ash 1 (integer-length n))))
+  (ash 1 (integer-length n)))
 
-(defun round-n-items (n)
+(defun round-b+node-size (n)
   (declare (type b+node-size n))
-  (- (the b+node-size (round-up-to-power-of-2
-                       (the b+node-size (+ 3 n))))
+  (- (the b+node-size (next-power-of-2 (the b+node-size (+ 2 n))))
      3))
 
-(defun b+node (&key (n-items nil) (pad t) (leaf nil) (initial-contents nil))
-  (declare (type (or null b+node-size) n-items)
+(defun b+node (&key (size nil) (capacity nil) (leaf nil) (initial-contents nil))
+  (declare (type (or null b+node-size) size capacity)
            (type list initial-contents))
-  ;; (lenth initial-contents) and n-items should be odd or zero
-  (let* ((n-items   (the b+node-size (cond
-                                       ((and n-items (plusp n-items))
-                                        (logior 1 n-items))
-                                       (initial-contents
-                                        (logior 1 (length initial-contents)))
-                                       (t 0))))
-         (n-rounded (the b+node-size (if pad (round-n-items n-items) n-items)))
-         (node      (make-array (+ 3 n-rounded))))
+  ;; (lentgh initial-contents), size and capacity should be odd or zero
+  (let* ((size (the b+node-size
+		    (cond
+		      (size             size)
+		      (initial-contents (length initial-contents))
+		      (t 0))))
+	 (capacity (cond
+		     ((null capacity)   (round-b+node-size (logior 1 size)))
+		     ((plusp capacity)  (logior 1 capacity))
+		     (t                 0)))
+	 (node     (make-array (+ 3 capacity))))
     (setf (b+node-tag node) (not leaf)
-          (b+node-lo node) 4 ;; position of first key, if present. first child would be at 3.
-          (b+node-hi node) (+ 3 n-items))
+	  ;; position of first key, if present. first child would be at 3.
+          (b+node-lo node) 4
+          (b+node-hi node) (+ 3 size))
     (loop
        :for item :in initial-contents
-       :for i :from 3 :below (+ 3 n-items)
+       :for i :from 3 :below (+ 3 size)
        :do (setf (svref node i) item))
     node))
 
-(defun b+leaf (&key (n-items nil) (pad t) (leaf t) (initial-contents nil))
-  (declare (type b+node-size n-items)
+(defun b+leaf (&key (size nil) (capacity nil) (leaf t) (initial-contents nil))
+  (declare (type (or null b+node-size) size capacity)
            (type list initial-contents))
-  (b+node :n-items (and n-items (1+ n-items))
-          :pad pad :leaf leaf
+  (b+node :size (and size (1+ size))
+	  :capacity (and capacity (1+ capacity))
+	  :leaf leaf
           :initial-contents (and initial-contents (cons nil initial-contents))))
 
 (defun b+node-find (node key)
@@ -165,19 +166,20 @@
 
 
 (defun test-b+node ()
-  (test-b+node-args :node (b+node :pad nil)
+  (test-b+node-args :node (b+node :capacity 0)
                     :min-key 0 :max-key 0
                     :expected-results #(nil))
 
-  (test-b+node-args :node (b+node :pad nil :initial-contents '(a))
+  (test-b+node-args :node (b+node :capacity 1 :initial-contents '(a))
                     :min-key 0 :max-key 1
                     :expected-results #(a a))
 
-  (test-b+node-args :node (b+node :pad nil :initial-contents '(a 10 b))
+  (test-b+node-args :node (b+node :capacity 3 :initial-contents '(a 10 b))
                     :min-key 8 :max-key 11
                     :expected-results #(a a b b))
 
-  (test-b+node-args :node (b+node :pad nil :initial-contents '(a 10 b 12 c 14 d 16 e 18 f))
+  (test-b+node-args :node (b+node :capacity 11
+				  :initial-contents '(a 10 b 12 c 14 d 16 e 18 f))
                     :min-key 8 :max-key 19
                     :expected-results #(a a b b c c d d e e f f)))
 
