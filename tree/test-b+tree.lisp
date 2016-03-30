@@ -47,3 +47,16 @@
                     :min-key 8 :max-key 19
                     :expected-results #(a a b b c c d d e e f f)))
 
+
+(defun test-b+tree ()
+  (let ((tree (b+tree :items-per-node 13 :contents #(1 a 2 b 3 c 4 d 5 e 6 f 7 g 8 h 9 i 10 j)))
+        (expected-tree (%b+tree
+                          :root #(t 4 6
+                                  #(nil 4 16 0 1 a 2 b 3 c 4 d 5 e 6 f)
+                                  7
+                                  #(nil 4 12 0 7 g 8 h 9 i 10 j 0 0 0 0)
+                                  0 0 0 0 0 0 0 0 0 0)
+                          :depth 1)))
+    (or (equalp tree expected-tree)
+        (error "TEST-B+TREE failed: test B+TREE contains ~S, expected ~S"
+               tree expected-tree))))

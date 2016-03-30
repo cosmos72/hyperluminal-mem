@@ -17,7 +17,7 @@
 
 (defstruct (b+tree (:constructor %b+tree))
   (root  nil :type (or null b+node))
-  (depth 0   :type b+node-size))
+  (depth 0   :type b+size))
 
 (defun b+tree (&key (items-per-node 1021) contents contents-start contents-end)
   (declare (type (integer 3 #.most-positive-b+size) items-per-node)
@@ -37,9 +37,11 @@
         (loop :until (zerop size)
            :do (let* ((n (min size items-per-node-1))
                       (leaf (b+leaf :size           n
+                                    :capacity       items-per-node-1
                                     :contents       contents
                                     :contents-start contents-start
-                                    :contents-end   contents-end)))
+                                    ;; no need for :contents-end
+                                    )))
                  (unless (b+node-empty? node)
                    (b+node-append node (svref contents contents-start)))
                  (b+node-append node leaf)
