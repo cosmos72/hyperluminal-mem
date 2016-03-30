@@ -15,10 +15,30 @@
 
 (in-package :hyperluminal-mem-tree)
 
-(deftype b+node-size ()
-  #||#   #-(and) '(integer 0 #.(ash most-positive-fixnum -1))
-         #+(and) '(unsigned-byte 24))
+(defconstant most-positive-b+size
+  #+(and) (ash most-positive-fixnum -1)
+  #-(and) #xFFFFFF)
 
+(deftype b+size ()  '(integer 0 #.most-positive-b+size))
+(deftype ufixnum () '(integer 0 #.most-positive-fixnum))
+
+(declaim (inline b+size+ b+size- fixnum+ fixnum- ))
+
+(defun b+size+ (a b)
+  (declare (type b+size a b))
+  (the b+size (+ a b)))
+
+(defun b+size- (a b)
+  (declare (type b+size a b))
+  (the b+size (- a b)))
+
+(defun fixnum+ (a b)
+  (declare (type fixnum a b))
+  (the fixnum (+ a b)))
+
+(defun fixnum- (a b)
+  (declare (type fixnum a b))
+  (the fixnum (- a b)))
 
 (deftype b+node () 'simple-vector)
 (deftype b+leaf () 'b+node)
@@ -28,11 +48,11 @@
 
 (defun b+node-ref (node index)
   (declare (type b+node node)
-           (type b+node-size index))
+           (type b+size index))
   (svref node index))
 (defun (setf b+node-ref) (value node index)
   (declare (type b+node node)
-           (type b+node-size index))
+           (type b+size index))
   (setf (svref node index) value))
 
 (defun b+node-tag (node)
@@ -45,62 +65,70 @@
 
 (defun b+node-lo (node)
   (declare (type b+node node))
-  (the b+node-size (svref node 1)))
+  (the b+size (svref node 1)))
 (defun (setf b+node-lo) (value node)
   (declare (type b+node node)
-           (b+node-size value))
+           (b+size value))
   (setf (svref node 1) value))
 
 (defun b+node-hi (node)
   (declare (type b+node node))
-  (the b+node-size (svref node 2)))
+  (the b+size (svref node 2)))
 (defun (setf b+node-hi) (value node)
   (declare (type b+node node)
-           (b+node-size value))
+           (b+size value))
   (setf (svref node 2) value))
 
-(declaim (inline next-power-of-2 round-n-items))
+(declaim (inline b+node-empty?))
+(defun b+node-empty? (node)
+  (declare (type b+node node))
+  (> (b+node-lo node) (b+node-hi node)))
 
+(declaim (inline next-power-of-2))
 (defun next-power-of-2 (n)
-  (declare (type b+node-size n))
+  (declare (type b+size n))
   (ash 1 (integer-length n)))
 
-(defun round-b+node-size (n)
-  (declare (type b+node-size n))
-  (- (the b+node-size (next-power-of-2 (the b+node-size (+ 2 n))))
-     3))
+(declaim (inline round-n-items))
+(defun round-n-items (n)
+  (declare (type b+size n))
+  (b+size- (next-power-of-2 (b+size+ 2 n))
+           3))
 
-(defun b+node (&key (size nil) (capacity nil) (leaf nil) (initial-contents nil))
-  (declare (type (or null b+node-size) size capacity)
-           (type list initial-contents))
-  ;; (lentgh initial-contents), size and capacity should be odd or zero
-  (let* ((size (the b+node-size
-		    (cond
-		      (size             size)
-		      (initial-contents (length initial-contents))
-		      (t 0))))
+(defun b+node (&key leaf size capacity contents contents-start contents-end)
+  (declare (type (or null b+size) size capacity contents-end)
+           (type (or null (member -1) b+size) contents-start)
+           (type (or null simple-vector) contents))
+  ;; size and capacity should be odd or zero
+  ;; for non-leaves, (length contents) should be odd or zero
+  ;; for leaves, (length contents) should be even
+  (let* ((contents-len   (the b+size (if contents
+                                         (length contents)
+                                         0)))
+         (contents-start (the (or (member -1) b+size) (or contents-start 0)))
+         (contents-end   (the b+size (if contents-end
+                                         (min contents-end contents-len)
+                                         contents-len)))
+         (size (the b+size (or size (fixnum- contents-end contents-start))))
 	 (capacity (cond
-		     ((null capacity)   (round-b+node-size (logior 1 size)))
+		     ((null capacity)   (round-n-items (logior 1 size)))
 		     ((plusp capacity)  (logior 1 capacity))
 		     (t                 0)))
-	 (node     (make-array (+ 3 capacity))))
+	 (node     (make-array (b+size+ 3 capacity))))
     (setf (b+node-tag node) (not leaf)
 	  ;; position of first key, if present. first child would be at 3.
           (b+node-lo node) 4
-          (b+node-hi node) (+ 3 size))
+          (b+node-hi node) (b+size+ 3 size))
+
     (loop
-       :for item :in initial-contents
-       :for i :from 3 :below (+ 3 size)
-       :do (setf (svref node i) item))
+       :for i fixnum :from (if leaf 1 0) :below (min size (fixnum- contents-end
+                                                                   contents-start))
+       :for j fixnum = (+ i contents-start)
+       :when (>= j 0)
+       :do (setf (svref node (fixnum+ 3 i)) (svref contents j)))
     node))
 
-(defun b+leaf (&key (size nil) (capacity nil) (leaf t) (initial-contents nil))
-  (declare (type (or null b+node-size) size capacity)
-           (type list initial-contents))
-  (b+node :size (and size (1+ size))
-	  :capacity (and capacity (1+ capacity))
-	  :leaf leaf
-          :initial-contents (and initial-contents (cons nil initial-contents))))
+(declaim (inline b+node-find))
 
 (defun b+node-find (node key)
   (declare (type b+node node)
@@ -113,7 +141,7 @@
           ;; lo, mid and hi point to keys and must always be even,
           ;; because odd positions contain children
           :do
-          (let* ((mid  (the b+node-size (logand -2 (ash (+ lo hi) -1))))
+          (let* ((mid  (the b+size (logand -2 (ash (+ lo hi) -1))))
                  (kmid (the fixnum (b+node-ref node mid))))
             (cond
               ((fixnum< key kmid) (setf hi mid))
@@ -125,61 +153,19 @@
                             (1+ lo))))
       ((= lo hi) (b+node-ref node (1- lo))) ;; no keys, only one child
       ((> lo hi) nil))))
-      
 
-(defun b+leaf-find (node key)
-  (declare (type b+node node)
-           (type fixnum key))
-  (let ((lo (b+node-lo node))
-        (hi (b+node-hi node)))
-    ;; (>= lo hi) means no keys, and leaves cannot have children,
-    ;; much less a lone child without keys
-    (when (< lo hi) 
-      (loop
-         ;; lo, mid and hi point to keys and must always be even,
-         ;; because odd positions contain values
-         :do
-         (let* ((mid  (the b+node-size (logand -2 (ash (+ lo hi) -1))))
-                (kmid (the fixnum (b+node-ref node mid))))
-           (cond
-             ((fixnum< key kmid) (setf hi mid))
-             ((fixnum> key kmid) (setf lo mid))
-             (t (return-from b+leaf-find (values (b+node-ref node (1+ mid)) t)))))
-         :while (< (+ lo 2) hi))
-      (when (fixnum= key (b+node-ref node lo))
-        (return-from b+leaf-find (values (b+node-ref node (1+ lo)) t)))))
-  (values nil nil))
+(declaim (inline b+node-append))
+
+(defun b+node-append (node item)
+  (declare (type b+node node))
+  (let ((hi (b+node-hi node))
+        (cap (length node)))
+    (when (< hi cap)
+      (setf (svref node hi) item)
+      (setf (b+node-hi node) (fixnum+ 1 hi))
+      t)))
+        
+    
+
 
                
-            
-(defun test-b+node-args (&key node min-key max-key expected-results)
-  (declare (type b+node node)
-           (type fixnum min-key max-key)
-           (type simple-vector expected-results))
-  (loop :for key :from min-key :to max-key
-     :for expected :across expected-results
-     :for actual = (b+node-find node key)
-     :unless (eql actual expected)
-     :do (error "TEST-B+NODE failed: searching key ~S in ~S returned value ~S, expected ~S"
-                key node actual expected))
-  t)
-
-
-(defun test-b+node ()
-  (test-b+node-args :node (b+node :capacity 0)
-                    :min-key 0 :max-key 0
-                    :expected-results #(nil))
-
-  (test-b+node-args :node (b+node :capacity 1 :initial-contents '(a))
-                    :min-key 0 :max-key 1
-                    :expected-results #(a a))
-
-  (test-b+node-args :node (b+node :capacity 3 :initial-contents '(a 10 b))
-                    :min-key 8 :max-key 11
-                    :expected-results #(a a b b))
-
-  (test-b+node-args :node (b+node :capacity 11
-				  :initial-contents '(a 10 b 12 c 14 d 16 e 18 f))
-                    :min-key 8 :max-key 19
-                    :expected-results #(a a b b c c d d e e f f)))
-
