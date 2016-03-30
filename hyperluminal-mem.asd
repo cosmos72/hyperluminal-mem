@@ -127,7 +127,7 @@
 
    (:module :tree
     :components ((:file "package")
-		 (:file "b+tree"         :depends-on ("package")))
+		 (:file "b+node"         :depends-on ("package")))
     :depends-on (:mem))))
 
 
