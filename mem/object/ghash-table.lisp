@@ -84,7 +84,7 @@ expecting one of the trusted values ~S" type :hash hash *ghash-table-trusted-has
       
       (check-type n mem-uint)
 
-      (let ((obj (new type :test test :hash hash :initial-capacity n)))
+      (let ((obj (make-instance type :test test :hash hash :initial-capacity n)))
         (declare (type ghash-table obj))
 
         (dotimes (i n)

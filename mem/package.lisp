@@ -27,13 +27,12 @@
 
   (:import-from #:stmx.lang
 
-                #:eval-always  #:enable-#?-syntax #:get-feature
-                #:set-feature  #:set-features
+                #:eval-always   #:enable-#?-syntax #:get-feature
+                #:set-feature   #:set-features
 
 
-                #:define-global                #:define-constant-once
-                #:with-gensym  #:with-gensyms  #:new      #:let1
-                #:when-bind    #:if-bind       #:awhen    #:aif)
+                #:define-global #:define-constant-once
+                #:with-gensym   #:with-gensyms)
 
   (:import-from #:stmx
                 #:+unbound-tvar+)

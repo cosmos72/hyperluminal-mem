@@ -64,7 +64,7 @@ expecting one of the trusted values ~S" type :pred pred *gmap-trusted-pred-list*
 
       (check-type n mem-uint)
       
-      (let ((obj (new type :pred pred)))
+      (let ((obj (make-instance type :pred pred)))
         (declare (type gmap obj))
         (dotimes (i n)
           (with-mread* (key value new-index) (ptr index end-index)

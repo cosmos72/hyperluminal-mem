@@ -25,11 +25,10 @@
 
   (:import-from #:stmx.lang
 
-                #:eval-always  #:enable-#?-syntax
+                #:eval-always   #:enable-#?-syntax
 
-                #:define-global                #:define-constant-once
-                #:with-gensym  #:with-gensyms  #:new      #:let1
-                #:when-bind    #:if-bind       #:awhen    #:aif )
+                #:define-global #:define-constant-once
+                #:with-gensym   #:with-gensyms)
 
   (:export #:ffi-mem-get     #:ffi-mem-set
            #:ffi-mem-alloc   #:ffi-mem-free    #:ffi-endianity

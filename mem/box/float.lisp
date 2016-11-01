@@ -50,7 +50,7 @@ ABI: single-float is stored raw (usually means IEEE format)"
            (type mem-size index end-index)
            (type single-float value))
 
-  (let1 n-words +msize-box/sfloat+
+  (let ((n-words +msize-box/sfloat+))
     (check-mem-overrun ptr index end-index n-words)
 
     (mset-t value :sfloat ptr index)
@@ -66,7 +66,7 @@ ABI: double-float is stored raw (usually means IEEE format)"
            (type mem-size index end-index)
            (type double-float value))
 
-  (let1 n-words +msize-box/dfloat+
+  (let ((n-words +msize-box/dfloat+))
     (check-mem-overrun ptr index end-index n-words)
     
     (mset-t value :dfloat ptr index)
@@ -79,7 +79,7 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index))
   
-  (let1 n-words +msize-box/sfloat+
+  (let ((n-words +msize-box/sfloat+))
     (check-mem-length ptr index end-index n-words)
 
     (values
@@ -93,7 +93,7 @@ Assumes BOX header was already read."
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
-  (let1 n-words +msize-box/dfloat+
+  (let ((n-words +msize-box/dfloat+))
     (check-mem-length ptr index end-index n-words)
 
     (values

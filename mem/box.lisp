@@ -197,9 +197,10 @@ Does NOT round up the returned value to a multiple of +MEM-BOX/MIN-WORDS+"
 
   (if (is-unboxed? value)
       (mem-size+1 index)
-      (if-bind box-type (or type (mdetect-box-type value))
-        (msize-box index value box-type)
-        (msize-obj index value))))
+      (let ((box-type (or type (mdetect-box-type value))))
+        (if box-type
+            (msize-box index value box-type)
+            (msize-obj index value)))))
 
 
 
@@ -225,9 +226,10 @@ WARNING: enough memory must be already allocated at (PTR+INDEX) !!!"
 
   (if (mset-unboxed ptr index value)
       (mem-size+1 index)
-      (if-bind box-type (or type (mdetect-box-type value))
-          (mwrite-box ptr index end-index value box-type)
-          (mwrite-obj ptr index end-index value))))
+      (let ((box-type (or type (mdetect-box-type value))))
+        (if box-type
+            (mwrite-box ptr index end-index value box-type)
+            (mwrite-obj ptr index end-index value)))))
 
 
 
@@ -308,7 +310,7 @@ will be bound to the new value of INDEX"
 (defmacro msize* (index value &rest more-values)
   (if more-values
       (with-gensym new-index
-        `(let1 ,new-index (msize ,index ,value)
+        `(let ((,new-index (msize ,index ,value)))
            (msize* ,new-index ,@more-values)))
       `(msize ,index ,value)))
 
@@ -318,7 +320,7 @@ will be bound to the new value of INDEX"
   "Warning: this macro expands multiple references to PTR and END-INDEX"
   (if more-values
       (with-gensyms (new-index)
-        `(let1 ,new-index (mwrite ,ptr ,index ,end-index ,value)
+        `(let ((,new-index (mwrite ,ptr ,index ,end-index ,value)))
            (%mwrite* ,ptr ,new-index ,end-index ,@more-values)))
       `(mwrite ,ptr ,index ,end-index ,value)))
 

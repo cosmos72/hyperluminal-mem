@@ -40,7 +40,7 @@ ABI: Writes numerator, then denominator."
            (type mem-size index end-index)
            (type ratio value))
 
-  (let1 index (mwrite ptr index end-index (numerator value))
+  (let ((index (mwrite ptr index end-index (numerator value))))
 
     (mwrite ptr index end-index (denominator value))))
 

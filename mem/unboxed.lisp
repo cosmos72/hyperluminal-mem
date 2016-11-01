@@ -451,11 +451,12 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
 
       (t 
        ;; value is a predefined symbol?
-       (if-bind ref-vid (gethash value +symbols-table+)
-         (setf vid ref-vid)
-         ;; default case: value cannot be be stored as unboxed type, return NIL
-         ;; TODO: handle pointers
-         (return-from mset-unboxed nil))))
+       (let ((ref-vid (gethash value +symbols-table+)))
+         (if ref-vid
+             (setf vid ref-vid)
+             ;; default case: value cannot be be stored as unboxed type, return NIL
+             ;; TODO: handle pointers
+             (return-from mset-unboxed nil)))))
 
     (mset-tag-and-vid ptr index tag vid)))
 

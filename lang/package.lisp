@@ -24,7 +24,7 @@
   (:use #:cl)
 
   (:import-from #:stmx.lang
-                #:with-gensyms #:when-bind #:set-feature)
+                #:with-gensyms #:set-feature)
   
   (:export #:eval-compile-constant #:check-compile-constant
 	   #:or-func    #:and-func

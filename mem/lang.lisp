@@ -33,12 +33,14 @@
          return (subseq fname prefix-len))))
            
   (defun find-hldb-option/integer (prefix)
-    (when-bind f (find-hldb-option/string prefix)
-      (parse-integer f)))
+    (let ((f (find-hldb-option/string prefix)))
+      (when f
+        (parse-integer f))))
 
   (defun find-hldb-option/keyword (prefix)
-    (when-bind f (find-hldb-option/string prefix)
-      (intern f :keyword)))
+    (let ((f (find-hldb-option/string prefix)))
+      (when f
+        (intern f :keyword))))
 
   (defun choose-word-type ()
     "Choose the file format and ABI between 32 or 64 bit - and possibly more in the future.
@@ -97,8 +99,9 @@ to convert it to a keyword, use it as the definition of `mem-word`,
 and derive `+msizeof-word+` from it."
 
     ;;search for :hyperluminal-mem/word-type/<SOME-CFFI-SYS-TYPE> in *features*
-    (when-bind type (find-hldb-option/keyword 'word-type)
-      (return-from choose-word-type (the symbol type)))
+    (let ((type (find-hldb-option/keyword 'word-type)))
+      (when type
+        (return-from choose-word-type (the symbol type))))
 
     ;; search for :hyperluminal-mem/word-size/<INTEGER> in *features*
     (let ((size (or (find-hldb-option/integer 'word-size)
@@ -108,8 +111,9 @@ and derive `+msizeof-word+` from it."
                                      :unsigned-long :unsigned-long-long)
                       collect (cons (ffi-sizeof type) type))))
 
-      (when-bind type (rest (assoc (the fixnum size) types))
-        (return-from choose-word-type (the symbol type)))
+      (let ((type (rest (assoc (the fixnum size) types))))
+        (when type
+          (return-from choose-word-type (the symbol type))))
           
       (error "Hyperluminal-MEM: failed to find a CFFI-SYS unsigned integer type
 having size = ~S. Tried the following types: ~S" size types))))

@@ -93,7 +93,7 @@ Does not count the space needed by BOX header."
 
   ;; assume symbol does NOT have predefined representation
 
-  (let1 index (%package-words index (symbol-package sym))
+  (let ((index (%package-words index (symbol-package sym))))
     (msize-box/string-utf-8   index (symbol-name    sym))))
 
 

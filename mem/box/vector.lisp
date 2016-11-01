@@ -158,10 +158,10 @@ Assumes BOX header was already read."
 
     (incf-mem-size index)
 
-    (let1 vector (the simple-vector (make-array len))
-      (loop for i from 0 below len
-	 do (multiple-value-bind (e e-index) (mread ptr index end-index)
-	      (setf (svref vector i) e
-                    index (the mem-size e-index))))
+    (let ((vector (the simple-vector (make-array len))))
+      (dotimes (i len)
+        (multiple-value-bind (e e-index) (mread ptr index end-index)
+          (setf (svref vector i) e
+                index (the mem-size e-index))))
 
       (values vector index))))

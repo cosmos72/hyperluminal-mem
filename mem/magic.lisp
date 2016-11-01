@@ -137,7 +137,7 @@ they are allowed to differ between data and compiled library")
     (when (equalp magic *zero-magic*)
       (return-from mread-magic nil))
 
-    (let1 endian-magic (subseq magic 0 (length *endian-magic*))
+    (let ((endian-magic (subseq magic 0 (length *endian-magic*))))
 
       (unless (equalp endian-magic *endian-magic*)
 

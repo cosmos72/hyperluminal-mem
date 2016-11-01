@@ -58,7 +58,7 @@ including its header"
 
   (incf index +mem-box/header-words+)
 
-  (let1 index (msize index (type-of object))
+  (let ((index (msize index (type-of object))))
     (the (values mem-size &optional)
       (msize-object object index))))
 
