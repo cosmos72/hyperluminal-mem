@@ -31,6 +31,12 @@
 			    (ash 1 i)
 			    (/ 1 (ash 1 (- i)))))))
 
+(defstruct memory-operand
+  base
+  offset
+  direction
+  mode)
+
 (defun arm-scale=>shift (scale)
   (declare (type (or arm-scale arm-fixnum-scale) scale))
   (the arm-shift
@@ -348,6 +354,12 @@ suitable for LDR and STR addressing modes"
 (defun emit-stmia (tn n-words reg-list)
   (emit-bulk-transfer :store tn n-words reg-list))
 
+
+;;;; copied from SBCL sources sbcl.git/src/compiler/arm/insts.lisp
+(sb-assem::define-bitfield-emitter emit-dp-instruction 32
+  (byte 4 28) (byte 2 26) (byte 1 25) (byte 5 20)
+  (byte 4 16) (byte 4 12) (byte 12 0))
+
 #-(and) ;; unfinished
 (progn
   (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -373,28 +385,22 @@ suitable for LDR and STR addressing modes"
     (rm :field (byte 4 0) :type 'sb-vm::reg)))
 
 (defun emit-pld (address &optional (segment (sb-assem::%%current-segment%%)))
+  "Emit cache-preload instruction: PLD register [,offset]"
   (flet ((compute-opcode (direction)
            (if (eq direction :down) #b10101 #b11101)))
-    (sb-impl::aver (typep address 'sb-vm::memory-operand))
-    (let* ((base      (sb-vm::memory-operand-base      address))
-           (offset    (sb-vm::memory-operand-offset    address))
-           (direction (sb-vm::memory-operand-direction address))
-           (mode      (sb-vm::memory-operand-mode      address))
+    (sb-impl::aver (typep address 'memory-operand))
+    (let* ((base      (memory-operand-base      address))
+           (offset    (memory-operand-offset    address))
+           (direction (memory-operand-direction address))
+           (mode      (memory-operand-mode      address))
            (cond-bits #xf))
       (sb-impl::aver (eq mode :offset))
-      (cond
-        ((integerp offset)
-         (sb-impl::aver (typep offset '(unsigned-byte 12)))
-         (sb-vm::emit-dp-instruction segment cond-bits #b01 1
-                                     (compute-opcode direction)
-                                     (sb-c::tn-offset base) #xf
-                                     offset))
-        (t
-         (sb-vm::emit-dp-instruction segment cond-bits #b01 1
-                                     (compute-opcode direction)
-                                     (sb-c::tn-offset base) #xf
-                                     (sb-vm::encode-shifter-operand offset)))))))
-  
+      (sb-impl::aver (integerp offset))
+      (sb-impl::aver (typep offset '(unsigned-byte 12)))
+      (emit-dp-instruction segment cond-bits #b01 1
+                           (compute-opcode direction)
+                           (sb-c::tn-offset base) #xf
+                           offset))))
   
 
 
@@ -478,7 +484,9 @@ suitable for LDR and STR addressing modes"
    loop8
    (let ((regs (list r0 r1 r2 r3 r4 r5 r8 r10)))
      (emit-ldmia src 8 regs)
-     (emit-pld (sb-vm::@ src 256))
+     (emit-pld
+      (make-memory-operand :base src :offset 256
+                           :direction :up :mode :offset))
      (emit-stmia dst 8 regs)
      (sb-assem:inst sub n-words n-words 8))
    loop8-test
