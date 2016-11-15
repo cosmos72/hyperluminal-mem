@@ -152,7 +152,8 @@
                              (:file "memcpy"        :depends-on ("mem"))
                              (:file "abi"           :depends-on ("mem"))
                              (:file "string"        :depends-on ("abi"))
-                             (:file "stmx-objects"  :depends-on ("abi"))))))
+                             (:file "stmx-objects"  :depends-on ("abi"))
+                             (:file "run-suite"     :depends-on ("package"))))))
 
 
 (defmethod asdf:perform ((op asdf:test-op) (system (eql (asdf:find-system :hyperluminal-mem))))

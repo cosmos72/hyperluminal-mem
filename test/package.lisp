@@ -32,7 +32,7 @@
                 #:!mdump #:+most-negative-int+ #:+most-positive-int+
                 #:+stmx-unbound-tvar+  #:+stmx-empty-tcell+)
 
-  (:export #:suite))
+  (:export #:suite #:loop-run-tests))
 
 
 
