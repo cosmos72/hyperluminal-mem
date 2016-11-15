@@ -412,6 +412,19 @@ suitable for LDR and STR addressing modes"
     (values)
     (sb-c:always-translatable))
 
+(sb-c:define-vop (%memcpy-0/4)
+  (:policy :fast-safe)
+  (:translate %memcpy/4)
+  (:args (dst        :scs (sb-vm::sap-reg))
+	 (src        :scs (sb-vm::sap-reg)))
+  (:info n-words)
+  (:arg-types sb-sys:system-area-pointer
+	      sb-sys:system-area-pointer
+	      (:constant (integer 0 0)))
+  (:generator
+   0
+   nil))
+
 (sb-c:define-vop (%memcpy-1-4/4)
   (:policy :fast-safe)
   (:translate %memcpy/4)
