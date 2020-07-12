@@ -92,7 +92,7 @@
 (declaim (inline null-pointer?))
 
 (defun null-pointer? (ptr)
-  (declare (type (or nil ffi-address) ptr))
+  (declare (type (or null ffi-address) ptr))
   (eq nil ptr))
 
 
