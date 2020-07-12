@@ -87,14 +87,13 @@
 
     
   
-(define-constant-once +null-pointer+ #-abcl (cffi-sys:null-pointer) #+abcl java:+null+)
+(defconstant +null-pointer+ nil)
 
 (declaim (inline null-pointer?))
 
 (defun null-pointer? (ptr)
-  (declare (type ffi-address ptr))
-  #-abcl (cffi-sys:null-pointer-p ptr)
-  #+abcl (java:jnull-ref-p ptr))
+  (declare (type (or nil ffi-address) ptr))
+  (eq nil ptr))
 
 
 
