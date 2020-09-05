@@ -59,7 +59,8 @@ not including BOX header."
        (declare (type mem-word ,word))
        (loop for ,i from ,start below ,end by +mem-byte/bits+ do
             (setf ,word (logior ,word (the mem-word
-                                        (ash (%bit-vector-extract-byte ,vector ,i) ,i)))))
+                                           (ash (%bit-vector-extract-byte ,vector ,i)
+                                                (- ,i ,start))))))
        ,word)))
 
 
