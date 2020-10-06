@@ -21,6 +21,8 @@
 (defpackage #:hyperluminal-mem-sbcl
   (:nicknames #:hlm-sbcl)
   (:use #:cl #:hyperluminal-mem-lang #:hyperluminal-mem-ffi)
+  (:import-from #:stmx.asm
+                #:find-symbol*)
   (:import-from #:stmx.lang
                 #:eval-always  #:with-gensym  #:with-gensyms)
 

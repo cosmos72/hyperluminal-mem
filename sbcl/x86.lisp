@@ -452,9 +452,18 @@ suitable for MOV addressing modes"
                        sb-vm::unsigned-num
                        (:constant x86-fixnum-scale)
                        (:constant (signed-byte 32)))
-           #-x86 (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::eax-offset) rax)
-           #-x86 (:temporary (:sc sb-vm::unsigned-reg :offset sb-vm::ecx-offset) rcx)
-           #-x86 (:temporary (:sc sb-vm::sap-reg      :offset sb-vm::edi-offset) rdi)
+           #-x86 (:temporary (:sc sb-vm::unsigned-reg
+                                  :offset #.(or (find-symbol* :eax-offset :sb-vm)
+                                                (find-symbol* :rax-offset :sb-vm)))
+                             rax)
+           #-x86 (:temporary (:sc sb-vm::unsigned-reg
+                                  :offset #.(or (find-symbol* :ecx-offset :sb-vm)
+                                                (find-symbol* :rcx-offset :sb-vm)))
+                             rcx)
+           #-x86 (:temporary (:sc sb-vm::sap-reg
+                                  :offset #.(or (find-symbol* :edi-offset :sb-vm)
+                                                (find-symbol* :rdi-offset :sb-vm)))
+                             rdi)
 
            ;; x86 is register starved... save EAX, ECX and EDI on the stack before using them
            (:generator 20
