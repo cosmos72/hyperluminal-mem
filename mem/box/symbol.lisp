@@ -60,6 +60,7 @@ ABI: package is stored as package reference if possible, otherwise as package na
        (return-from %mwrite-package
          (mwrite-box/string-utf-8 ptr index end-index (package-name pkg)))))
 
+    (check-mem-overrun ptr index end-index 1)
     (mset-tag-and-vid ptr index tag vid)
     (mem-size+1 index)))
 
