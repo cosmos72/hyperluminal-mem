@@ -73,6 +73,7 @@ ABI: package is stored as package reference if possible, otherwise as package na
   (declare (type maddress ptr)
            (type mem-size index end-index))
 
+  (check-mem-length ptr index end-index 1)
   (with-tag-and-vid (tag vid) (ptr index)
     (if (= +mem-tag/symbol+ tag)
         (values

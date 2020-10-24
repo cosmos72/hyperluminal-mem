@@ -239,6 +239,7 @@ Return the value and (1+ the offset of last word actually read) as multiple valu
   (declare (type maddress ptr)
            (type mem-size index end-index))
   
+  (check-mem-length ptr index end-index 1)
   (multiple-value-bind (boxed-type n-words) (mread-box/header ptr index)
     ;; each BOX consumes at least header space + 1 word for payload.
     (let ((min-words #.(1+ +mem-box/header-words+)))
