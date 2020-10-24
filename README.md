@@ -493,13 +493,13 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    and `mwrite-object` with the following six lines of code:
   
         (defmethod msize-object ((object point3d) index)
-          (msize-object-slots object index))
+          (msize-object-slots object index '(x y z))
 
         (defmethod mwrite-object ((object point3d) ptr index end-index)
-          (mwrite-object-slots object ptr index end-index))
+          (mwrite-object-slots object ptr index end-index) '(x y z))
 
         (defmethod mread-object ((type (eql 'point3d) ptr index end-index &key)
-          (mread-object-slots (make-instance 'point3d) ptr index end-index))
+          (mread-object-slots (make-instance 'point3d) ptr index end-index '(x y z)))
 
    This simplified approach has some limitations:
   
@@ -513,16 +513,12 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
       slot values in order to pass it to `mread-object-slots`.
       This function will then set the actual slot values.
    
-   4. by default, **all** slots are serialized/deserialized. To override this
-      behaviour, programmers can specialize the generic function `mlist-object-slots`,
-      which must return the list of slots (either slot names or closer-mop:slot-definition)
-      to be serialized/deserialized. The methods on `mlist-object-slots` have the form:
+   4. the slots to be serialized/deserialized must be listed manually.
   
-           (defmethod mlist-object-slots ((object point3d))
-             '(x y z))
-       
-      i.e. they must be specialized on objects, not on their class names.
-  
+
+- `(MREAD-WORD PTR INDEX)` read a single word at ptr+index. Useful for debugging.
+
+- `(MWRITE-WORD PTR INDEX VALUE)` writes a single word at ptr+index. Useful for debugging.
 
 - `MWRITE-MAGIC` to be documented...
 
