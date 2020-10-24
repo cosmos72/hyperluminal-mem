@@ -464,11 +464,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
 
    An alternative approach to implement `msize-object`, `mread-object` and
    `mwrite-object` for standard-objects is to take advantage of the generic
-   functions `mlist-objects-slots`, `msize-object-slots`, `mread-object-slots`
-   and `mwrite-object-slots`. See `MWRITE-OBJECT-SLOTS` for details.
-
-- `MLIST-OBJECT-SLOTS` is a generic function, useful to implement `msize-object`,
-   `mread-object` and `mwrite-object` when extending Hyperluminal-mem.
+   functions `msize-object-slots`, `mread-object-slots` and `mwrite-object-slots`.
    See `MWRITE-OBJECT-SLOTS` for details.
 
 - `MSIZE-OBJECT-SLOTS` is a generic function, useful to implement `msize-object`
@@ -486,8 +482,8 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
   
    For such purpose, Hyperluminal-mem provides the functions
    `msize-object-slots`, `mread-object-slots` and `mwrite-object-slots`
-   which automatically obtain the slots of an object (more details below) and call
-   the appropriate function among `msize`, `mread`, `mwrite` on each slot.
+   which, given the slot names of an object, call the appropriate functions
+   on each slot.
   
    This allows programmers to implement `msize-object`, `mread-object`
    and `mwrite-object` with the following six lines of code:
@@ -504,6 +500,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
    This simplified approach has some limitations:
   
    1. it only works on standard-objects, i.e. on classes defined with (defclass ...)
+      (on SBCL it also appears to work on structs defined with (defstruct ...))
   
    2. it can only serialize/deserialize (some or all) the object slots
       with plain `msize`, `mread` and `mwrite`, i.e. it is **not** possible to
