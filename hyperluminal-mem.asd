@@ -134,27 +134,6 @@
     :depends-on (:mem))))
 
 
-(asdf:defsystem :hyperluminal-mem-test
-  :name "HYPERLUMINAL-MEM-TEST"
-  :version "0.6.2"
-  :author "Massimiliano Ghilardi"
-  :license "LLGPL"
-  :description "test suite for hyperluminal-mem"
-
-  :depends-on (:log4cl
-               :fiveam
-               :hyperluminal-mem)
-
-  :components ((:module :test
-                :components ((:file "package")
-                             (:file "magic"         :depends-on ("package"))
-                             (:file "mem"           :depends-on ("package"))
-                             (:file "memcpy"        :depends-on ("mem"))
-                             (:file "abi"           :depends-on ("mem"))
-                             (:file "string"        :depends-on ("abi"))
-                             (:file "stmx-objects"  :depends-on ("abi"))
-                             (:file "run-suite"     :depends-on ("package"))))))
-
 
 (defmethod asdf:perform ((op asdf:test-op) (system (eql (asdf:find-system :hyperluminal-mem))))
   (asdf:load-system :hyperluminal-mem-test)
