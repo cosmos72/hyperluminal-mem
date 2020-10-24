@@ -15,9 +15,10 @@
 
 (in-package :hyperluminal-mem-tree)
 
-(defconstant most-positive-b+size
-  #+(and) (ash most-positive-fixnum -1)
-  #-(and) #xFFFFFF)
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defconstant most-positive-b+size
+    #+(and) (ash most-positive-fixnum -1)
+    #-(and) #xFFFFFF))
 
 (deftype b+size ()  '(integer 0 #.most-positive-b+size))
 (deftype ufixnum () '(integer 0 #.most-positive-fixnum))
