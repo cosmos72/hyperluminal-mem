@@ -56,15 +56,20 @@ Hyperluminal-mem is currently tested on the following Common Lisp implementation
 * [CCL](http://ccl.clozure.com/)
   * version 1.12         (x86_64)   on Debian GNU/Linux bullseye (x86_64)
 
+* [CLISP](http://www.clisp.org/)
+  * version 2.49.92      (x86_64)   on Debian GNU/Linux bullseye (x86_64)
+
+  By default, quicklisp loads ASDF 2.26 on CLISP. You need to load ASDF >= 3.1
+  immediately after quicklisp or - even better - immediately before it.
+
 * [CMUCL](http://www.cons.org/cmucl/)
   * version 21c          (x86)      on Debian GNU/Linux bullseye (x86_64)
-  CMUCL is 32-bit only. On 64-bit systems, you need to install the 32-bit version of gcc
-  and to export the environment variable `export CC=i686-linux-gnu-gcc` before starting CMUCL.
+
+  CMUCL is 32-bit only. On 64-bit systems, you need to install the 32-bit version
+  of gcc (debian package gcc-i686-linux-gnu) and to export the environment variable
+  `export CC=i686-linux-gnu-gcc` before starting CMUCL.
 
 ### Unsupported systems
-
-* [CLISP](http://www.clisp.org/)
-  version 2.49.92 seems to still have ASDF2. You may try upgrading to ASDF >= 3.1 first.
 
 * [ECL](http://ecls.sourceforge.net/)
   versions 13.5.1, 15.2.1 and 20.4.24 have some known issues with CFFI, OSICAT and STMX,
