@@ -36,6 +36,8 @@
                              (:file "abi"           :depends-on ("mem"))
                              (:file "string"        :depends-on ("abi"))
                              (:file "stmx-objects"  :depends-on ("abi"))
-                             (:file "run-suite"     :depends-on ("package"))))))
+                             (:file "run-suite"     :depends-on ("package")))))
 
-
+  :perform (asdf:test-op
+            (o c)
+            (eval (read-from-string "(fiveam:run! 'hyperluminal-mem-test:suite)"))))

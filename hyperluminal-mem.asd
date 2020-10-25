@@ -131,10 +131,6 @@
     		 (:file "b+leaf"         :depends-on ("b+node"))
     		 (:file "b+tree"         :depends-on ("b+leaf"))
     		 (:file "test-b+tree"    :depends-on ("b+tree")))
-    :depends-on (:mem))))
+    :depends-on (:mem)))
 
-
-
-(defmethod asdf:perform ((op asdf:test-op) (system (eql (asdf:find-system :hyperluminal-mem))))
-  (asdf:load-system :hyperluminal-mem-test)
-  (eval (read-from-string "(fiveam:run! 'hyperluminal-mem-test:suite)")))
+  :in-order-to ((asdf:test-op (asdf:test-op "hyperluminal-mem-test"))))
