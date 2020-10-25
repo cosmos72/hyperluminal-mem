@@ -42,41 +42,33 @@ Supported systems
 Hyperluminal-mem is currently tested on the following Common Lisp implementations:
 
 * [SBCL](http://sbcl.org/)
-  * version 1.2.6        (x86_64)   on Debian GNU/Linux jessie (x86_64)
-  * version 1.1.15       (x86_64)   on Debian GNU/Linux jessie (x86_64)
-  * version 1.1.14       (x86)      on Debian GNU/Linux jessie (x86_64)
-  * version 1.2.8        (armhf)    on Debian GNU/Linux wheezy (armhf) inside Qemu
-  * version 1.1.15       (powerpc)  on Debian GNU/Linux jessie (powerpc) inside Qemu
-  * version 1.2.8        (sparc)    on Debian GNU/Linux wheezy (sparc) inside Qemu
+  * version 2.0.9        (x86_64)   on Debian GNU/Linux bullseye (x86_64)
+  * version 1.5.2        (x86_64)   on Debian GNU/Linux bullseye (x86_64)
   
 * [ABCL](http://www.abcl.org/)
-  * version 1.3.1 on OpenJDK 1.7.0_65 (x86_64) on Debian GNU/Linux jessie (x86_64)
+  * version 1.7.1 on OpenJDK 11.0.8 (x86_64) on Debian GNU/Linux bullseye (x86_64)
   
   Note: on ABCL, memory buffers are implemented using java.nio.ByteBuffer instead of CFFI-SYS
   raw memory pointers due to currently limited compatibility between ABCL and CFFI/OSICAT libraries.
   Memory-mapped files are supported, and internally use `java.nio.channels.FileChannel.map()`
   instead of OSICAT-POSIX `(mmap)`.
   
-  Futhermore, hyperluminal-mem test suite fails on ABCL versions up to 1.3.1
-  due to a bug in EQUALP implementation. The author contributed a fix to ABCL,
-  which should included in the next release.
-
 * [CCL](http://ccl.clozure.com/)
-  * version 1.10         (x86_64)   on Debian GNU/Linux jessie (x86_64)
-  * version 1.10         (x86)      on Debian GNU/Linux jessie (x86_64)
-  * version 1.10         (linuxarm) on Debian GNU/Linux wheezy (armhf) inside Qemu
-  * version 1.9-r15761   (linuxppc) on Debian GNU/Linux wheezy (powerpc) inside Qemu
+  * version 1.12         (x86_64)   on Debian GNU/Linux bullseye (x86_64)
 
-* [CLISP](http://www.clisp.org/)
-  * version 2.49         (x86_64)   on Debian GNU/Linux jessie (x86_64)
-  
 * [CMUCL](http://www.cons.org/cmucl/)
-  * version 20d Unicode  (x86)      on Debian GNU/Linux jessie  (x86_64)
+  * version 21c          (x86)      on Debian GNU/Linux bullseye (x86_64)
+  CMUCL is 32-bit only. On 64-bit systems, you need to install the 32-bit version of gcc
+  and to export the environment variable `export CC=i686-linux-gnu-gcc` before starting CMUCL.
 
 ### Unsupported systems
 
-* [ECL](http://ecls.sourceforge.net/) versions 13.5.1 and 15.2.1 have some known issues
-  with CFFI, OSICAT and STMX, three libraries required by Hyperluminal-mem.
+* [CLISP](http://www.clisp.org/)
+  version 2.49.92 seems to still have ASDF2. You may try upgrading to ASDF >= 3.1 first.
+
+* [ECL](http://ecls.sourceforge.net/)
+  versions 13.5.1, 15.2.1 and 20.4.24 have some known issues with CFFI, OSICAT and STMX,
+  three libraries required by Hyperluminal-mem.
   Once support for these three libraries improves, Hyperluminal-mem can be tested on it too.
 
 ### Other systems
