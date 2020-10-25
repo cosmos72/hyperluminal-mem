@@ -59,7 +59,7 @@ suitable for MOV addressing modes"
        (declaim (inline ,%mread-name))
        (defknown ,%mread-name
            ;;arg-types
-           (fast-sap fixnum x86-fixnum-scale (signed-byte 32))
+           (ffi-address fixnum x86-fixnum-scale (signed-byte 32))
            ;;result-type
            ,type
            (sb-c::flushable sb-c::important-result sb-c::always-translatable))
@@ -67,7 +67,7 @@ suitable for MOV addressing modes"
        (declaim (inline ,%mwrite-name))
        (defknown ,%mwrite-name
            ;;arg-types
-           (,type fast-sap fixnum x86-fixnum-scale (signed-byte 32))
+           (,type ffi-address fixnum x86-fixnum-scale (signed-byte 32))
            ;;result-type
            (values)
            (sb-c::always-translatable))
@@ -88,7 +88,7 @@ suitable for MOV addressing modes"
          (:arg-types sb-vm::system-area-pointer sb-vm::tagged-num
                      (:constant x86-fixnum-scale)
                      (:constant (signed-byte 32)))
-	      
+
          (:results   (r :scs (sb-vm::unsigned-reg)))
          (:result-types sb-vm::unsigned-num)
 
@@ -110,7 +110,7 @@ suitable for MOV addressing modes"
                      (:constant (member 0))
                      (:constant rational)
                      (:constant (signed-byte 32)))
-	      
+
          (:results   (r :scs (sb-vm::unsigned-reg)))
          (:result-types sb-vm::unsigned-num)
 
@@ -123,7 +123,7 @@ suitable for MOV addressing modes"
        (sb-c:define-vop (,%mwrite-name)
          (:policy :fast-safe)
          (:translate ,%mwrite-name)
-         
+
          (:args (value :scs (sb-vm::unsigned-reg))
                 (sap   :scs (sb-vm::sap-reg))
                 ;; directly use a tagged FIXNUM as INDEX... on SBCL
@@ -137,7 +137,7 @@ suitable for MOV addressing modes"
          (:arg-types sb-vm::unsigned-num sb-vm::system-area-pointer sb-vm::tagged-num
                      (:constant x86-fixnum-scale)
                      (:constant (signed-byte 32)))
-	      
+
          (:generator 2
           (sb-assem:inst mov
                          (sb-vm::make-ea ,size :base sap :index index
@@ -149,7 +149,7 @@ suitable for MOV addressing modes"
        (sb-c:define-vop (,%mwrite-name-c)
          (:policy :fast-safe)
          (:translate ,%mwrite-name)
-         
+
          (:args (value :scs (sb-vm::unsigned-reg))
                 (sap   :scs (sb-vm::sap-reg)))
          (:info index scale offset)
@@ -157,7 +157,7 @@ suitable for MOV addressing modes"
                      (:constant (member 0))
                      (:constant rational)
                      (:constant (signed-byte 32)))
-	      
+
          (:generator 1
           (sb-assem:inst mov
                          (sb-vm::make-ea ,size :base sap :disp offset)
@@ -176,7 +176,7 @@ suitable for MOV addressing modes"
              (check-x86-fixnum-addressing index scale offset)
            (list ',%mwrite-name value sap index scale offset))))))
 
-	   
+
 
 #+x86-64
 (define-fast-mread-mwrite :mread-name fast-mread/8 :mwrite-name fast-mwrite/8
@@ -189,21 +189,21 @@ suitable for MOV addressing modes"
 
 
 
-(defmacro define-fast-sap* ()
+(defmacro define-ffi-address* ()
   `(progn
      (eval-always
-       (declaim (inline %fast-sap+))
-       (defknown %fast-sap+
+       (declaim (inline %ffi-address+))
+       (defknown %ffi-address+
            ;;arg-types
-           (fast-sap fixnum x86-fixnum-scale (signed-byte 32))
+           (ffi-address fixnum x86-fixnum-scale (signed-byte 32))
            ;;result-type
-           fast-sap
+           ffi-address
            (sb-c::flushable sb-c::movable)))
 
      (eval-always
-       (sb-c:define-vop (%fast-sap+)
+       (sb-c:define-vop (%ffi-address+)
          (:policy :fast-safe)
-         (:translate %fast-sap+)
+         (:translate %ffi-address+)
          (:args (sap   :scs (sb-vm::sap-reg))
                 ;; directly use a tagged FIXNUM as INDEX... on SBCL
                 ;; its representation is shifted by +n-fixnum-tag-bits+
@@ -216,7 +216,7 @@ suitable for MOV addressing modes"
          (:arg-types sb-vm::system-area-pointer sb-vm::tagged-num
                      (:constant x86-fixnum-scale)
                      (:constant (signed-byte 32)))
-         
+
          (:results   (r :scs (sb-vm::sap-reg)))
          (:result-types sb-vm::system-area-pointer)
 
@@ -228,9 +228,9 @@ suitable for MOV addressing modes"
                                          :disp offset)))))
 
      (eval-always
-       (sb-c:define-vop (%fast-sap+/const)
+       (sb-c:define-vop (%ffi-address+/const)
          (:policy :fast-safe)
-         (:translate %fast-sap+)
+         (:translate %ffi-address+)
 
          (:args (sap   :scs (sb-vm::sap-reg)
                        :load-if (not (sb-c::location= sap r))))
@@ -239,7 +239,7 @@ suitable for MOV addressing modes"
                      (:constant (member 0))
                      (:constant rational)
                      (:constant (signed-byte 32)))
-         
+
          (:results   (r :scs (sb-vm::sap-reg)
                         :load-if (not (sb-c::location= sap r))))
          (:result-types sb-vm::system-area-pointer)
@@ -253,24 +253,24 @@ suitable for MOV addressing modes"
                  (sb-assem:inst lea r
                                 (sb-vm::make-ea #+x86 :dword #-x86 :qword
                                                 :base sap :disp offset)))))))
-     
-     (defmacro fast-sap+ (sap index
+
+     (defmacro ffi-address+ (sap index
                           &key (scale +fixnum-zero-mask+1+) (offset 0))
        (multiple-value-bind (index scale offset)
            (check-x86-fixnum-addressing index scale offset)
          (if (and (integerp index) (zerop index)
                   (integerp offset) (zerop offset))
              sap
-             `(%fast-sap+ ,sap ,index ,scale ,offset))))
+             `(%ffi-address+ ,sap ,index ,scale ,offset))))
 
-     (declaim (inline fast-sap<))
-     (defun fast-sap< (x y)
-       (declare (type fast-sap x y))
+     (declaim (inline ffi-address<))
+     (defun ffi-address< (x y)
+       (declare (type ffi-address x y))
        (sb-sys:sap< x y))))
 
 
 
-(define-fast-sap*)
+(define-ffi-address*)
 
 
 
@@ -278,7 +278,7 @@ suitable for MOV addressing modes"
   (let* ((sizeof-word (truncate (integer-length sb-ext:most-positive-word) 8))
          (name  (concat-symbols 'fast-mword/ sizeof-word '=>fixnum))
          (%name (concat-symbols '% name)))
-    
+
     `(progn
        (eval-always
          (defknown ,%name
@@ -290,7 +290,7 @@ suitable for MOV addressing modes"
          (sb-c:define-vop (,%name)
            (:policy :fast-safe)
            (:translate ,%name)
-         
+
            (:args (x :scs (sb-vm::unsigned-reg) :target y
                      :load-if (not (sb-c::location= x y))))
            (:arg-types sb-vm::unsigned-num)
@@ -320,7 +320,7 @@ suitable for MOV addressing modes"
 (define-fast-mword=>fixnum)
 
 
-               
+
 
 (defmacro define-fast-memcpy (&key memcpy-name type size)
   (declare (ignore type))
@@ -331,7 +331,7 @@ suitable for MOV addressing modes"
 
        (eval-always
          (defknown ,%memcpy-name
-             (fast-sap fixnum fast-sap fixnum sb-ext:word
+             (ffi-address fixnum ffi-address fixnum sb-ext:word
                        x86-fixnum-scale (signed-byte 32)
                        x86-fixnum-scale (signed-byte 32))
              (values)
@@ -398,7 +398,7 @@ suitable for MOV addressing modes"
                 (sb-assem:inst pop rsi)
                 (unless (sb-vm::location= n-words rcx)
                   (sb-assem:inst pop rcx)))))))
-              
+
        (eval-always
          (defmacro ,memcpy-name (dst dst-index src src-index n-words
                                  &key
@@ -433,7 +433,7 @@ suitable for MOV addressing modes"
 
        (eval-always
          (defknown ,%memset-name
-             (fast-sap fixnum word ,type
+             (ffi-address fixnum word ,type
                        x86-fixnum-scale (signed-byte 32))
              (values)
              (sb-c:always-translatable)))
@@ -502,7 +502,7 @@ suitable for MOV addressing modes"
                   (sb-assem:inst pop rcx))
                 (unless (sb-vm::location= fill-word rax)
                   (sb-assem:inst push rax)))))))
-              
+
        (eval-always
          (defmacro ,memset-name (ptr index n-words fill-word
                                  &key
@@ -517,6 +517,3 @@ suitable for MOV addressing modes"
 (define-fast-memset :memset-name fast-memset/8 :type (unsigned-byte 64) :size :qword)
 
 (define-fast-memset :memset-name fast-memset/4 :type (unsigned-byte 32) :size :dword)
-
-
-

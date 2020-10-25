@@ -94,16 +94,6 @@
 
 
 
-#?+(or hlmem/fast-mem hlmem/fast-memcpy hlmem/fast-memset)
-(let ((fast-sym (get-symbol 'hlm-asm (stringify 'fast-sap/ +msizeof-word+)
-			    :errorp t))
-      (to-fast-sym (get-symbol 'hlm-asm (stringify 'sap=>fast-sap/ +msizeof-word+)
-			       :errorp t)))
-  (deftype fast-sap () fast-sym)
-  (defmacro sap=>fast-sap (x)
-    `(,to-fast-sym ,x)))
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -112,7 +102,7 @@
     #?+hlmem/fast-mem
     (when (eq +chosen-word-type+ (parse-type type))
       (return-from mget-t/native-endianity
-        `(fast-mget-word/native-endianity (sap=>fast-sap ,ptr) ,word-index)))
+        `(fast-mget-word/native-endianity ,ptr ,word-index)))
     ;; common case
     `(%mget-t ,type ,ptr (the #+sbcl mem-word #-sbcl t
                               (* ,word-index +msizeof-word+))))
@@ -120,7 +110,7 @@
     #?+hlmem/fast-mem
     (when (eq +chosen-word-type+ (parse-type type))
       (return-from mset-t/native-endianity
-        `(fast-mset-word/native-endianity ,value (sap=>fast-sap ,ptr) ,word-index)))
+        `(fast-mset-word/native-endianity ,value ,ptr ,word-index)))
     ;; common case
     `(%mset-t ,value ,type ,ptr (the #+sbcl mem-word #-sbcl t
                                      (* ,word-index +msizeof-word+))))
@@ -165,4 +155,3 @@
   (defsetf mget-word mset-word))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-

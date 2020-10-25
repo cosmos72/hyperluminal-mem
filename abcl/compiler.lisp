@@ -16,24 +16,6 @@
 (in-package :hyperluminal-mem-abcl)
 
 
-(deftype fast-sap () 'ffi-address)
-
-(deftype fast-sap/4 ()
-  "A faster implementation of foreign pointers (sap).
-Implementation note: for ABCL, FAST-SAP/4 is the same as normal SAP,
-i.e. java.nio.ByteBuffer. We sometimes use java.nio.IntBuffer, but
-only internally because creating them is a relatively slow
-instantiation, while sap=>fast-sap/4 is supposed to be *fast*"
-  'ffi-address)
-
-(deftype fast-sap/8 ()
-  "A faster implementation of foreign pointers (sap).
-Implementation note: for ABCL, FAST-SAP/8 is the same as normal SAP,
-i.e. java.nio.ByteBuffer. We sometimes use java.nio.LongBuffer, but
-only internally because creating them is a relatively slow
-instantiation, while sap=>fast-sap/8 is supposed to be *fast*"
-  'ffi-address)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defconstant +jclass-int-array+  (java:jclass-of (java:jnew-array "int" 0)))
@@ -73,14 +55,6 @@ instantiation, while sap=>fast-sap/8 is supposed to be *fast*"
   (java:jmethod "java.nio.LongBuffer" "put" +jclass-long-array+ "int" "int"))
 
 
-         
-(declaim (inline sap=>fast-sap/4))
-(defun sap=>fast-sap/4 (x)
-  x)
-
-(declaim (inline sap=>fast-sap/8))
-(defun sap=>fast-sap/8 (x)
-  x)
 
 (declaim (inline sap=>buf4 (x)))
 (defun sap=>buf4 (x)
@@ -127,4 +101,3 @@ instantiation, while sap=>fast-sap/8 is supposed to be *fast*"
 (defmacro buf8-inc-position (sap index &key (scale 1) (offset 0))
   `(incf (the fixnum (buf8-position ,sap))
 	 (fixnum+ (fixnum* ,index ,scale) ,offset)))
-

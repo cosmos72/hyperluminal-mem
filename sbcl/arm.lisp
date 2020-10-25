@@ -81,12 +81,12 @@
     (let* ((min-shift    (the arm-shift (min index-shift offset-shift)))
 	   (delta-index  (the arm-shift (- index-shift  min-shift)))
 	   (delta-offset (the arm-shift (- offset-shift min-shift))))
-      
+
       (values `(+ ,(if (zerop delta-index)  index `(ash ,index ,delta-index))
 		  ,(if (zerop delta-offset) offset (ash offset  delta-offset)))
 	      min-shift 0))))
 
-    
+
 
 (defun check-arm-fixnum-addressing (index fixnum-scale offset)
   "Return a triplet (values index shift offset)
@@ -112,7 +112,7 @@ suitable for LDR and STR addressing modes"
 	  (values index fixnum-shift 0)
 	  ;; worst case: work around non-zero offset
 	  (encode-arm-index+shift+large-offset index fixnum-shift offset)))))
-	    
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -127,14 +127,14 @@ suitable for LDR and STR addressing modes"
     `(progn
        (defknown ,%mread-name
            ;;arg-types
-           (fast-sap fixnum arm-shift arm-offset)
+           (ffi-address fixnum arm-shift arm-offset)
            ;;result-type
            ,type
            (sb-c::flushable sb-c::important-result sb-c::always-translatable))
 
        (defknown ,%mwrite-name
            ;;arg-types
-           (,type fast-sap fixnum arm-shift arm-offset)
+           (,type ffi-address fixnum arm-shift arm-offset)
            ;;result-type
            (values)
            (sb-c::always-translatable))
@@ -172,7 +172,7 @@ suitable for LDR and STR addressing modes"
                      (:constant (member 0))
                      (:constant integer)
                      (:constant arm-offset))
-	      
+
          (:results   (r :scs (sb-vm::unsigned-reg)))
          (:result-types sb-vm::unsigned-num)
 
@@ -182,7 +182,7 @@ suitable for LDR and STR addressing modes"
        (sb-c:define-vop (,%mwrite-name)
          (:policy :fast-safe)
          (:translate ,%mwrite-name)
-         
+
          (:args (value :scs (sb-vm::unsigned-reg))
                 (sap   :scs (sb-vm::sap-reg))
                 ;; directly use a tagged FIXNUM as INDEX... on SBCL
@@ -202,7 +202,7 @@ suitable for LDR and STR addressing modes"
        (sb-c:define-vop (,%mwrite-name-c)
          (:policy :fast-safe)
          (:translate ,%mwrite-name)
-         
+
          (:args (value :scs (sb-vm::unsigned-reg))
                 (sap   :scs (sb-vm::sap-reg)))
          (:info index shift offset)
@@ -210,7 +210,7 @@ suitable for LDR and STR addressing modes"
                      (:constant (member 0))
                      (:constant integer)
                      (:constant arm-offset))
-	      
+
          (:generator 1
           (sb-assem:inst str value (arm-mem-shifter sap offset))))
 
@@ -225,7 +225,7 @@ suitable for LDR and STR addressing modes"
          (multiple-value-bind (index shift offset)
              (check-arm-fixnum-addressing index scale offset)
 	   (list ',%mwrite-name value sap index shift offset))))))
-	       
+
 
 
 (define-fast-mread-mwrite :mread-name fast-mread/4 :mwrite-name fast-mwrite/4
@@ -239,7 +239,7 @@ suitable for LDR and STR addressing modes"
   (let* ((sizeof-word (truncate (integer-length sb-ext:most-positive-word) 8))
          (name  (concat-symbols 'fast-mword/ sizeof-word '=>fixnum))
          (%name (concat-symbols '% name)))
-    
+
     `(progn
        (eval-always
          (defknown ,%name
@@ -253,7 +253,7 @@ suitable for LDR and STR addressing modes"
          (sb-c:define-vop (,%name)
            (:policy :fast-safe)
            (:translate ,%name)
-         
+
            (:args (x :scs (sb-vm::unsigned-reg)))
            (:arg-types sb-vm::unsigned-num)
            (:results (y :scs (sb-vm::any-reg)))
@@ -275,14 +275,14 @@ suitable for LDR and STR addressing modes"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defknown %fast-sap+
-    (fast-sap fixnum arm-fixnum-shift arm-offset)
-    (fast-sap)
+(defknown %ffi-address+
+    (ffi-address fixnum arm-fixnum-shift arm-offset)
+    (ffi-address)
     (sb-c::flushable sb-c::foldable sb-c::movable sb-c::always-translatable))
 
-(sb-c:define-vop (%fast-sap+)
+(sb-c:define-vop (%ffi-address+)
   (:policy :fast-safe)
-  (:translate %fast-sap+)
+  (:translate %ffi-address+)
   (:args (sap   :scs (sb-vm::sap-reg))
 	 (index :scs (sb-vm::any-reg)))
   (:info shift offset)
@@ -298,9 +298,9 @@ suitable for LDR and STR addressing modes"
    (sb-assem:inst add r sap (arm-reg-shifter
 			     index (fixnum- shift +n-fixnum-tag-bits+)))))
 
-(sb-c:define-vop (%fast-sap+-c)
+(sb-c:define-vop (%ffi-address+-c)
   (:policy :fast-safe)
-  (:translate %fast-sap+)
+  (:translate %ffi-address+)
 
   (:args (sap   :scs (sb-vm::sap-reg)))
   (:info index shift offset)
@@ -308,7 +308,7 @@ suitable for LDR and STR addressing modes"
 	      (:constant (member 0))
 	      (:constant integer)
 	      (:constant arm-offset))
-	      
+
   (:results   (r :scs (sb-vm::sap-reg)))
   (:result-types sb-sys:system-area-pointer)
 
@@ -316,15 +316,15 @@ suitable for LDR and STR addressing modes"
    1
    (sb-assem:inst add r sap (arm-reg-shifter offset))))
 
-(defmacro fast-sap+ (sap index &key (scale +fixnum-zero-mask+1+) (offset 0))
+(defmacro ffi-address+ (sap index &key (scale +fixnum-zero-mask+1+) (offset 0))
   (multiple-value-bind (index shift offset)
       (check-arm-fixnum-addressing index scale offset)
-    `(%fast-sap+ ,sap ,index ,shift ,offset)))
+    `(%ffi-address+ ,sap ,index ,shift ,offset)))
 
 
 (defun emit-bulk-transfer (kind tn n-words reg-list)
   (check-type n-words (integer 1 8))
-   
+
   (let ((reg-bitmap 0))
     (declare (type word reg-bitmap))
     (dotimes (i n-words)
@@ -401,14 +401,14 @@ suitable for LDR and STR addressing modes"
                            (compute-opcode direction)
                            (sb-c::tn-offset base) #xf
                            offset))))
-  
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defknown %memcpy/4
-    (fast-sap fast-sap word)
+    (ffi-address ffi-address word)
     (values)
     (sb-c:always-translatable))
 
@@ -524,8 +524,8 @@ suitable for LDR and STR addressing modes"
 			 (dst-scale +fixnum-zero-mask+1+) (dst-offset 0)
 			 (src-scale +fixnum-zero-mask+1+) (src-offset 0))
   (with-gensyms (dsap ssap)
-    `(let ((,dsap (fast-sap+ ,dst ,dst-index :scale ,dst-scale :offset ,dst-offset))
-	   (,ssap (fast-sap+ ,src ,src-index :scale ,src-scale :offset ,src-offset)))
+    `(let ((,dsap (ffi-address+ ,dst ,dst-index :scale ,dst-scale :offset ,dst-offset))
+	   (,ssap (ffi-address+ ,src ,src-index :scale ,src-scale :offset ,src-offset)))
 
        (%memcpy/4 ,dsap ,ssap ,n-words))))
 
@@ -536,7 +536,7 @@ suitable for LDR and STR addressing modes"
 
 
 (defknown %memset/4
-    (fast-sap fixnum word)
+    (ffi-address fixnum word)
     (values)
     (sb-c:always-translatable))
 
@@ -600,6 +600,6 @@ suitable for LDR and STR addressing modes"
 (defmacro fast-memset/4 (ptr index n-words fill-word &key
 			 (scale +fixnum-zero-mask+1+) (offset 0))
   (with-gensyms (sap n)
-    `(let ((,sap (fast-sap+ ,ptr ,index :scale ,scale :offset ,offset))
+    `(let ((,sap (ffi-address+ ,ptr ,index :scale ,scale :offset ,offset))
            (,n ,n-words))
        (%memset/4 ,sap ,fill-word ,n))))

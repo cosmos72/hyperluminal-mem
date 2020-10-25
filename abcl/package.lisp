@@ -24,7 +24,5 @@
   (:import-from #:stmx.lang
                 #:eval-always  #:with-gensym  #:with-gensyms)
 
-  (:export #:fast-sap/4    #:sap=>fast-sap/4 #:fast-sap/4=>sap
-           #:fast-sap/8    #:sap=>fast-sap/8 #:fast-sap/8=>sap
-           #:fast-memcpy/4 #:fast-memset/4 
+  (:export #:fast-memcpy/4 #:fast-memset/4
            #:fast-memcpy/8 #:fast-memset/8))

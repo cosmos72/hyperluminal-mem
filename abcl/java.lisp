@@ -19,7 +19,7 @@
 (defun fast-memcpy/4 (dst dst-index src src-index n-words &key
 			(dst-scale 4) (dst-offset 0)
 			(src-scale 4) (src-offset 0))
-  (declare (type fast-sap/4 dst src)
+  (declare (type ffi-address dst src)
 	   (type fixnum dst-index dst-scale dst-offset)
 	   (type fixnum src-index src-scale src-offset)
 	   (type fixnum n-words))
@@ -48,7 +48,7 @@
     (loop while (plusp n-words)
        do
 	 (setf n (min chunk n-words))
-	 ;; bulkget and bulkput offset refer to the int[], not to the buffer! 
+	 ;; bulkget and bulkput offset refer to the int[], not to the buffer!
 	 (java:jcall +buf4-bulkget+ src buf 0 n)
 	 (java:jcall +buf4-bulkput+ dst buf 0 n)
 	 (decf n-words n))))
@@ -57,7 +57,7 @@
 (defun fast-memcpy/8 (dst dst-index src src-index n-words &key
 			(dst-scale 8) (dst-offset 0)
 			(src-scale 8) (src-offset 0))
-  (declare (type fast-sap/8 dst src)
+  (declare (type ffi-address dst src)
 	   (type fixnum dst-index dst-scale dst-offset)
 	   (type fixnum src-index src-scale src-offset)
 	   (type fixnum n-words))
@@ -69,7 +69,7 @@
 	 do
 	   (let ((value (ffi-mem-get src :long (fixnum+ i src-index))))
 	     (ffi-mem-set value dst :long (fixnum+ i dst-index))))
-			
+
       (return-from fast-memcpy/8 nil)))
 
   (let* ((dst   (sap=>buf8 dst))
@@ -87,14 +87,14 @@
     (loop while (plusp n-words)
        do
 	 (setf n (min chunk n-words))
-	 ;; bulkget and bulkput offset refer to the long[], not to the buffer! 
+	 ;; bulkget and bulkput offset refer to the long[], not to the buffer!
 	 (java:jcall +buf8-bulkget+ src buf 0 n)
 	 (java:jcall +buf8-bulkput+ dst buf 0 n)
 	 (decf n-words n))))
 
 
 (defun fast-memset/4 (ptr index n-words fill-word &key (scale 4) (offset 0))
-  (declare (type fast-sap/4 dst src)
+  (declare (type ffi-address dst src)
 	   (type fixnum index scale offset n-words)
 	   (type (unsigned-byte 32) fill-word))
 
@@ -104,7 +104,7 @@
       (loop while (< index end) do
 	   (ffi-mem-set fill-word ptr :unsigned-int index)
            (incf index))
-	     
+
       (return-from fast-memset/4 nil)))
 
   (let* ((ptr   (sap=>buf4 ptr))
@@ -122,13 +122,13 @@
     (loop while (plusp n-words)
        do
 	 (setf n (min chunk n-words))
-	 ;; bulkput offset refer to the int[], not to the buffer! 
+	 ;; bulkput offset refer to the int[], not to the buffer!
 	 (java:jcall +buf4-bulkput+ ptr buf 0 n)
 	 (decf n-words n))))
 
 
 (defun fast-memset/8 (ptr index n-words fill-word &key (scale 8) (offset 0))
-  (declare (type fast-sap/8 dst src)
+  (declare (type ffi-address dst src)
 	   (type fixnum index scale offset n-words)
 	   (type (unsigned-byte 32) fill-word))
 
@@ -156,8 +156,6 @@
     (loop while (plusp n-words)
        do
 	 (setf n (min chunk n-words))
-	 ;; bulkput offset refer to the int[], not to the buffer! 
+	 ;; bulkput offset refer to the int[], not to the buffer!
 	 (java:jcall +buf8-bulkput+ ptr buf 0 n)
 	 (decf n-words n))))
-
-

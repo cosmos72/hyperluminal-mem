@@ -16,15 +16,6 @@
 (in-package :hyperluminal-mem-sbcl)
 
 
-(deftype fast-sap ()
-  "A faster implementation of foreign pointers (sap).
-Implementation note: for SBCL, FAST-SAP is identical to normal CFFI-SYS:FOREIGN-POINTER
-i.e. they are SB-SYS:SYSTEM-AREA-POINTER"
-  'cffi-sys:foreign-pointer)
-
-(deftype fast-sap/4 () 'cffi-sys:foreign-pointer)
-(deftype fast-sap/8 () 'cffi-sys:foreign-pointer)
-
 (deftype word () 'sb-ext:word)
 
 (defconstant +n-fixnum-tag-bits+ sb-vm:n-fixnum-tag-bits
@@ -49,14 +40,3 @@ in the representation of a FIXNUM")
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-         
-(declaim (inline sap=>fast-sap/4))
-(defun sap=>fast-sap/4 (x)
-  (the fast-sap/4 x))
-
-(declaim (inline sap=>fast-sap/8))
-(defun sap=>fast-sap/8 (x)
-  (the fast-sap/8 x))
-
-

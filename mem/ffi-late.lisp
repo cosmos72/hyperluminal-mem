@@ -45,12 +45,12 @@ count and expect memory lengths in words, not in bytes."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; memset ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-           
+
 (defun !memset-bytes (ptr start-byte n-bytes fill-byte)
   (declare (type maddress ptr)
            (type (unsigned-byte 8) fill-byte)
            (type mem-word start-byte n-bytes))
-  
+
   #-abcl
   (when (> n-bytes 32)
     (unless (zerop start-byte) (setf ptr (cffi-sys:inc-pointer ptr start-byte)))
@@ -76,33 +76,33 @@ count and expect memory lengths in words, not in bytes."
                     (end end-index))
 
     #?+hlmem/fast-memset
-    (fast-memset-words (sap=>fast-sap ptr) i n-words fill-word)
+    (fast-memset-words ptr i n-words fill-word)
 
     #?-hlmem/fast-memset
     (progn
-      ;; ARM has no SAP+INDEX*SCALE+OFFSET addressing,
+      ;; ARM has no ptr+INDEX*SCALE+OFFSET addressing,
       #?+(and hlmem/fast-mem (or x86 x86-64))
-      (let ((sap      (the fast-sap (sap=>fast-sap ptr))))
+      (progn
 
         (loop while (>= n-words 8)
            do
-             (fast-mset-word fill-word sap i :offset (* 0 +msizeof-word+))
-             (fast-mset-word fill-word sap i :offset (* 1 +msizeof-word+))
-             (fast-mset-word fill-word sap i :offset (* 2 +msizeof-word+))
-             (fast-mset-word fill-word sap i :offset (* 3 +msizeof-word+))
-             (fast-mset-word fill-word sap i :offset (* 4 +msizeof-word+))
-             (fast-mset-word fill-word sap i :offset (* 5 +msizeof-word+))
-             (fast-mset-word fill-word sap i :offset (* 6 +msizeof-word+))
-             (fast-mset-word fill-word sap i :offset (* 7 +msizeof-word+))
+             (fast-mset-word fill-word ptr i :offset (* 0 +msizeof-word+))
+             (fast-mset-word fill-word ptr i :offset (* 1 +msizeof-word+))
+             (fast-mset-word fill-word ptr i :offset (* 2 +msizeof-word+))
+             (fast-mset-word fill-word ptr i :offset (* 3 +msizeof-word+))
+             (fast-mset-word fill-word ptr i :offset (* 4 +msizeof-word+))
+             (fast-mset-word fill-word ptr i :offset (* 5 +msizeof-word+))
+             (fast-mset-word fill-word ptr i :offset (* 6 +msizeof-word+))
+             (fast-mset-word fill-word ptr i :offset (* 7 +msizeof-word+))
              (incf-mem-size i 8)
              (decf-mem-size n-words 8))
 
         (loop while (> n-words 0)
            do
-             (fast-mset-word fill-word sap i)
+             (fast-mset-word fill-word ptr i)
              (incf-mem-size i)
              (decf-mem-size n-words)))
-      
+
       #?-(and hlmem/fast-mem (or x86 x86-64))
       (progn
         #+(and sbcl (not x86))
@@ -118,7 +118,7 @@ count and expect memory lengths in words, not in bytes."
                (mset-word ptr i3 fill-word)
                (incf-mem-size i 4)
                (decf-mem-size n-words 4)))
-        
+
         (loop while (> n-words 0)
            do
              (mset-word ptr i fill-word)
@@ -157,7 +157,7 @@ count and expect memory lengths in words, not in bytes."
       (return-from mzero-words nil)))
 
   (memset-words ptr 0 start-index n-words))
-  
+
 
 #?+hlmem/fast-memset
 (define-compiler-macro mzero-words (&whole form ptr start-index n-words)
@@ -178,7 +178,7 @@ count and expect memory lengths in words, not in bytes."
       (unless (zerop si) (setf src (cffi-sys:inc-pointer src si)))
       (osicat-posix:memcpy dst src n-bytes)
       (return-from !memcpy-bytes nil))
-        
+
     (dotimes (i n-bytes)
       (mset-byte dst (mem-size+ i di)
 		 (mget-byte src (mem-size+ i si))))))
@@ -191,8 +191,8 @@ count and expect memory lengths in words, not in bytes."
                     (di dst-index))
 
     #?+hlmem/fast-memcpy
-    (fast-memcpy-words (sap=>fast-sap dst) di (sap=>fast-sap src) si n-words)
-      
+    (fast-memcpy-words dst di src si n-words)
+
     #?-hlmem/fast-memcpy
     (progn
       #-abcl ;; no osicat-posix on ABCL yet :-(

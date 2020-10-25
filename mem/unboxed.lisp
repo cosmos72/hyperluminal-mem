@@ -19,7 +19,7 @@
 
 (eval-always
   (when (< +most-positive-vid+ +most-positive-character+)
-    
+
     (error "cannot compile HYPERLUMINAL-MEM: assuming ~S-bit characters (i.e. Unicode),
     cannot fit them in the ~S bits reserved by ABI." +character/bits+ +mem-vid/bits+)))
 
@@ -44,17 +44,17 @@
   "Type for offsets and sizes of serialized data. It is in units of a mem-word,
 i.e. 1 means one mem-word."
   `(unsigned-byte ,+mem-size/bits+))
-                            
-                              
 
 
-(deftype mem-unboxed-except-ratio-symbol () 
+
+
+(deftype mem-unboxed-except-ratio-symbol ()
   "Union of all types (except ratio and symbol) that can be stored as unboxed in memory store"
   '(or mem-int character boolean
     #?+hlmem/sfloat/inline single-float
     #?+hlmem/dfloat/inline double-float))
 
-(deftype mem-unboxed-except-ratio () 
+(deftype mem-unboxed-except-ratio ()
   "Union of all types (except ratio) that can be stored as unboxed in memory store"
   '(or mem-int character boolean symbol
     #?+hlmem/sfloat/inline single-float
@@ -108,8 +108,8 @@ i.e. 1 means one mem-word."
 (defmacro decf-mem-size (place &optional (delta 1))
   `(decf (the mem-size ,place) (the mem-size ,delta)))
 
-    
-  
+
+
 (defun !mdump (stream ptr &optional (start-index 0) (end-index (1+ start-index)))
   "dump the contents of raw memory. useful for debugging"
   (declare (type maddress ptr)
@@ -158,7 +158,7 @@ i.e. 1 means one mem-word."
        (values
         (%to-tag ,word)
         (%to-vid ,word)))))
-       
+
 
 (declaim (inline mem-invalid-index?))
 (defun mem-invalid-index? (ptr index)
@@ -238,8 +238,8 @@ i.e. 1 means one mem-word."
            (ash (logand ,numerator #.(1+ (* 2 +mem-ratio/numerator/mask+)))
                 +mem-ratio/denominator/bits+)
            (1- ,denominator)))
-     
-  
+
+
 (declaim (inline mset-ratio))
 (defun mset-ratio (ptr index ratio)
   (declare (type maddress ptr)
@@ -293,7 +293,7 @@ i.e. 1 means one mem-word."
   (mget-vid ptr index))
 
 (defsetf mget-symbol-ref mset-symbol-ref)
-           
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -347,7 +347,7 @@ i.e. 1 means one mem-word."
           ;; (eq value nil) ;; redundant
           ;; (eq value t) ;; redundant
           ;; (eq value +stmx-unbound-tvar+) ;; redundant
-          
+
           (and (typep value 'ratio)
                (let ((numerator (numerator value))
                      (denominator (denominator value)))
@@ -355,11 +355,11 @@ i.e. 1 means one mem-word."
                       (typep denominator 'mem-int)
                       (<= #.(lognot +mem-ratio/numerator/mask+) numerator +mem-ratio/numerator/mask+)
                       (<= 1 denominator #.(1+ +mem-ratio/denominator/mask+)))))
-          
+
           (gethash value +symbols-table+))
       t
       nil))
-          
+
 
 (defun !get-unbound-tvar ()
    +unbound-tvar+)
@@ -417,7 +417,7 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
       #?-hlmem/mem-int=fixnum
       ((typep value 'mem-int)
        (return-from mset-unboxed (mset-int ptr index value)))
-       
+
 
       ;; value is a ratio?
       ((typep value 'ratio)
@@ -431,10 +431,10 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
 
            (mset-word ptr index (%ratio-to-word numerator denominator))
            (return-from mset-unboxed t))
-         
+
          (return-from mset-unboxed nil)))
 
-             
+
       ;; value is a single-float?
       #?+hlmem/sfloat/inline
       ((typep value 'single-float)
@@ -449,7 +449,7 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
        (mset-float/inline :dfloat ptr index value)
        (return-from mset-unboxed t))
 
-      (t 
+      (t
        ;; value is a predefined symbol?
        (let ((ref-vid (gethash value +symbols-table+)))
          (if ref-vid
@@ -470,9 +470,10 @@ Return T on success, or NIL if VALUE is a pointer or must be boxed."
       `(= +mem-int/flag+ (logand ,word +mem-int/flag+))
       #-sbcl
       `(= ,(ash +mem-int/flag+ (- +mem-int/bits+))
-           (ash ,word ,(- +mem-int/bits+)))))
-      
-        
+          (ash ,word ,(- +mem-int/bits+)))
+      ))
+
+
 (declaim (inline mget-unboxed))
 (defun mget-unboxed (ptr index)
   "Try to read an unboxed value (boolean, unbound slot, character or mem-int)
@@ -527,8 +528,3 @@ as multiple values."
 
         (otherwise ;; found a boxed value or a pointer
          (values vid tag))))))
-
-
-
-
-  
