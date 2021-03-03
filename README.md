@@ -489,7 +489,7 @@ also documented in the sources - remember `(describe 'some-symbol)` at REPL.
           (msize-object-slots object index '(x y z))
 
         (defmethod mwrite-object ((object point3d) ptr index end-index)
-          (mwrite-object-slots object ptr index end-index) '(x y z))
+          (mwrite-object-slots object ptr index end-index '(x y z))
 
         (defmethod mread-object ((type (eql 'point3d) ptr index end-index &key)
           (mread-object-slots (make-instance 'point3d) ptr index end-index '(x y z)))
