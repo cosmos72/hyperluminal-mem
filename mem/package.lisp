@@ -76,5 +76,7 @@
            #:decl-msize-class   #:decl-mwrite-class    #:decl-mread-class
            #:decl-mserializable-class
 
+           #:*mread-symbol-not-found-handler*
+
            #:+msizeof-word+ #:+most-positive-word+
            #:!mdump #:!mdump-bytes #:!mdump-bytes-reverse))
