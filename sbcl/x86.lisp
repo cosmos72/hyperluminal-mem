@@ -15,6 +15,8 @@
 
 (in-package :hyperluminal-mem-sbcl)
 
+(enable-#?-syntax)
+
 (deftype x86-scale () '(member 1 2 4 8))
 
 (defmacro x86-fixnum-scale ()
@@ -46,6 +48,30 @@ suitable for MOV addressing modes"
   (dolist (tn-y tn-list)
     (when (sb-c::location= tn-x tn-y)
       (error "unable to compile VOP, argument ~S is stored in conflicting register ~S" tn-x tn-y))))
+
+
+(eval-always
+  (defun make-ea (size &key base index (scale 1) (disp 0))
+    (declare (ignorable size))
+    #+#.(hlm-sbcl::compile-if-func :sb-vm :ea)
+    (sb-vm::ea disp base index scale)
+
+    #-#.(hlm-sbcl::compile-if-func :sb-vm :ea)
+    (sb-vm::make-ea size :base base :index index :scale scale :disp disp)))
+
+(eval-always
+  (defun reg-in-size (reg size)
+    (declare (ignorable size))
+    #+x86 reg
+
+    #-x86 (progn
+            #?+(and (symbol :sb-x86-64-asm :sized-thing)
+                    (symbol :sb-x86-64-asm :tn-reg))
+            (sb-x86-64-asm::sized-thing (sb-x86-64-asm::tn-reg reg) size)
+
+            #?-(and (symbol :sb-x86-64-asm :sized-thing)
+                    (symbol :sb-x86-64-asm :tn-reg))
+            (sb-vm::reg-in-size reg size))))
 
 
 (defmacro define-fast-mread-mwrite (&key mread-name mwrite-name type size)
@@ -94,11 +120,10 @@ suitable for MOV addressing modes"
 
          (:generator 2
           (sb-assem:inst mov
-                         #+x86 r
-                         #-x86 (sb-vm::reg-in-size r ,size)
-                         (sb-vm::make-ea ,size :base sap :index index
-                                         :scale (ash (the fixnum scale) (- +n-fixnum-tag-bits+))
-                                         :disp offset))))
+                         (reg-in-size r ,size)
+                         (make-ea ,size :base sap :index index
+                                        :scale (ash (the fixnum scale) (- +n-fixnum-tag-bits+))
+                                        :disp offset))))
 
        (sb-c:define-vop (,%mread-name-c)
          (:policy :fast-safe)
@@ -116,9 +141,8 @@ suitable for MOV addressing modes"
 
          (:generator 1
           (sb-assem:inst mov
-                         #+x86 r
-                         #-x86 (sb-vm::reg-in-size r ,size)
-                         (sb-vm::make-ea ,size :base sap :disp offset))))
+                         (reg-in-size r ,size)
+                         (make-ea ,size :base sap :disp offset))))
 
        (sb-c:define-vop (,%mwrite-name)
          (:policy :fast-safe)
@@ -140,11 +164,10 @@ suitable for MOV addressing modes"
 
          (:generator 2
           (sb-assem:inst mov
-                         (sb-vm::make-ea ,size :base sap :index index
-                                         :scale (ash (the fixnum scale) (- +n-fixnum-tag-bits+))
-                                         :disp offset)
-                         #+x86 value
-                         #-x86 (sb-vm::reg-in-size value ,size))))
+                         (make-ea ,size :base sap :index index
+                                        :scale (ash (the fixnum scale) (- +n-fixnum-tag-bits+))
+                                        :disp offset)
+                         (reg-in-size value ,size))))
 
        (sb-c:define-vop (,%mwrite-name-c)
          (:policy :fast-safe)
@@ -160,9 +183,8 @@ suitable for MOV addressing modes"
 
          (:generator 1
           (sb-assem:inst mov
-                         (sb-vm::make-ea ,size :base sap :disp offset)
-                         #+x86 value
-                         #-x86 (sb-vm::reg-in-size value ,size))))
+                         (make-ea ,size :base sap :disp offset)
+                         (reg-in-size value ,size))))
 
        (defmacro ,mread-name (sap index
                               &key (scale +fixnum-zero-mask+1+) (offset 0))
@@ -222,10 +244,10 @@ suitable for MOV addressing modes"
 
          (:generator 2
           (sb-assem:inst lea r
-                         (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                         :base sap :index index
-                                         :scale (ash (the fixnum scale) (- +n-fixnum-tag-bits+))
-                                         :disp offset)))))
+                         (make-ea #+x86 :dword #-x86 :qword
+                                  :base sap :index index
+                                  :scale (ash (the fixnum scale) (- +n-fixnum-tag-bits+))
+                                  :disp offset)))))
 
      (eval-always
        (sb-c:define-vop (%ffi-address+/const)
@@ -251,8 +273,8 @@ suitable for MOV addressing modes"
 
                 (t
                  (sb-assem:inst lea r
-                                (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                                :base sap :disp offset)))))))
+                                (make-ea #+x86 :dword #-x86 :qword
+                                         :base sap :disp offset)))))))
 
      (defmacro ffi-address+ (sap index
                           &key (scale +fixnum-zero-mask+1+) (offset 0))
@@ -300,11 +322,11 @@ suitable for MOV addressing modes"
            (:generator 1
             (cond ((not (sb-c::location= x y))
                    (if (= +n-fixnum-tag-bits+ 1)
-                       (sb-assem::inst lea y (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                                             :base x :index x))
-                       (sb-assem::inst lea y (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                                             :index x
-                                                             :scale (ash 1 +n-fixnum-tag-bits+)))))
+                       (sb-assem::inst lea y (make-ea #+x86 :dword #-x86 :qword
+                                                      :base x :index x))
+                       (sb-assem::inst lea y (make-ea #+x86 :dword #-x86 :qword
+                                                      :index x
+                                                      :scale (ash 1 +n-fixnum-tag-bits+)))))
                   (t
                    (sb-c::move y x)
                    (sb-assem::inst shl y +n-fixnum-tag-bits+))))))
@@ -376,17 +398,17 @@ suitable for MOV addressing modes"
                 (check-location-not-member n-words   rsi rdi))
 
               (sb-assem:inst lea rsi
-                             (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                             :base src :index src-index
-                                             :scale (ash (the fixnum src-scale)
-                                                         (- +n-fixnum-tag-bits+))
-                                             :disp src-offset))
+                             (make-ea #+x86 :dword #-x86 :qword
+                                      :base src :index src-index
+                                      :scale (ash (the fixnum src-scale)
+                                                  (- +n-fixnum-tag-bits+))
+                                      :disp src-offset))
               (sb-assem:inst lea rdi
-                             (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                             :base dst :index dst-index
-                                             :scale (ash (the fixnum dst-scale)
-                                                         (- +n-fixnum-tag-bits+))
-                                             :disp dst-offset))
+                             (make-ea #+x86 :dword #-x86 :qword
+                                      :base dst :index dst-index
+                                      :scale (ash (the fixnum dst-scale)
+                                                  (- +n-fixnum-tag-bits+))
+                                      :disp dst-offset))
               (sb-c::move rcx n-words)
               ;; (sb-assem:inst std) ; not needed
               (sb-assem:inst rep)
@@ -482,19 +504,18 @@ suitable for MOV addressing modes"
                 (check-location-not-member fill-word rcx rdi))
 
               (sb-assem:inst lea rdi
-                             (sb-vm::make-ea #+x86 :dword #-x86 :qword
-                                             :base sap :index index
-                                             :scale (ash (the fixnum scale)
-                                                         (- +n-fixnum-tag-bits+))
-                                             :disp offset))
+                             (make-ea #+x86 :dword #-x86 :qword
+                                      :base sap :index index
+                                      :scale (ash (the fixnum scale)
+                                                  (- +n-fixnum-tag-bits+))
+                                      :disp offset))
               (sb-c::move rcx n-words)
               (sb-c::move rax fill-word)
               ;; (sb-assem:inst std) ; not needed
               (sb-assem:inst rep)
               (sb-assem:inst stos
-                             #+x86 rax
-                             #-x86 (sb-vm::reg-in-size rax ,size))
-
+                             #+#.(hlm-sbcl::lisp-version>= '(2 1 5)) ,size
+                             #-#.(hlm-sbcl::lisp-version>= '(2 1 5)) (reg-in-size rax ,size))
               #+x86
               (progn
                 (sb-assem:inst pop rdi)

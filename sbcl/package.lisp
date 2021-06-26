@@ -17,6 +17,7 @@
 
 (in-package :cl-user)
 
+(stmx.lang:enable-#?-syntax)
 
 (defpackage #:hyperluminal-mem-sbcl
   (:nicknames #:hlm-sbcl)
@@ -24,7 +25,7 @@
   (:import-from #:stmx.asm
                 #:find-symbol*)
   (:import-from #:stmx.lang
-                #:eval-always  #:with-gensym  #:with-gensyms)
+                #:enable-#?-syntax #:eval-always  #:with-gensym  #:with-gensyms)
 
   #+arm
   (:export #:fast-mread/4  #:fast-mwrite/4   #:fast-mword/4=>fixnum
